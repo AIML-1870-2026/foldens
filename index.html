@@ -40,7 +40,6 @@
             height: 100vh;
             text-align: center;
             padding: 2rem;
-            pointer-events: none;
         }
 
         h1 {
@@ -50,6 +49,7 @@
             margin-bottom: 1.5rem;
             letter-spacing: 0.02em;
             text-shadow: 0 2px 20px rgba(0, 0, 0, 0.5);
+            pointer-events: none;
         }
 
         .greeting {
@@ -60,6 +60,7 @@
             max-width: 600px;
             text-shadow: 0 1px 10px rgba(0, 0, 0, 0.5);
             margin-bottom: 3rem;
+            pointer-events: none;
         }
 
         .nav-buttons {
@@ -82,7 +83,6 @@
             cursor: pointer;
             text-decoration: none;
             transition: all 0.3s ease;
-            pointer-events: auto;
         }
 
         .nav-btn:hover {
@@ -95,10 +95,6 @@
             #particleCanvas {
                 display: none;
             }
-
-            body {
-                background: #000000;
-            }
         }
 
         @media (max-width: 768px) {
@@ -108,6 +104,12 @@
 
             .greeting {
                 font-size: 1.1rem;
+                margin-bottom: 2rem;
+            }
+
+            .nav-btn {
+                padding: 0.6rem 1.2rem;
+                font-size: 0.9rem;
             }
         }
     </style>
@@ -119,22 +121,19 @@
         <h1>foldens</h1>
         <p class="greeting">Hello, welcome to my corner of the internet</p>
         <nav class="nav-buttons">
-            <a href="../" class="nav-btn">Home</a>
-            <a href="../stellar-web/" class="nav-btn">Stellar Web</a>
-            <a href="../echoes-of-blue/" class="nav-btn">Echoes of Blue</a>
-            <a href="../starfield/" class="nav-btn">Starfield</a>
+            <a href="stellar-web/" class="nav-btn">Stellar Web</a>
+            <a href="echoes-of-blue/" class="nav-btn">Echoes of Blue</a>
+            <a href="starfield/" class="nav-btn">Starfield</a>
         </nav>
     </div>
 
     <script>
-        // Check for reduced motion preference
         const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
         if (!prefersReducedMotion) {
             const canvas = document.getElementById('particleCanvas');
             const ctx = canvas.getContext('2d');
 
-            // Set canvas size
             function resizeCanvas() {
                 canvas.width = window.innerWidth;
                 canvas.height = window.innerHeight;
@@ -142,86 +141,58 @@
             resizeCanvas();
             window.addEventListener('resize', resizeCanvas);
 
-            // Mouse position
-            let mouse = {
-                x: null,
-                y: null,
-                radius: 150
-            };
+            let mouse = { x: null, y: null, radius: 150 };
 
-            window.addEventListener('mousemove', (e) => {
-                mouse.x = e.x;
-                mouse.y = e.y;
-            });
-
-            window.addEventListener('mouseleave', () => {
-                mouse.x = null;
-                mouse.y = null;
-            });
-
-            // Touch support
+            window.addEventListener('mousemove', (e) => { mouse.x = e.x; mouse.y = e.y; });
+            window.addEventListener('mouseleave', () => { mouse.x = null; mouse.y = null; });
             window.addEventListener('touchmove', (e) => {
                 if (e.touches.length > 0) {
                     mouse.x = e.touches[0].clientX;
                     mouse.y = e.touches[0].clientY;
                 }
             });
+            window.addEventListener('touchend', () => { mouse.x = null; mouse.y = null; });
 
-            window.addEventListener('touchend', () => {
-                mouse.x = null;
-                mouse.y = null;
-            });
-
-            // Blob colors - neon green/chartreuse palette
             const colors = [
-                { r: 127, g: 255, b: 0 },    // chartreuse
-                { r: 173, g: 255, b: 47 },   // green yellow
-                { r: 0, g: 255, b: 127 },    // spring green
-                { r: 50, g: 205, b: 50 },    // lime green
-                { r: 154, g: 255, b: 102 },  // light neon green
-                { r: 57, g: 255, b: 20 }     // neon green
+                { r: 127, g: 255, b: 0 },
+                { r: 173, g: 255, b: 47 },
+                { r: 0, g: 255, b: 127 },
+                { r: 50, g: 205, b: 50 },
+                { r: 154, g: 255, b: 102 },
+                { r: 57, g: 255, b: 20 }
             ];
 
-            // Particle class
             class Particle {
-                constructor() {
-                    this.reset();
-                }
+                constructor() { this.reset(); }
 
                 reset() {
                     this.x = Math.random() * canvas.width;
                     this.y = Math.random() * canvas.height;
-                    this.size = Math.random() * 120 + 60; // 60-180px - larger blobs
+                    this.size = Math.random() * 120 + 60;
                     this.baseSize = this.size;
                     this.speedX = (Math.random() - 0.5) * 0.4;
                     this.speedY = (Math.random() - 0.5) * 0.4;
                     this.color = colors[Math.floor(Math.random() * colors.length)];
-                    this.opacity = Math.random() * 0.3 + 0.4; // 0.4-0.7 - more visible
+                    this.opacity = Math.random() * 0.3 + 0.4;
                     this.angle = Math.random() * Math.PI * 2;
                     this.angleSpeed = (Math.random() - 0.5) * 0.015;
-                    this.blur = Math.random() * 15 + 10; // 10-25px - more blur for glow
+                    this.blur = Math.random() * 15 + 10;
                     this.targetX = this.x;
                     this.targetY = this.y;
-
-                    // For organic movement
                     this.offset = Math.random() * Math.PI * 2;
                     this.waveSpeed = Math.random() * 0.015 + 0.008;
-                    this.waveAmplitude = Math.random() * 40 + 30;
                 }
 
                 update() {
-                    // Ambient wave motion
                     this.offset += this.waveSpeed;
                     this.targetX += this.speedX + Math.sin(this.offset) * 0.3;
                     this.targetY += this.speedY + Math.cos(this.offset * 0.7) * 0.3;
 
-                    // Wrap around edges
                     if (this.targetX > canvas.width + this.size) this.targetX = -this.size;
                     if (this.targetX < -this.size) this.targetX = canvas.width + this.size;
                     if (this.targetY > canvas.height + this.size) this.targetY = -this.size;
                     if (this.targetY < -this.size) this.targetY = canvas.height + this.size;
 
-                    // Mouse interaction - repulsion
                     if (mouse.x != null && mouse.y != null) {
                         const dx = mouse.x - this.targetX;
                         const dy = mouse.y - this.targetY;
@@ -230,26 +201,18 @@
                         if (distance < mouse.radius) {
                             const force = (mouse.radius - distance) / mouse.radius;
                             const angle = Math.atan2(dy, dx);
-
-                            // Repel particles
                             this.targetX -= Math.cos(angle) * force * 8;
                             this.targetY -= Math.sin(angle) * force * 8;
-
-                            // Deform size slightly
                             this.size = this.baseSize * (1 + force * 0.3);
                         } else {
-                            // Return to base size
                             this.size += (this.baseSize - this.size) * 0.1;
                         }
                     } else {
                         this.size += (this.baseSize - this.size) * 0.1;
                     }
 
-                    // Smooth movement
                     this.x += (this.targetX - this.x) * 0.05;
                     this.y += (this.targetY - this.y) * 0.05;
-
-                    // Rotation
                     this.angle += this.angleSpeed;
                 }
 
@@ -258,13 +221,8 @@
                     ctx.translate(this.x, this.y);
                     ctx.rotate(this.angle);
 
-                    // Add neon glow effect with multiple layers
-                    ctx.filter = 'none';
-
-                    // Outer glow
                     ctx.shadowBlur = this.blur * 2;
                     ctx.shadowColor = `rgba(${this.color.r}, ${this.color.g}, ${this.color.b}, ${this.opacity * 0.8})`;
-
                     ctx.fillStyle = `rgba(${this.color.r}, ${this.color.g}, ${this.color.b}, ${this.opacity * 0.3})`;
 
                     ctx.beginPath();
@@ -282,19 +240,12 @@
                             const prevAngle = (Math.PI * 2 * (i - 1)) / points;
                             const prevVariance = Math.sin(this.offset * 3 + (i - 1)) * 0.25 + 0.9;
                             const prevRadius = this.size * prevVariance / 2;
-                            const prevX = Math.cos(prevAngle) * prevRadius;
-                            const prevY = Math.sin(prevAngle) * prevRadius;
-
-                            const cpX = (prevX + x) / 2 * 1.3;
-                            const cpY = (prevY + y) / 2 * 1.3;
-
-                            ctx.quadraticCurveTo(cpX, cpY, x, y);
+                            ctx.quadraticCurveTo((Math.cos(prevAngle) * prevRadius + x) / 2 * 1.3, (Math.sin(prevAngle) * prevRadius + y) / 2 * 1.3, x, y);
                         }
                     }
                     ctx.closePath();
                     ctx.fill();
 
-                    // Core blob with stronger color
                     ctx.shadowBlur = this.blur;
                     ctx.fillStyle = `rgba(${this.color.r}, ${this.color.g}, ${this.color.b}, ${this.opacity})`;
 
@@ -312,13 +263,7 @@
                             const prevAngle = (Math.PI * 2 * (i - 1)) / points;
                             const prevVariance = Math.sin(this.offset * 3 + (i - 1)) * 0.25 + 0.9;
                             const prevRadius = this.size * prevVariance / 2 * 0.7;
-                            const prevX = Math.cos(prevAngle) * prevRadius;
-                            const prevY = Math.sin(prevAngle) * prevRadius;
-
-                            const cpX = (prevX + x) / 2 * 1.3;
-                            const cpY = (prevY + y) / 2 * 1.3;
-
-                            ctx.quadraticCurveTo(cpX, cpY, x, y);
+                            ctx.quadraticCurveTo((Math.cos(prevAngle) * prevRadius + x) / 2 * 1.3, (Math.sin(prevAngle) * prevRadius + y) / 2 * 1.3, x, y);
                         }
                     }
                     ctx.closePath();
@@ -328,25 +273,19 @@
                 }
             }
 
-            // Determine particle count based on screen size
             const isMobile = window.innerWidth < 768;
             const particleCount = isMobile ? 8 : 12;
-
-            // Create particles
             const particles = [];
             for (let i = 0; i < particleCount; i++) {
                 particles.push(new Particle());
             }
 
-            // Animation loop
             function animate() {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
-
                 particles.forEach(particle => {
                     particle.update();
                     particle.draw();
                 });
-
                 requestAnimationFrame(animate);
             }
 
