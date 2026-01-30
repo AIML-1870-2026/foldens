@@ -668,6 +668,96 @@ class ParticleSystem {
         }
     }
 
+    // Section 3: Animation & Polish - Enhanced effects
+
+    // Ambient dust particles floating in dungeon
+    ambientDust(canvasWidth, canvasHeight) {
+        if (Math.random() < 0.02) {
+            this.emit(
+                Math.random() * canvasWidth,
+                canvasHeight + 10,
+                1,
+                {
+                    color: 'rgba(255, 255, 255, 0.3)',
+                    speed: 0.3,
+                    life: 8,
+                    size: 1.5,
+                    vy: -0.3,
+                    vx: (Math.random() - 0.5) * 0.5,
+                    shrink: false,
+                    gravity: -0.01
+                }
+            );
+        }
+    }
+
+    // Torch ember particles
+    torchEmber(x, y) {
+        if (Math.random() < 0.1) {
+            this.emit(x, y, 1, {
+                color: COLORS.torchOrange,
+                speed: 1,
+                life: 1,
+                size: 2,
+                vy: -2,
+                vx: (Math.random() - 0.5) * 2,
+                gravity: -0.05
+            });
+        }
+    }
+
+    // Power-up activation burst
+    powerupBurst(x, y, color) {
+        // Ring of particles
+        for (let i = 0; i < 16; i++) {
+            const angle = (i / 16) * Math.PI * 2;
+            this.particles.push(new Particle(x, y, {
+                vx: Math.cos(angle) * 4,
+                vy: Math.sin(angle) * 4,
+                color: color,
+                life: 0.6,
+                size: 4,
+                friction: 0.95
+            }));
+        }
+    }
+
+    // Death fragment particles (snake segments breaking apart)
+    deathFragments(segments, cellSize) {
+        segments.forEach((seg, i) => {
+            const x = seg.x * cellSize + cellSize / 2;
+            const y = seg.y * cellSize + cellSize / 2;
+            const delay = i * 20;
+
+            setTimeout(() => {
+                this.emit(x, y, 5, {
+                    color: COLORS.snakePrimary,
+                    speed: 5 + Math.random() * 3,
+                    life: 0.8,
+                    size: 4 + Math.random() * 3,
+                    gravity: 0.15
+                });
+            }, delay);
+        });
+    }
+
+    // Combo fire effect (particles rising at high combos)
+    comboFire(x, y, comboLevel) {
+        if (comboLevel >= 3) {
+            const intensity = comboLevel - 2;
+            for (let i = 0; i < intensity * 2; i++) {
+                this.emit(x + (Math.random() - 0.5) * 20, y, 1, {
+                    color: comboLevel >= 5 ? COLORS.gold : COLORS.torchOrange,
+                    speed: 0.5,
+                    life: 0.5,
+                    size: 3,
+                    vy: -3 - Math.random() * 2,
+                    gravity: -0.1
+                });
+            }
+        }
+    }
+
     update(dt) {
         this.particles = this.particles.filter(p => p.update(dt));
     }
