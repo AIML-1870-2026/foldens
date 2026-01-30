@@ -892,3 +892,242 @@ input[type="checkbox"] {
     0%, 100% { filter: hue-rotate(0deg); }
     50% { filter: hue-rotate(60deg); }
 }
+
+/* ============================================
+   SECTION 13: USER INTERFACE ENHANCEMENTS
+   Additional UI components and polish
+   ============================================ */
+
+/* Animated snake logo for start screen */
+@keyframes snakeSlither {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(5px) rotate(2deg); }
+    75% { transform: translateX(-5px) rotate(-2deg); }
+}
+
+.game-title {
+    animation: titlePulse 2s ease-in-out infinite, snakeSlither 4s ease-in-out infinite;
+}
+
+/* Button press feedback */
+.menu-btn:active {
+    transform: scale(0.95);
+    box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.5);
+}
+
+/* Focus states for keyboard navigation */
+.menu-btn:focus {
+    outline: 2px solid var(--snake-primary);
+    outline-offset: 2px;
+}
+
+.menu-btn:focus-visible {
+    outline: 3px solid var(--snake-glow);
+    outline-offset: 3px;
+    box-shadow: 0 0 20px rgba(93, 173, 226, 0.5);
+}
+
+/* Loading indicator */
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid var(--stone-mid);
+    border-top-color: var(--snake-primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Tooltip styling */
+.tooltip {
+    position: absolute;
+    background: var(--ui-background);
+    border: 1px solid var(--ui-border);
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-family: var(--font-body);
+    font-size: 14px;
+    max-width: 200px;
+    z-index: 100;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.tooltip.visible {
+    opacity: 1;
+}
+
+/* Progress bar component */
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background: var(--stone-dark);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--snake-primary), var(--snake-glow));
+    transition: width 0.3s ease;
+}
+
+/* Notification toast */
+.toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--ui-background);
+    border: 2px solid var(--gold);
+    padding: 15px 25px;
+    border-radius: 4px;
+    font-family: var(--font-body);
+    font-size: 18px;
+    z-index: 1000;
+    transition: transform 0.3s ease;
+}
+
+.toast.visible {
+    transform: translateX(-50%) translateY(0);
+}
+
+/* ============================================
+   SECTION 14-15: ACCESSIBILITY & TECHNICAL
+   Enhanced accessibility and responsive design
+   ============================================ */
+
+/* High contrast mode */
+.high-contrast {
+    --stone-dark: #000000;
+    --stone-mid: #1a1a1a;
+    --stone-light: #333333;
+    --ui-text: #ffffff;
+    --snake-primary: #00ffff;
+    --gold: #ffff00;
+}
+
+/* Large text mode */
+.large-text .menu-btn {
+    font-size: 28px;
+    padding: 16px 35px;
+}
+
+.large-text h2 {
+    font-size: 32px;
+}
+
+.large-text .stat-row {
+    font-size: 22px;
+}
+
+/* Screen reader only text */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Focus trap indicator */
+.focus-trap-active {
+    box-shadow: inset 0 0 0 3px var(--snake-primary);
+}
+
+/* Pause indicator for screen readers */
+[aria-live="polite"] {
+    position: absolute;
+    left: -9999px;
+}
+
+/* Responsive design */
+@media (max-width: 850px) {
+    #game-container {
+        width: 100vw;
+        height: 75vw;
+        max-height: 100vh;
+        border-radius: 0;
+    }
+
+    .menu-panel {
+        padding: 20px;
+        max-width: 95%;
+    }
+
+    .menu-btn {
+        min-width: 200px;
+        font-size: 20px;
+        padding: 10px 20px;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .achievements-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .level-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+@media (max-width: 600px) {
+    .game-title {
+        font-size: 32px;
+    }
+
+    .game-subtitle {
+        font-size: 12px;
+    }
+
+    h2 {
+        font-size: 18px;
+    }
+
+    .menu-btn {
+        min-width: 180px;
+        font-size: 18px;
+    }
+
+    .achievements-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .level-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* Print styles (for statistics) */
+@media print {
+    #game-container {
+        box-shadow: none;
+        border: 1px solid #000;
+    }
+
+    .menu-btn {
+        display: none;
+    }
+
+    .screen {
+        background: white;
+        color: black;
+    }
+}
+
+/* Ensure canvas doesn't blur on high DPI */
+#game-canvas {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+}
