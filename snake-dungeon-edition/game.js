@@ -1052,6 +1052,156 @@ class DungeonMap {
             }
         }
     }
+
+    // ============================================
+    // Section 7: Environment Features
+    // Terrain zones, bonus rooms, decorative elements
+    // ============================================
+
+    // Spawn a random terrain zone
+    spawnTerrainZone(snakeHead) {
+        const zoneTypes = ['MUD', 'ICE'];
+        const type = Utils.randomChoice(zoneTypes);
+
+        // Random zone size (3x3 to 6x6)
+        const width = Utils.randomInt(3, 6);
+        const height = Utils.randomInt(3, 6);
+
+        // Find valid position
+        let attempts = 30;
+        while (attempts > 0) {
+            const x = Utils.randomInt(3, this.width - width - 3);
+            const y = Utils.randomInt(3, this.height - height - 3);
+
+            // Check distance from snake
+            const dist = Utils.distance(x + width/2, y + height/2, snakeHead.x, snakeHead.y);
+            if (dist < 5) {
+                attempts--;
+                continue;
+            }
+
+            // Check not blocking doors
+            let blocksDoor = false;
+            for (const door of this.doors) {
+                if (door.x >= x && door.x < x + width &&
+                    door.y >= y && door.y < y + height) {
+                    blocksDoor = true;
+                    break;
+                }
+            }
+
+            if (!blocksDoor) {
+                this.setTerrain(x, y, type, width, height);
+                return { x, y, width, height, type };
+            }
+
+            attempts--;
+        }
+        return null;
+    }
+
+    // Create a lava border zone (danger zone around edges)
+    createLavaBorder(thickness = 1) {
+        for (let y = 0; y < this.height; y++) {
+            for (let x = 0; x < this.width; x++) {
+                // Skip walls
+                if (this.isWall(x, y) || this.isDoor(x, y)) continue;
+
+                // Check if near border
+                const distFromEdge = Math.min(
+                    x, y,
+                    this.width - 1 - x,
+                    this.height - 1 - y
+                );
+
+                if (distFromEdge <= thickness) {
+                    this.terrain[y][x] = 'LAVA';
+                }
+            }
+        }
+    }
+
+    // Get all terrain zones for rendering
+    getTerrainZones() {
+        const zones = [];
+        const visited = new Set();
+
+        for (let y = 0; y < this.height; y++) {
+            for (let x = 0; x < this.width; x++) {
+                const terrain = this.terrain[y][x];
+                if (terrain !== 'NORMAL' && !visited.has(`${x},${y}`)) {
+                    // Flood fill to find zone bounds
+                    const zone = this.floodFillZone(x, y, terrain, visited);
+                    if (zone) zones.push(zone);
+                }
+            }
+        }
+        return zones;
+    }
+
+    // Helper for finding terrain zone boundaries
+    floodFillZone(startX, startY, terrainType, visited) {
+        const cells = [];
+        const queue = [{ x: startX, y: startY }];
+
+        while (queue.length > 0) {
+            const { x, y } = queue.shift();
+            const key = `${x},${y}`;
+
+            if (visited.has(key)) continue;
+            if (!Utils.inBounds(x, y, this.width, this.height)) continue;
+            if (this.terrain[y][x] !== terrainType) continue;
+
+            visited.add(key);
+            cells.push({ x, y });
+
+            queue.push({ x: x + 1, y });
+            queue.push({ x: x - 1, y });
+            queue.push({ x, y: y + 1 });
+            queue.push({ x, y: y - 1 });
+        }
+
+        if (cells.length === 0) return null;
+
+        // Calculate bounding box
+        const minX = Math.min(...cells.map(c => c.x));
+        const minY = Math.min(...cells.map(c => c.y));
+        const maxX = Math.max(...cells.map(c => c.x));
+        const maxY = Math.max(...cells.map(c => c.y));
+
+        return {
+            type: terrainType,
+            x: minX,
+            y: minY,
+            width: maxX - minX + 1,
+            height: maxY - minY + 1,
+            cells
+        };
+    }
+
+    // Generate decorative elements (bones, rocks, cobwebs)
+    generateDecorations() {
+        const decorations = [];
+        const decorTypes = ['bone', 'rock', 'cobweb', 'crack'];
+
+        for (let y = 2; y < this.height - 2; y++) {
+            for (let x = 2; x < this.width - 2; x++) {
+                if (this.isWall(x, y) || this.isDoor(x, y)) continue;
+
+                // 5% chance for decoration
+                if (Math.random() < 0.05) {
+                    decorations.push({
+                        x,
+                        y,
+                        type: Utils.randomChoice(decorTypes),
+                        rotation: Math.random() * Math.PI * 2,
+                        scale: 0.5 + Math.random() * 0.5
+                    });
+                }
+            }
+        }
+        return decorations;
+    }
 }
 
 // ============================================
