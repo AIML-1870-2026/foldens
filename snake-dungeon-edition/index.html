@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snake: Dungeon Edition</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="game-canvas"></canvas>
+
+        <!-- Start Screen -->
+        <div id="start-screen" class="screen">
+            <div class="title-container">
+                <h1 class="game-title">SNAKE</h1>
+                <h2 class="game-subtitle">Dungeon Edition</h2>
+            </div>
+            <div class="high-score-display">
+                <span class="label">HIGH SCORE:</span>
+                <span id="menu-high-score">0</span>
+            </div>
+            <div class="menu-options">
+                <button class="menu-btn" id="btn-survival">Survival Mode</button>
+                <button class="menu-btn" id="btn-puzzle">Puzzle Mode</button>
+                <button class="menu-btn" id="btn-stats">Statistics</button>
+                <button class="menu-btn" id="btn-achievements">Achievements</button>
+                <button class="menu-btn" id="btn-settings">Settings</button>
+                <button class="menu-btn" id="btn-credits">Credits</button>
+            </div>
+        </div>
+
+        <!-- HUD -->
+        <div id="hud" class="hidden">
+            <div class="hud-top-left">
+                <div class="hud-score">
+                    <span class="label">SCORE:</span>
+                    <span id="current-score">0</span>
+                </div>
+                <div class="hud-length">
+                    <span class="label">LENGTH:</span>
+                    <span id="snake-length">3</span>
+                </div>
+            </div>
+            <div class="hud-top-right">
+                <div class="hud-high-score">
+                    <span class="label">HI:</span>
+                    <span id="high-score">0</span>
+                </div>
+                <div id="power-up-indicators"></div>
+            </div>
+            <div id="combo-meter" class="hidden">
+                <div class="combo-bar"></div>
+                <span class="combo-text">x1</span>
+            </div>
+            <div class="hud-bottom-right">
+                <span class="label">LV:</span>
+                <span id="difficulty-level">1</span>
+            </div>
+        </div>
+
+        <!-- Pause Menu -->
+        <div id="pause-menu" class="screen hidden">
+            <div class="menu-panel">
+                <h2>PAUSED</h2>
+                <div class="menu-options">
+                    <button class="menu-btn" id="btn-resume">Resume</button>
+                    <button class="menu-btn" id="btn-restart">Restart</button>
+                    <button class="menu-btn" id="btn-pause-settings">Settings</button>
+                    <button class="menu-btn" id="btn-quit">Quit to Menu</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="game-over-screen" class="screen hidden">
+            <div class="menu-panel game-over-panel">
+                <h2 id="game-over-title">GAME OVER</h2>
+                <div id="new-high-score-banner" class="hidden">NEW HIGH SCORE!</div>
+                <div class="final-score">
+                    <span class="label">FINAL SCORE:</span>
+                    <span id="final-score">0</span>
+                </div>
+                <div class="run-stats">
+                    <div class="stat-row">
+                        <span>Time Survived:</span>
+                        <span id="stat-time">0:00</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>Length Reached:</span>
+                        <span id="stat-length">0</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>Food Eaten:</span>
+                        <span id="stat-food">0</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>Best Combo:</span>
+                        <span id="stat-combo">x1</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>Power-ups Used:</span>
+                        <span id="stat-powerups">0</span>
+                    </div>
+                </div>
+                <div id="achievements-unlocked" class="hidden">
+                    <h3>Achievements Unlocked!</h3>
+                    <div id="achievement-list"></div>
+                </div>
+                <div class="game-tip">
+                    <span id="tip-text"></span>
+                </div>
+                <div class="menu-options">
+                    <button class="menu-btn primary" id="btn-quick-restart">Quick Restart</button>
+                    <button class="menu-btn" id="btn-return-menu">Return to Menu</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Screen -->
+        <div id="settings-screen" class="screen hidden">
+            <div class="menu-panel">
+                <h2>SETTINGS</h2>
+                <div class="settings-group">
+                    <h3>Audio</h3>
+                    <div class="setting-row">
+                        <label>Master Volume</label>
+                        <input type="range" id="master-volume" min="0" max="100" value="70">
+                    </div>
+                    <div class="setting-row">
+                        <label>Music Volume</label>
+                        <input type="range" id="music-volume" min="0" max="100" value="50">
+                    </div>
+                    <div class="setting-row">
+                        <label>SFX Volume</label>
+                        <input type="range" id="sfx-volume" min="0" max="100" value="70">
+                    </div>
+                </div>
+                <div class="settings-group">
+                    <h3>Gameplay</h3>
+                    <div class="setting-row">
+                        <label>Reduced Motion</label>
+                        <input type="checkbox" id="reduced-motion">
+                    </div>
+                </div>
+                <div class="menu-options">
+                    <button class="menu-btn" id="btn-settings-back">Back</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics Screen -->
+        <div id="stats-screen" class="screen hidden">
+            <div class="menu-panel wide-panel">
+                <h2>STATISTICS</h2>
+                <div class="stats-grid">
+                    <div class="stat-category">
+                        <h3>General</h3>
+                        <div class="stat-row"><span>Total Games:</span><span id="total-games">0</span></div>
+                        <div class="stat-row"><span>Total Time:</span><span id="total-time">0:00</span></div>
+                        <div class="stat-row"><span>Total Score:</span><span id="total-score">0</span></div>
+                        <div class="stat-row"><span>Highest Score:</span><span id="highest-score">0</span></div>
+                    </div>
+                    <div class="stat-category">
+                        <h3>Records</h3>
+                        <div class="stat-row"><span>Longest Snake:</span><span id="longest-snake">0</span></div>
+                        <div class="stat-row"><span>Longest Survival:</span><span id="longest-survival">0:00</span></div>
+                        <div class="stat-row"><span>Best Combo:</span><span id="best-combo">x1</span></div>
+                    </div>
+                    <div class="stat-category">
+                        <h3>Food Eaten</h3>
+                        <div class="stat-row"><span>Fruits:</span><span id="fruits-eaten">0</span></div>
+                        <div class="stat-row"><span>Gems:</span><span id="gems-eaten">0</span></div>
+                        <div class="stat-row"><span>Energy Orbs:</span><span id="orbs-eaten">0</span></div>
+                        <div class="stat-row"><span>Golden Skulls:</span><span id="skulls-eaten">0</span></div>
+                    </div>
+                    <div class="stat-category">
+                        <h3>Power-ups</h3>
+                        <div class="stat-row"><span>Slow Motion:</span><span id="slowmo-used">0</span></div>
+                        <div class="stat-row"><span>Ghost Mode:</span><span id="ghost-used">0</span></div>
+                        <div class="stat-row"><span>Shields:</span><span id="shield-used">0</span></div>
+                        <div class="stat-row"><span>Time Freeze:</span><span id="freeze-used">0</span></div>
+                        <div class="stat-row"><span>Trim:</span><span id="trim-used">0</span></div>
+                    </div>
+                </div>
+                <div class="menu-options">
+                    <button class="menu-btn" id="btn-stats-back">Back</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Achievements Screen -->
+        <div id="achievements-screen" class="screen hidden">
+            <div class="menu-panel wide-panel">
+                <h2>ACHIEVEMENTS</h2>
+                <div id="achievements-grid" class="achievements-grid"></div>
+                <div class="menu-options">
+                    <button class="menu-btn" id="btn-achievements-back">Back</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Credits Screen -->
+        <div id="credits-screen" class="screen hidden">
+            <div class="menu-panel">
+                <h2>CREDITS</h2>
+                <div class="credits-content">
+                    <p class="credit-section">
+                        <span class="credit-title">Snake: Dungeon Edition</span>
+                    </p>
+                    <p class="credit-section">
+                        <span class="credit-label">Design & Development</span>
+                        <span class="credit-name">AIML 1870</span>
+                    </p>
+                    <p class="credit-section">
+                        <span class="credit-label">Fonts</span>
+                        <span class="credit-name">Press Start 2P & VT323</span>
+                        <span class="credit-name">Google Fonts</span>
+                    </p>
+                    <p class="credit-section">
+                        <span class="credit-label">Built with</span>
+                        <span class="credit-name">HTML5 Canvas</span>
+                        <span class="credit-name">Vanilla JavaScript</span>
+                    </p>
+                </div>
+                <div class="menu-options">
+                    <button class="menu-btn" id="btn-credits-back">Back</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Puzzle Level Select -->
+        <div id="puzzle-select-screen" class="screen hidden">
+            <div class="menu-panel wide-panel">
+                <h2>SELECT LEVEL</h2>
+                <div id="level-grid" class="level-grid"></div>
+                <div class="menu-options">
+                    <button class="menu-btn" id="btn-puzzle-back">Back</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>

@@ -1,0 +1,739 @@
+/* Snake: Dungeon Edition - Styles */
+
+/* ============================================
+   CSS VARIABLES - Color Palette from Spec
+   ============================================ */
+:root {
+    /* Primary Dungeon Colors */
+    --stone-dark: #1a1a2e;
+    --stone-mid: #2d2d44;
+    --stone-light: #4a4a6a;
+
+    /* Organic Accent Colors */
+    --moss-green: #3d5c3d;
+    --vine-green: #5a8a5a;
+    --moss-dark: #2a3d2a;
+
+    /* Light and Fire */
+    --torch-orange: #d4943a;
+    --torch-yellow: #f4d03f;
+    --torch-glow: rgba(212, 148, 58, 0.3);
+
+    /* Snake Energy Colors */
+    --snake-primary: #5dade2;
+    --snake-glow: #85c1e9;
+    --snake-energy: #d6eaf8;
+
+    /* Treasure and Pickups */
+    --gold: #f4d03f;
+    --gem-red: #e74c3c;
+    --gem-blue: #3498db;
+    --gem-green: #2ecc71;
+    --gem-purple: #9b59b6;
+
+    /* Hazard Colors */
+    --poison-purple: #6c3483;
+    --bomb-red: #922b21;
+    --danger-orange: #e67e22;
+
+    /* UI Colors */
+    --ui-background: rgba(10, 10, 20, 0.9);
+    --ui-border: #4a4a6a;
+    --ui-text: #f5f5dc;
+    --ui-accent: #5dade2;
+
+    /* Background */
+    --void-black: #000000;
+    --floor-dark: #16213e;
+    --floor-pattern: #1f2f50;
+
+    /* Fonts */
+    --font-title: 'Press Start 2P', cursive;
+    --font-body: 'VT323', monospace;
+}
+
+/* ============================================
+   RESET & BASE STYLES
+   ============================================ */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--font-body);
+    background-color: var(--void-black);
+    color: var(--ui-text);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+/* ============================================
+   GAME CONTAINER
+   ============================================ */
+#game-container {
+    position: relative;
+    width: 800px;
+    height: 600px;
+    background: linear-gradient(135deg, var(--stone-dark), var(--floor-dark));
+    border: 4px solid var(--ui-border);
+    border-radius: 8px;
+    box-shadow:
+        0 0 20px rgba(93, 173, 226, 0.2),
+        inset 0 0 50px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+}
+
+#game-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+/* ============================================
+   SCREEN OVERLAYS
+   ============================================ */
+.screen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: radial-gradient(ellipse at center,
+        rgba(26, 26, 46, 0.95) 0%,
+        rgba(0, 0, 0, 0.98) 100%);
+    z-index: 10;
+    animation: fadeIn 0.3s ease-out;
+}
+
+.hidden {
+    display: none !important;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* ============================================
+   TYPOGRAPHY
+   ============================================ */
+.game-title {
+    font-family: var(--font-title);
+    font-size: 48px;
+    color: var(--snake-primary);
+    text-shadow:
+        3px 3px 0 var(--stone-dark),
+        -1px -1px 0 var(--snake-glow),
+        0 0 30px rgba(93, 173, 226, 0.5);
+    letter-spacing: 4px;
+    animation: titlePulse 2s ease-in-out infinite;
+}
+
+.game-subtitle {
+    font-family: var(--font-title);
+    font-size: 18px;
+    color: var(--torch-orange);
+    text-shadow: 2px 2px 0 var(--stone-dark);
+    margin-top: 10px;
+    letter-spacing: 2px;
+}
+
+@keyframes titlePulse {
+    0%, 100% {
+        text-shadow:
+            3px 3px 0 var(--stone-dark),
+            -1px -1px 0 var(--snake-glow),
+            0 0 30px rgba(93, 173, 226, 0.5);
+    }
+    50% {
+        text-shadow:
+            3px 3px 0 var(--stone-dark),
+            -1px -1px 0 var(--snake-glow),
+            0 0 50px rgba(93, 173, 226, 0.8);
+    }
+}
+
+h2 {
+    font-family: var(--font-title);
+    font-size: 24px;
+    color: var(--torch-orange);
+    text-shadow: 2px 2px 0 var(--stone-dark);
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+h3 {
+    font-family: var(--font-title);
+    font-size: 12px;
+    color: var(--snake-primary);
+    margin-bottom: 10px;
+}
+
+/* ============================================
+   MENU PANEL
+   ============================================ */
+.menu-panel {
+    background: var(--ui-background);
+    border: 3px solid var(--ui-border);
+    border-radius: 8px;
+    padding: 30px 40px;
+    box-shadow:
+        0 0 20px rgba(0, 0, 0, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    max-width: 90%;
+    max-height: 90%;
+    overflow-y: auto;
+}
+
+.wide-panel {
+    width: 700px;
+}
+
+/* ============================================
+   BUTTONS
+   ============================================ */
+.menu-btn {
+    font-family: var(--font-body);
+    font-size: 24px;
+    color: var(--ui-text);
+    background: linear-gradient(180deg, var(--stone-mid) 0%, var(--stone-dark) 100%);
+    border: 2px solid var(--ui-border);
+    border-radius: 4px;
+    padding: 12px 30px;
+    margin: 8px 0;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    min-width: 250px;
+}
+
+.menu-btn:hover {
+    background: linear-gradient(180deg, var(--stone-light) 0%, var(--stone-mid) 100%);
+    border-color: var(--snake-primary);
+    color: var(--snake-glow);
+    transform: scale(1.02);
+    box-shadow: 0 0 15px rgba(93, 173, 226, 0.3);
+}
+
+.menu-btn:active {
+    transform: scale(0.98);
+}
+
+.menu-btn.primary {
+    background: linear-gradient(180deg, var(--snake-primary) 0%, #3498db 100%);
+    color: var(--stone-dark);
+    font-weight: bold;
+}
+
+.menu-btn.primary:hover {
+    background: linear-gradient(180deg, var(--snake-glow) 0%, var(--snake-primary) 100%);
+    color: var(--stone-dark);
+}
+
+.menu-options {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 20px;
+}
+
+/* ============================================
+   HIGH SCORE DISPLAY
+   ============================================ */
+.high-score-display {
+    font-family: var(--font-title);
+    font-size: 14px;
+    color: var(--gold);
+    margin: 30px 0;
+    padding: 15px 25px;
+    background: rgba(244, 208, 63, 0.1);
+    border: 2px solid var(--gold);
+    border-radius: 4px;
+}
+
+.high-score-display .label {
+    color: var(--ui-text);
+    margin-right: 10px;
+}
+
+/* ============================================
+   HUD (Heads-Up Display)
+   ============================================ */
+#hud {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 5;
+    padding: 10px 15px;
+}
+
+.hud-top-left {
+    position: absolute;
+    top: 10px;
+    left: 15px;
+}
+
+.hud-top-right {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    text-align: right;
+}
+
+.hud-bottom-right {
+    position: absolute;
+    bottom: 10px;
+    right: 15px;
+    font-family: var(--font-title);
+    font-size: 12px;
+}
+
+.hud-score, .hud-length, .hud-high-score {
+    font-family: var(--font-title);
+    font-size: 12px;
+    margin-bottom: 5px;
+    text-shadow: 2px 2px 0 var(--void-black);
+}
+
+.hud-score .label, .hud-length .label, .hud-high-score .label {
+    color: var(--ui-text);
+    opacity: 0.8;
+}
+
+.hud-score span:last-child {
+    color: var(--gold);
+}
+
+.hud-high-score span:last-child {
+    color: var(--torch-orange);
+}
+
+/* ============================================
+   COMBO METER
+   ============================================ */
+#combo-meter {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -150px);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.combo-bar {
+    width: 100px;
+    height: 8px;
+    background: var(--stone-dark);
+    border: 1px solid var(--ui-border);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.combo-bar::after {
+    content: '';
+    display: block;
+    width: 0%;
+    height: 100%;
+    background: linear-gradient(90deg, var(--snake-primary), var(--gold));
+    transition: width 0.2s ease;
+}
+
+.combo-text {
+    font-family: var(--font-title);
+    font-size: 16px;
+    color: var(--gold);
+    text-shadow: 2px 2px 0 var(--void-black);
+}
+
+/* ============================================
+   POWER-UP INDICATORS
+   ============================================ */
+#power-up-indicators {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+    justify-content: flex-end;
+}
+
+.power-up-indicator {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 8px;
+    background: var(--ui-background);
+    border: 1px solid var(--ui-border);
+    border-radius: 4px;
+    font-family: var(--font-body);
+    font-size: 16px;
+}
+
+.power-up-indicator.expiring {
+    animation: powerupFlash 0.3s ease-in-out infinite;
+}
+
+@keyframes powerupFlash {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* ============================================
+   GAME OVER SCREEN
+   ============================================ */
+.game-over-panel {
+    text-align: center;
+}
+
+#game-over-title {
+    font-size: 32px;
+    color: var(--bomb-red);
+}
+
+#new-high-score-banner {
+    font-family: var(--font-title);
+    font-size: 16px;
+    color: var(--gold);
+    padding: 10px 20px;
+    background: rgba(244, 208, 63, 0.2);
+    border: 2px solid var(--gold);
+    border-radius: 4px;
+    margin: 15px 0;
+    animation: highScorePulse 0.5s ease-in-out infinite;
+}
+
+@keyframes highScorePulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+.final-score {
+    font-family: var(--font-title);
+    font-size: 20px;
+    margin: 20px 0;
+}
+
+.final-score .label {
+    color: var(--ui-text);
+    display: block;
+    font-size: 12px;
+    margin-bottom: 5px;
+}
+
+.final-score span:last-child {
+    color: var(--gold);
+    font-size: 36px;
+}
+
+.run-stats {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 15px;
+    border-radius: 4px;
+    margin: 20px 0;
+}
+
+.stat-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 5px 0;
+    font-size: 18px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.stat-row:last-child {
+    border-bottom: none;
+}
+
+.game-tip {
+    font-size: 16px;
+    color: var(--snake-glow);
+    font-style: italic;
+    margin: 15px 0;
+    padding: 10px;
+    background: rgba(93, 173, 226, 0.1);
+    border-radius: 4px;
+}
+
+/* ============================================
+   SETTINGS
+   ============================================ */
+.settings-group {
+    margin: 20px 0;
+    padding: 15px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+}
+
+.setting-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+}
+
+.setting-row label {
+    font-size: 18px;
+}
+
+input[type="range"] {
+    width: 150px;
+    height: 8px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: var(--stone-dark);
+    border-radius: 4px;
+    outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    background: var(--snake-primary);
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+input[type="checkbox"] {
+    width: 24px;
+    height: 24px;
+    cursor: pointer;
+    accent-color: var(--snake-primary);
+}
+
+/* ============================================
+   STATISTICS
+   ============================================ */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    margin: 20px 0;
+}
+
+.stat-category {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 15px;
+    border-radius: 4px;
+}
+
+.stat-category h3 {
+    border-bottom: 1px solid var(--ui-border);
+    padding-bottom: 8px;
+    margin-bottom: 10px;
+}
+
+/* ============================================
+   ACHIEVEMENTS
+   ============================================ */
+.achievements-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+    margin: 20px 0;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.achievement-card {
+    background: rgba(0, 0, 0, 0.4);
+    border: 2px solid var(--ui-border);
+    border-radius: 4px;
+    padding: 15px;
+    text-align: center;
+    transition: all 0.2s ease;
+}
+
+.achievement-card.unlocked {
+    border-color: var(--gold);
+    background: rgba(244, 208, 63, 0.1);
+}
+
+.achievement-card.locked {
+    opacity: 0.5;
+    filter: grayscale(1);
+}
+
+.achievement-icon {
+    font-size: 32px;
+    margin-bottom: 10px;
+}
+
+.achievement-name {
+    font-family: var(--font-title);
+    font-size: 10px;
+    color: var(--ui-text);
+    margin-bottom: 5px;
+}
+
+.achievement-desc {
+    font-size: 14px;
+    color: var(--stone-light);
+}
+
+/* ============================================
+   CREDITS
+   ============================================ */
+.credits-content {
+    text-align: center;
+    margin: 20px 0;
+}
+
+.credit-section {
+    margin: 20px 0;
+}
+
+.credit-title {
+    font-family: var(--font-title);
+    font-size: 14px;
+    color: var(--snake-primary);
+}
+
+.credit-label {
+    display: block;
+    font-size: 14px;
+    color: var(--torch-orange);
+    margin-bottom: 5px;
+}
+
+.credit-name {
+    display: block;
+    font-size: 20px;
+    color: var(--ui-text);
+}
+
+/* ============================================
+   PUZZLE LEVEL SELECT
+   ============================================ */
+.level-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 15px;
+    margin: 20px 0;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.level-card {
+    background: rgba(0, 0, 0, 0.4);
+    border: 2px solid var(--ui-border);
+    border-radius: 4px;
+    padding: 15px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.level-card:hover:not(.locked) {
+    border-color: var(--snake-primary);
+    transform: scale(1.05);
+}
+
+.level-card.locked {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.level-card.completed {
+    border-color: var(--gem-green);
+}
+
+.level-number {
+    font-family: var(--font-title);
+    font-size: 20px;
+    color: var(--gold);
+}
+
+.level-stars {
+    color: var(--gold);
+    margin-top: 5px;
+}
+
+/* ============================================
+   SCORE POPUP ANIMATION
+   ============================================ */
+.score-popup {
+    position: absolute;
+    font-family: var(--font-title);
+    font-size: 14px;
+    color: var(--gold);
+    text-shadow: 2px 2px 0 var(--void-black);
+    pointer-events: none;
+    animation: scoreFloat 1s ease-out forwards;
+}
+
+.score-popup.combo {
+    color: var(--snake-glow);
+    font-size: 18px;
+}
+
+@keyframes scoreFloat {
+    0% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    100% {
+        opacity: 0;
+        transform: translateY(-50px);
+    }
+}
+
+/* ============================================
+   REDUCED MOTION
+   ============================================ */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+.reduced-motion *,
+.reduced-motion *::before,
+.reduced-motion *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+}
+
+/* ============================================
+   VIGNETTE OVERLAY
+   ============================================ */
+.vignette-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    background: radial-gradient(ellipse at center,
+        transparent 50%,
+        rgba(0, 0, 0, 0.3) 80%,
+        rgba(0, 0, 0, 0.6) 100%);
+    z-index: 4;
+}
+
+/* ============================================
+   TITLE CONTAINER ANIMATION
+   ============================================ */
+.title-container {
+    text-align: center;
+    margin-bottom: 10px;
+}
