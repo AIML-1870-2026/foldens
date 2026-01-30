@@ -1345,6 +1345,7 @@ class PowerUp {
 }
 
 // Hazard Entity
+// Section 6: Hazard System - Enhanced behaviors and visual effects
 class Hazard {
     constructor(x, y, type, options = {}) {
         this.x = x;
@@ -1352,10 +1353,19 @@ class Hazard {
         this.type = type;
         this.active = true;
 
+        // Section 6: Enhanced visual properties
+        this.visualX = x;
+        this.visualY = y;
+        this.shakeOffset = { x: 0, y: 0 };
+        this.pulsePhase = Math.random() * Math.PI * 2;
+        this.dangerLevel = 0; // 0-1 based on proximity to snake
+
         // For bombs
         if (type === 'BOMB') {
             this.countdown = HAZARD_TYPES.BOMB.countdown;
             this.exploded = false;
+            this.beepTimer = 1000;
+            this.flashState = false;
         }
 
         // For moving obstacles
@@ -1366,35 +1376,90 @@ class Hazard {
             this.range = options.range || 5;
             this.moveTimer = 0;
             this.frozen = false;
+            this.rollAngle = 0; // Rolling animation
+        }
+
+        // For poison
+        if (type === 'POISON') {
+            this.bubblePhase = Math.random() * Math.PI * 2;
         }
     }
 
     update(dt, frozen = false) {
+        this.pulsePhase += dt * 0.005;
+
         if (this.type === 'BOMB' && !this.exploded) {
             this.countdown -= dt;
+
+            // Intensifying shake as bomb nears explosion
+            const urgency = 1 - (this.countdown / HAZARD_TYPES.BOMB.countdown);
+            this.shakeOffset.x = (Math.random() - 0.5) * urgency * 4;
+            this.shakeOffset.y = (Math.random() - 0.5) * urgency * 4;
+
+            // Beep timing (faster near end)
+            this.beepTimer -= dt;
+            if (this.beepTimer <= 0) {
+                this.flashState = !this.flashState;
+                this.beepTimer = Math.max(100, this.countdown / 5);
+            }
+
             if (this.countdown <= 0) {
                 this.exploded = true;
             }
         }
 
-        if (this.type === 'MOVING_OBSTACLE' && !frozen) {
-            this.moveTimer += dt;
-            if (this.moveTimer >= HAZARD_TYPES.MOVING_OBSTACLE.speed) {
-                this.moveTimer = 0;
-                this[this.axis] += this.direction;
+        if (this.type === 'MOVING_OBSTACLE') {
+            // Smooth visual interpolation
+            this.visualX = Utils.lerp(this.visualX, this.x, 0.2);
+            this.visualY = Utils.lerp(this.visualY, this.y, 0.2);
 
-                // Reverse at boundaries
-                if (Math.abs(this[this.axis] - this.startPos) >= this.range) {
-                    this.direction *= -1;
+            if (!frozen) {
+                this.moveTimer += dt;
+                if (this.moveTimer >= HAZARD_TYPES.MOVING_OBSTACLE.speed) {
+                    this.moveTimer = 0;
+                    this[this.axis] += this.direction;
+
+                    // Rolling animation
+                    this.rollAngle += Math.PI / 4 * this.direction;
+
+                    // Reverse at boundaries
+                    if (Math.abs(this[this.axis] - this.startPos) >= this.range) {
+                        this.direction *= -1;
+                    }
                 }
             }
         }
+
+        if (this.type === 'POISON') {
+            this.bubblePhase += dt * 0.003;
+        }
+    }
+
+    // Section 6: Calculate danger based on distance to player
+    updateDangerLevel(snakeHead) {
+        const dist = Utils.distance(this.x, this.y, snakeHead.x, snakeHead.y);
+        this.dangerLevel = Math.max(0, 1 - dist / 8);
+    }
+
+    // Get visual shake for rendering
+    getVisualPosition() {
+        return {
+            x: this.x + this.shakeOffset.x,
+            y: this.y + this.shakeOffset.y
+        };
     }
 
     isInExplosionRadius(x, y) {
         if (this.type !== 'BOMB' || !this.exploded) return false;
         const radius = HAZARD_TYPES.BOMB.radius;
         return Utils.distance(x, y, this.x, this.y) <= radius;
+    }
+
+    // Get warning color based on danger level
+    getWarningColor() {
+        if (this.dangerLevel > 0.7) return COLORS.dangerOrange;
+        if (this.dangerLevel > 0.4) return COLORS.torchYellow;
+        return null;
     }
 }
 
