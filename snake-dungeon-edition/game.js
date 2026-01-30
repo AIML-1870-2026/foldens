@@ -1747,6 +1747,7 @@ class ComboManager {
 
 // ============================================
 // SECTION 9: GAME STATE MANAGER
+// Enhanced with game mode specific features
 // ============================================
 
 class GameStateManager {
@@ -1755,6 +1756,32 @@ class GameStateManager {
         this.previousState = null;
         this.gameMode = null;
         this.currentLevel = 0;
+
+        // Section 9: Mode-specific state tracking
+        this.survivalState = {
+            difficultyLevel: 0,
+            hazardsSpawned: 0,
+            wallsSpawned: 0,
+            bonusRoomsEntered: 0,
+            inBonusRoom: false,
+            bonusRoomTimer: 0
+        };
+
+        this.puzzleState = {
+            collected: 0,
+            goal: 0,
+            moves: 0,
+            parTime: 0,
+            parMoves: 0,
+            timeLimit: null,
+            moveLimit: null,
+            flashlightEnabled: false
+        };
+
+        // Transition effects
+        this.transitionAlpha = 0;
+        this.transitionTarget = null;
+        this.transitionCallback = null;
     }
 
     setState(newState) {
@@ -1764,8 +1791,104 @@ class GameStateManager {
 
     setMode(mode) {
         this.gameMode = mode;
+
+        // Reset mode-specific state
+        if (mode === GAME_MODES.SURVIVAL) {
+            this.survivalState = {
+                difficultyLevel: 0,
+                hazardsSpawned: 0,
+                wallsSpawned: 0,
+                bonusRoomsEntered: 0,
+                inBonusRoom: false,
+                bonusRoomTimer: 0
+            };
+        } else if (mode === GAME_MODES.PUZZLE) {
+            this.puzzleState = {
+                collected: 0,
+                goal: 0,
+                moves: 0,
+                parTime: 0,
+                parMoves: 0,
+                timeLimit: null,
+                moveLimit: null,
+                flashlightEnabled: false
+            };
+        }
     }
 
+    // Section 9: Load puzzle level configuration
+    loadPuzzleConfig(level) {
+        this.puzzleState.goal = level.goal.collect;
+        this.puzzleState.parTime = level.parTime * 1000;
+        this.puzzleState.parMoves = level.parMoves;
+        this.puzzleState.timeLimit = level.timeLimit ? level.timeLimit * 1000 : null;
+        this.puzzleState.moveLimit = level.moveLimit || null;
+        this.puzzleState.flashlightEnabled = level.flashlight || false;
+        this.puzzleState.collected = 0;
+        this.puzzleState.moves = 0;
+    }
+
+    // Check if puzzle is complete
+    isPuzzleComplete() {
+        return this.gameMode === GAME_MODES.PUZZLE &&
+               this.puzzleState.collected >= this.puzzleState.goal;
+    }
+
+    // Check if puzzle failed (time/move limits)
+    isPuzzleFailed() {
+        if (this.gameMode !== GAME_MODES.PUZZLE) return false;
+
+        if (this.puzzleState.timeLimit !== null &&
+            this.puzzleState.timeLimit <= 0) {
+            return true;
+        }
+
+        if (this.puzzleState.moveLimit !== null &&
+            this.puzzleState.moves > this.puzzleState.moveLimit) {
+            return true;
+        }
+
+        return false;
+    }
+
+    // Calculate puzzle stars (1-3)
+    calculatePuzzleStars(time, moves) {
+        let stars = 1; // Base star for completion
+
+        if (time <= this.puzzleState.parTime) {
+            stars++;
+        }
+
+        if (moves <= this.puzzleState.parMoves) {
+            stars++;
+        }
+
+        return stars;
+    }
+
+    // Section 9: Bonus room management (Survival mode)
+    enterBonusRoom() {
+        this.survivalState.inBonusRoom = true;
+        this.survivalState.bonusRoomTimer = 10000; // 10 seconds
+        this.survivalState.bonusRoomsEntered++;
+    }
+
+    exitBonusRoom() {
+        this.survivalState.inBonusRoom = false;
+        this.survivalState.bonusRoomTimer = 0;
+    }
+
+    updateBonusRoom(dt) {
+        if (this.survivalState.inBonusRoom) {
+            this.survivalState.bonusRoomTimer -= dt;
+            if (this.survivalState.bonusRoomTimer <= 0) {
+                return true; // Signal to exit bonus room
+            }
+        }
+        return false;
+    }
+
+    // State checks
     isPlaying() {
         return this.currentState === GAME_STATES.PLAYING;
     }
@@ -1780,6 +1903,39 @@ class GameStateManager {
 
     isMenu() {
         return this.currentState === GAME_STATES.MENU;
+    }
+
+    isSurvivalMode() {
+        return this.gameMode === GAME_MODES.SURVIVAL;
+    }
+
+    isPuzzleMode() {
+        return this.gameMode === GAME_MODES.PUZZLE;
+    }
+
+    // Screen transition helper
+    startTransition(targetState, callback) {
+        this.transitionTarget = targetState;
+        this.transitionCallback = callback;
+        this.transitionAlpha = 0;
+    }
+
+    updateTransition(dt) {
+        if (this.transitionTarget !== null) {
+            this.transitionAlpha += dt / 500; // 500ms transition
+
+            if (this.transitionAlpha >= 1) {
+                this.setState(this.transitionTarget);
+                if (this.transitionCallback) {
+                    this.transitionCallback();
+                }
+                this.transitionTarget = null;
+                this.transitionCallback = null;
+                this.transitionAlpha = 0;
+                return true;
+            }
+        }
+        return false;
     }
 }
 
