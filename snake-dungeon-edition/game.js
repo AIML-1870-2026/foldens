@@ -563,6 +563,143 @@ class AudioManager {
             osc.stop(now + i * 0.1 + 0.3);
         });
     }
+
+    // ============================================
+    // Section 11: Audio Design - Additional sounds
+    // ============================================
+
+    // Bomb countdown beep (escalating pitch)
+    playBombBeep(ctx, now, urgency) {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(this.sfxGain);
+
+        osc.type = 'square';
+        const baseFreq = 400 + urgency * 400; // Higher pitch as bomb nears explosion
+        osc.frequency.setValueAtTime(baseFreq, now);
+
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+
+        osc.start(now);
+        osc.stop(now + 0.1);
+    }
+
+    // Ghost mode activation (ethereal whoosh)
+    playGhostActivate(ctx, now) {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(this.sfxGain);
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(200, now);
+        osc.frequency.exponentialRampToValueAtTime(800, now + 0.2);
+        osc.frequency.exponentialRampToValueAtTime(400, now + 0.4);
+
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+
+        osc.start(now);
+        osc.stop(now + 0.5);
+    }
+
+    // Portal enter sound (mystical)
+    playPortalEnter(ctx, now) {
+        for (let i = 0; i < 3; i++) {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(this.sfxGain);
+
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(300 + i * 200, now + i * 0.1);
+            osc.frequency.exponentialRampToValueAtTime(600 + i * 200, now + i * 0.1 + 0.2);
+
+            gain.gain.setValueAtTime(0.15, now + i * 0.1);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.1 + 0.3);
+
+            osc.start(now + i * 0.1);
+            osc.stop(now + i * 0.1 + 0.3);
+        }
+    }
+
+    // Slow motion activate (time distortion)
+    playSlowMotion(ctx, now) {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(this.sfxGain);
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(600, now);
+        osc.frequency.exponentialRampToValueAtTime(200, now + 0.4);
+
+        gain.gain.setValueAtTime(0.25, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+
+        osc.start(now);
+        osc.stop(now + 0.5);
+    }
+
+    // Time freeze sound (crystalline)
+    playTimeFreeze(ctx, now) {
+        const notes = [800, 1200, 1600, 2000];
+        notes.forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(this.sfxGain);
+
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, now + i * 0.05);
+
+            gain.gain.setValueAtTime(0.1, now + i * 0.05);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.05 + 0.2);
+
+            osc.start(now + i * 0.05);
+            osc.stop(now + i * 0.05 + 0.2);
+        });
+    }
+
+    // Level complete fanfare
+    playLevelComplete(ctx, now) {
+        const melody = [523, 659, 784, 1047, 784, 1047]; // C E G C' G C'
+        melody.forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(this.sfxGain);
+
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, now + i * 0.12);
+
+            gain.gain.setValueAtTime(0.2, now + i * 0.12);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.12 + 0.2);
+
+            osc.start(now + i * 0.12);
+            osc.stop(now + i * 0.12 + 0.25);
+        });
+    }
+
+    // Play ambient drip sound (background atmosphere)
+    playAmbientDrip(ctx, now) {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(this.sfxGain);
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1000, now);
+        osc.frequency.exponentialRampToValueAtTime(500, now + 0.1);
+
+        gain.gain.setValueAtTime(0.05, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+
+        osc.start(now);
+        osc.stop(now + 0.15);
+    }
 }
 
 // ============================================
