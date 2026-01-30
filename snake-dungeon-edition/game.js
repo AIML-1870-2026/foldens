@@ -2982,6 +2982,7 @@ class Game {
     setupEventListeners() {
         // Keyboard input
         document.addEventListener('keydown', (e) => this.handleKeyDown(e));
+        document.addEventListener('keyup', (e) => this.input.handleKeyUp(e)); // Bug fix: Add keyup listener
 
         // Menu buttons
         document.getElementById('btn-survival').addEventListener('click', () => this.startSurvivalMode());
@@ -3053,6 +3054,7 @@ class Game {
         this.audio.init();
         this.state.setMode(GAME_MODES.SURVIVAL);
         this.initGame();
+        this.hideAllScreens(); // Bug fix: Hide all screens first
         this.showScreen('hud');
         this.state.setState(GAME_STATES.PLAYING);
     }
@@ -3062,6 +3064,7 @@ class Game {
         this.state.setMode(GAME_MODES.PUZZLE);
         this.state.currentLevel = levelIndex;
         this.initPuzzleGame(levelIndex);
+        this.hideAllScreens(); // Bug fix: Hide all screens first
         this.showScreen('hud');
         this.state.setState(GAME_STATES.PLAYING);
     }
@@ -3558,6 +3561,22 @@ class Game {
         // Track moves for puzzle mode
         if (this.state.gameMode === GAME_MODES.PUZZLE) {
             this.puzzleMoves++;
+        }
+
+        // Bug fix: Check boundary collision (out of bounds)
+        if (newHead.x < 0 || newHead.x >= this.map.width ||
+            newHead.y < 0 || newHead.y >= this.map.height) {
+            if (this.snake.hasShield) {
+                this.breakShield();
+                // Push snake back in bounds
+                this.snake.segments[0] = {
+                    x: Utils.clamp(newHead.x, 0, this.map.width - 1),
+                    y: Utils.clamp(newHead.y, 0, this.map.height - 1)
+                };
+            } else {
+                this.triggerDeath();
+                return;
+            }
         }
 
         // Check door collision (room transition)
