@@ -1273,6 +1273,7 @@ class Food {
 }
 
 // Power-up Entity
+// Section 5: Power-up System - Enhanced visual effects and behaviors
 class PowerUp {
     constructor(x, y, type) {
         this.x = x;
@@ -1280,14 +1281,66 @@ class PowerUp {
         this.type = type;
         this.pulsePhase = Math.random() * Math.PI * 2;
         this.collected = false;
+
+        // Section 5: Enhanced power-up visuals
+        this.rotationAngle = 0; // For spinning effect
+        this.floatOffset = 0; // For floating effect
+        this.glowIntensity = 0.5; // Dynamic glow
+        this.spawnTime = Date.now();
+        this.orbitParticles = []; // Orbiting particle positions
+
+        // Initialize orbit particles (3 orbiting dots)
+        for (let i = 0; i < 3; i++) {
+            this.orbitParticles.push({
+                angle: (i / 3) * Math.PI * 2,
+                distance: 15,
+                speed: 0.003
+            });
+        }
     }
 
     update(dt) {
         this.pulsePhase += dt * 0.004;
+
+        // Section 5: Enhanced animations
+        this.rotationAngle += dt * 0.002;
+        this.floatOffset = Math.sin(this.pulsePhase * 2) * 3;
+        this.glowIntensity = 0.5 + Math.sin(this.pulsePhase) * 0.3;
+
+        // Update orbiting particles
+        this.orbitParticles.forEach(particle => {
+            particle.angle += particle.speed * dt;
+        });
     }
 
     getPulseScale() {
         return 1 + Math.sin(this.pulsePhase) * 0.15;
+    }
+
+    // Get orbiting particle positions for rendering
+    getOrbitPositions(centerX, centerY) {
+        return this.orbitParticles.map(p => ({
+            x: centerX + Math.cos(p.angle) * p.distance,
+            y: centerY + Math.sin(p.angle) * p.distance + this.floatOffset
+        }));
+    }
+
+    // Get appropriate warning message for each power-up type
+    getWarningText() {
+        switch (this.type) {
+            case 'GHOST':
+                return 'Exit walls before time runs out!';
+            case 'SLOW_MOTION':
+                return 'Time flows slowly...';
+            case 'TIME_FREEZE':
+                return 'Hazards frozen!';
+            case 'SHIELD':
+                return 'Protected!';
+            case 'TRIM':
+                return 'Trimmed!';
+            default:
+                return '';
+        }
     }
 }
 
