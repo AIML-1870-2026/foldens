@@ -1213,9 +1213,10 @@ class DungeonMap {
         this.height = level.gridHeight;
         this.walls = [];
         this.doors = [];
+        this.tiles = [];
         this.terrain = [];
 
-        // Reinitialize
+        // Reinitialize tiles and terrain arrays for new dimensions
         for (let y = 0; y < this.height; y++) {
             this.tiles[y] = [];
             this.terrain[y] = [];
@@ -2454,6 +2455,20 @@ class Renderer {
         this.screenShake = { x: 0, y: 0, intensity: 0 };
         this.flashAlpha = 0;
         this.reducedMotion = false;
+        this.cellSize = CONFIG.CELL_SIZE;
+        this.offsetX = 0;
+        this.offsetY = 0;
+    }
+
+    setCellSize(mapWidth, mapHeight) {
+        // Calculate cell size to fit the map in the canvas with some padding
+        const cellW = Math.floor(this.canvas.width / mapWidth);
+        const cellH = Math.floor(this.canvas.height / mapHeight);
+        this.cellSize = Math.min(cellW, cellH);
+
+        // Center the map
+        this.offsetX = Math.floor((this.canvas.width - mapWidth * this.cellSize) / 2);
+        this.offsetY = Math.floor((this.canvas.height - mapHeight * this.cellSize) / 2);
     }
 
     clear() {
@@ -2504,8 +2519,8 @@ class Renderer {
 
     toScreen(gridX, gridY) {
         return {
-            x: gridX * CONFIG.CELL_SIZE + this.screenShake.x,
-            y: gridY * CONFIG.CELL_SIZE + this.screenShake.y
+            x: gridX * this.cellSize + this.screenShake.x + this.offsetX,
+            y: gridY * this.cellSize + this.screenShake.y + this.offsetY
         };
     }
 
@@ -2521,12 +2536,12 @@ class Renderer {
 
                 // Base floor color
                 ctx.fillStyle = terrainData.color;
-                ctx.fillRect(pos.x, pos.y, CONFIG.CELL_SIZE, CONFIG.CELL_SIZE);
+                ctx.fillRect(pos.x, pos.y, this.cellSize, this.cellSize);
 
                 // Add subtle grid pattern
                 ctx.strokeStyle = COLORS.floorPattern;
                 ctx.lineWidth = 0.5;
-                ctx.strokeRect(pos.x, pos.y, CONFIG.CELL_SIZE, CONFIG.CELL_SIZE);
+                ctx.strokeRect(pos.x, pos.y, this.cellSize, this.cellSize);
             }
         }
 
@@ -2536,26 +2551,26 @@ class Renderer {
 
             // Wall base
             ctx.fillStyle = COLORS.stoneMid;
-            ctx.fillRect(pos.x, pos.y, CONFIG.CELL_SIZE, CONFIG.CELL_SIZE);
+            ctx.fillRect(pos.x, pos.y, this.cellSize, this.cellSize);
 
             // Wall highlight (top)
             ctx.fillStyle = COLORS.stoneLight;
-            ctx.fillRect(pos.x, pos.y, CONFIG.CELL_SIZE, 3);
+            ctx.fillRect(pos.x, pos.y, this.cellSize, 3);
 
             // Wall shadow (bottom)
             ctx.fillStyle = COLORS.stoneDark;
-            ctx.fillRect(pos.x, pos.y + CONFIG.CELL_SIZE - 3, CONFIG.CELL_SIZE, 3);
+            ctx.fillRect(pos.x, pos.y + this.cellSize - 3, this.cellSize, 3);
         });
 
         // Draw doors
         map.doors.forEach(door => {
             const pos = this.toScreen(door.x, door.y);
             ctx.fillStyle = COLORS.stoneDark;
-            ctx.fillRect(pos.x, pos.y, CONFIG.CELL_SIZE, CONFIG.CELL_SIZE);
+            ctx.fillRect(pos.x, pos.y, this.cellSize, this.cellSize);
 
             // Archway effect
             ctx.fillStyle = COLORS.voidBlack;
-            ctx.fillRect(pos.x + 2, pos.y + 2, CONFIG.CELL_SIZE - 4, CONFIG.CELL_SIZE - 4);
+            ctx.fillRect(pos.x + 2, pos.y + 2, this.cellSize - 4, this.cellSize - 4);
         });
 
         // Apply flashlight effect if enabled
@@ -2567,7 +2582,7 @@ class Renderer {
     renderFlashlight(center, map) {
         const ctx = this.ctx;
         const centerScreen = this.toScreen(center.x + 0.5, center.y + 0.5);
-        const radius = CONFIG.FLASHLIGHT_RADIUS * CONFIG.CELL_SIZE;
+        const radius = CONFIG.FLASHLIGHT_RADIUS * this.cellSize;
 
         // Create gradient for flashlight
         const gradient = ctx.createRadialGradient(
@@ -2614,7 +2629,7 @@ class Renderer {
             const brightness = 1 - t * 0.4;
 
             // Size (head slightly larger)
-            const size = (i === 0 ? CONFIG.CELL_SIZE * 0.5 : CONFIG.CELL_SIZE * 0.4);
+            const size = (i === 0 ? this.cellSize * 0.5 : this.cellSize * 0.4);
 
             // Ghost effect
             ctx.save();
@@ -2673,7 +2688,7 @@ class Renderer {
             ctx.lineWidth = 3;
             ctx.globalAlpha = 0.7 + Math.sin(Date.now() * 0.01) * 0.3;
             ctx.beginPath();
-            ctx.arc(headPos.x, headPos.y, CONFIG.CELL_SIZE * 0.7, 0, Math.PI * 2);
+            ctx.arc(headPos.x, headPos.y, this.cellSize * 0.7, 0, Math.PI * 2);
             ctx.stroke();
             ctx.restore();
         }
@@ -2684,7 +2699,7 @@ class Renderer {
         const foodData = FOOD_TYPES[food.type];
         const pos = this.toScreen(food.x + 0.5, food.y + 0.5);
         const scale = food.getPulseScale();
-        const size = CONFIG.CELL_SIZE * 0.35 * scale;
+        const size = this.cellSize * 0.35 * scale;
 
         ctx.save();
 
@@ -2723,7 +2738,7 @@ class Renderer {
         const typeData = POWERUP_TYPES[powerup.type];
         const pos = this.toScreen(powerup.x + 0.5, powerup.y + 0.5);
         const scale = powerup.getPulseScale();
-        const size = CONFIG.CELL_SIZE * 0.4 * scale;
+        const size = this.cellSize * 0.4 * scale;
 
         ctx.save();
 
@@ -2743,7 +2758,7 @@ class Renderer {
         ctx.fill();
 
         // Icon
-        ctx.font = `${CONFIG.CELL_SIZE * 0.6}px Arial`;
+        ctx.font = `${this.cellSize * 0.6}px Arial`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(typeData.icon, pos.x, pos.y);
@@ -2755,7 +2770,7 @@ class Renderer {
         const ctx = this.ctx;
         const typeData = HAZARD_TYPES[hazard.type];
         const pos = this.toScreen(hazard.x + 0.5, hazard.y + 0.5);
-        const size = CONFIG.CELL_SIZE * 0.45;
+        const size = this.cellSize * 0.45;
 
         ctx.save();
 
@@ -2766,7 +2781,7 @@ class Renderer {
         ctx.fill();
 
         // Icon
-        ctx.font = `${CONFIG.CELL_SIZE * 0.7}px Arial`;
+        ctx.font = `${this.cellSize * 0.7}px Arial`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(typeData.icon, pos.x, pos.y);
@@ -2781,7 +2796,7 @@ class Renderer {
 
         // Explosion radius indicator for bombs about to explode
         if (hazard.type === 'BOMB' && hazard.countdown < 2000 && !this.reducedMotion) {
-            const radius = HAZARD_TYPES.BOMB.radius * CONFIG.CELL_SIZE;
+            const radius = HAZARD_TYPES.BOMB.radius * this.cellSize;
             ctx.strokeStyle = COLORS.dangerOrange;
             ctx.lineWidth = 2;
             ctx.globalAlpha = 0.5 + Math.sin(Date.now() * 0.02) * 0.3;
@@ -2858,6 +2873,9 @@ class Game {
         this.powerups = [];
         this.hazards = [];
         this.scorePopups = [];
+
+        // Dynamic cell size (calculated based on map dimensions)
+        this.cellSize = CONFIG.CELL_SIZE;
 
         // Game state
         this.score = 0;
@@ -3073,6 +3091,9 @@ class Game {
         // Reset map
         this.map = new DungeonMap(CONFIG.GRID_COLS, CONFIG.GRID_ROWS);
 
+        // Set cell size for survival mode (fixed grid)
+        this.renderer.setCellSize(this.map.width, this.map.height);
+
         // Reset snake
         const startX = Math.floor(CONFIG.GRID_COLS / 2);
         const startY = Math.floor(CONFIG.GRID_ROWS / 2);
@@ -3148,6 +3169,9 @@ class Game {
         // Load level map
         this.map.loadPuzzleLevel(level);
 
+        // Set cell size for puzzle level dimensions
+        this.renderer.setCellSize(this.map.width, this.map.height);
+
         // Reset snake at level start position
         const dir = DIRECTIONS[level.snakeStart.dir];
         this.snake = new Snake(level.snakeStart.x, level.snakeStart.y, dir);
@@ -3191,6 +3215,9 @@ class Game {
         this.activePowerups = {};
         this.slowMotionActive = false;
         this.timeFreezeActive = false;
+
+        // Reset death animation
+        this.deathAnimation = { active: false, timer: 0, slowMoTimer: 0 };
 
         // Reset run stats
         this.runStats = {
@@ -3496,8 +3523,8 @@ class Game {
             if (h.type === 'BOMB' && h.exploded && h.active) {
                 h.active = false;
                 this.particles.explosion(
-                    h.x * CONFIG.CELL_SIZE + CONFIG.CELL_SIZE / 2,
-                    h.y * CONFIG.CELL_SIZE + CONFIG.CELL_SIZE / 2
+                    h.x * this.renderer.cellSize + this.renderer.cellSize / 2 + this.renderer.offsetX,
+                    h.y * this.renderer.cellSize + this.renderer.cellSize / 2 + this.renderer.offsetY
                 );
                 this.renderer.shake(0.8);
                 this.audio.playSound('death');
@@ -3734,8 +3761,8 @@ class Game {
             this.deathAnimation.exploded = true;
             const headPos = this.snake.head;
             this.particles.explosion(
-                headPos.x * CONFIG.CELL_SIZE + CONFIG.CELL_SIZE / 2,
-                headPos.y * CONFIG.CELL_SIZE + CONFIG.CELL_SIZE / 2
+                headPos.x * this.renderer.cellSize + this.renderer.cellSize / 2 + this.renderer.offsetX,
+                headPos.y * this.renderer.cellSize + this.renderer.cellSize / 2 + this.renderer.offsetY
             );
             this.renderer.shake(1);
             this.renderer.flash();
@@ -3855,8 +3882,8 @@ class Game {
 
         // Visual feedback
         const screenPos = {
-            x: food.x * CONFIG.CELL_SIZE + CONFIG.CELL_SIZE / 2,
-            y: food.y * CONFIG.CELL_SIZE + CONFIG.CELL_SIZE / 2
+            x: food.x * this.renderer.cellSize + this.renderer.cellSize / 2 + this.renderer.offsetX,
+            y: food.y * this.renderer.cellSize + this.renderer.cellSize / 2 + this.renderer.offsetY
         };
 
         this.particles.burstAt(screenPos.x, screenPos.y, foodData.color);
@@ -3888,8 +3915,8 @@ class Game {
 
         // Visual feedback
         const screenPos = {
-            x: powerup.x * CONFIG.CELL_SIZE + CONFIG.CELL_SIZE / 2,
-            y: powerup.y * CONFIG.CELL_SIZE + CONFIG.CELL_SIZE / 2
+            x: powerup.x * this.renderer.cellSize + this.renderer.cellSize / 2 + this.renderer.offsetX,
+            y: powerup.y * this.renderer.cellSize + this.renderer.cellSize / 2 + this.renderer.offsetY
         };
 
         this.particles.burstAt(screenPos.x, screenPos.y, POWERUP_TYPES[powerup.type].color);
