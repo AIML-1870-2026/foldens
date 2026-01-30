@@ -2082,6 +2082,162 @@ class DataManager {
         };
         this.save();
     }
+
+    // ============================================
+    // Section 10: Progression & Replayability
+    // Unlockable content, skins, themes, replay system
+    // ============================================
+
+    // Skin definitions
+    static SKINS = {
+        default: { name: 'Default', color: COLORS.snakePrimary, glow: COLORS.snakeGlow },
+        emerald: { name: 'Emerald', color: COLORS.gemGreen, glow: '#58d68d', unlock: 'Survive 120 seconds' },
+        golden: { name: 'Golden', color: COLORS.gold, glow: '#f9e79f', unlock: 'Reach length 50' },
+        phantom: { name: 'Phantom', color: '#a6acaf', glow: '#d5d8dc', unlock: 'Use Ghost 20 times' },
+        inferno: { name: 'Inferno', color: COLORS.dangerOrange, glow: COLORS.torchYellow, unlock: 'Complete all Puzzles' }
+    };
+
+    // Theme definitions
+    static THEMES = {
+        classic: { name: 'Classic Dungeon', floor: COLORS.floorDark, wall: COLORS.stoneMid },
+        overgrown: { name: 'Overgrown Ruins', floor: '#1a2f1a', wall: '#2d4a2d', unlock: 'Survive 180 seconds' },
+        ice: { name: 'Ice Cavern', floor: '#1a2a3a', wall: '#3a5a7a', unlock: 'Complete 10 puzzles' },
+        volcanic: { name: 'Volcanic Depths', floor: '#2a1a1a', wall: '#4a2a2a', unlock: 'Reach 10000 points' }
+    };
+
+    // Unlock a skin
+    unlockSkin(skinId) {
+        if (!this.data.unlockedSkins.includes(skinId)) {
+            this.data.unlockedSkins.push(skinId);
+            this.save();
+            return true;
+        }
+        return false;
+    }
+
+    // Unlock a theme
+    unlockTheme(themeId) {
+        if (!this.data.unlockedThemes.includes(themeId)) {
+            this.data.unlockedThemes.push(themeId);
+            this.save();
+            return true;
+        }
+        return false;
+    }
+
+    // Set current skin
+    setSkin(skinId) {
+        if (this.data.unlockedSkins.includes(skinId)) {
+            this.data.currentSkin = skinId;
+            this.save();
+            return true;
+        }
+        return false;
+    }
+
+    // Set current theme
+    setTheme(themeId) {
+        if (this.data.unlockedThemes.includes(themeId)) {
+            this.data.currentTheme = themeId;
+            this.save();
+            return true;
+        }
+        return false;
+    }
+
+    // Get current skin data
+    getCurrentSkin() {
+        return DataManager.SKINS[this.data.currentSkin] || DataManager.SKINS.default;
+    }
+
+    // Get current theme data
+    getCurrentTheme() {
+        return DataManager.THEMES[this.data.currentTheme] || DataManager.THEMES.classic;
+    }
+
+    // Check and unlock content based on achievements/stats
+    checkUnlocks() {
+        const unlocked = [];
+        const stats = this.data.stats;
+
+        // Emerald skin - Survive 120 seconds
+        if (stats.longestSurvival >= 120000 && this.unlockSkin('emerald')) {
+            unlocked.push({ type: 'skin', id: 'emerald', name: 'Emerald Snake' });
+        }
+
+        // Golden skin - Reach length 50
+        if (stats.longestSnake >= 50 && this.unlockSkin('golden')) {
+            unlocked.push({ type: 'skin', id: 'golden', name: 'Golden Snake' });
+        }
+
+        // Phantom skin - Use Ghost 20 times
+        if (stats.ghostUsed >= 20 && this.unlockSkin('phantom')) {
+            unlocked.push({ type: 'skin', id: 'phantom', name: 'Phantom Snake' });
+        }
+
+        // Overgrown theme - Survive 180 seconds
+        if (stats.longestSurvival >= 180000 && this.unlockTheme('overgrown')) {
+            unlocked.push({ type: 'theme', id: 'overgrown', name: 'Overgrown Ruins' });
+        }
+
+        // Ice theme - Complete 10 puzzles
+        const completedPuzzles = Object.values(this.data.puzzleProgress).filter(p => p.completed).length;
+        if (completedPuzzles >= 10 && this.unlockTheme('ice')) {
+            unlocked.push({ type: 'theme', id: 'ice', name: 'Ice Cavern' });
+        }
+
+        // Volcanic theme - Reach 10000 points
+        if (stats.highestScore >= 10000 && this.unlockTheme('volcanic')) {
+            unlocked.push({ type: 'theme', id: 'volcanic', name: 'Volcanic Depths' });
+        }
+
+        // Inferno skin - Complete all puzzles
+        if (completedPuzzles >= PUZZLE_LEVELS.length && this.unlockSkin('inferno')) {
+            unlocked.push({ type: 'skin', id: 'inferno', name: 'Inferno Snake' });
+        }
+
+        return unlocked;
+    }
+
+    // Get achievement progress for display
+    getAchievementProgress() {
+        const total = Object.keys(ACHIEVEMENTS).length;
+        const unlocked = Object.keys(this.data.achievements).length;
+        return { unlocked, total, percentage: Math.floor((unlocked / total) * 100) };
+    }
+
+    // Get puzzle progress summary
+    getPuzzleProgress() {
+        const total = PUZZLE_LEVELS.length;
+        const completed = Object.values(this.data.puzzleProgress).filter(p => p.completed).length;
+        const totalStars = Object.values(this.data.puzzleProgress).reduce((sum, p) => sum + (p.stars || 0), 0);
+        const maxStars = total * 3;
+        return { completed, total, totalStars, maxStars };
+    }
+
+    // Export save data (for backup)
+    exportData() {
+        return JSON.stringify(this.data, null, 2);
+    }
+
+    // Import save data (for restore)
+    importData(jsonString) {
+        try {
+            const imported = JSON.parse(jsonString);
+            this.data = { ...this.getDefaultData(), ...imported };
+            this.save();
+            return true;
+        } catch (e) {
+            console.error('Failed to import data:', e);
+            return false;
+        }
+    }
+
+    // Reset all data
+    resetAllData() {
+        this.data = this.getDefaultData();
+        this.save();
+    }
 }
 
 // ============================================
