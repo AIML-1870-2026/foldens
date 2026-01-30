@@ -910,6 +910,7 @@ class ParticleSystem {
 
 // ============================================
 // SECTION 5: INPUT MANAGER
+// Section 12: Controls & Input - Enhanced handling
 // ============================================
 
 class InputManager {
@@ -918,6 +919,12 @@ class InputManager {
         this.maxBufferSize = 2;
         this.keyMap = {};
         this.enabled = true;
+
+        // Section 12: Enhanced input tracking
+        this.keysPressed = new Set(); // Currently held keys
+        this.lastDirection = null; // Last successful direction
+        this.inputTimestamps = []; // For detecting rapid inputs
+        this.controlsReversed = false; // For poison effect
 
         this.setupKeyBindings();
     }
@@ -945,15 +952,31 @@ class InputManager {
         const action = this.keyMap[event.code];
         if (!action) return null;
 
+        // Track pressed keys
+        this.keysPressed.add(event.code);
+
         // Handle movement inputs
         if (['UP', 'DOWN', 'LEFT', 'RIGHT'].includes(action)) {
-            if (this.inputBuffer.length < this.maxBufferSize) {
-                this.inputBuffer.push(action);
+            // Apply reversed controls if active
+            let finalAction = action;
+            if (this.controlsReversed) {
+                const reverseMap = { UP: 'DOWN', DOWN: 'UP', LEFT: 'RIGHT', RIGHT: 'LEFT' };
+                finalAction = reverseMap[action];
             }
-            return action;
+
+            if (this.inputBuffer.length < this.maxBufferSize) {
+                this.inputBuffer.push(finalAction);
+                this.inputTimestamps.push(Date.now());
+                this.lastDirection = finalAction;
+            }
+            return finalAction;
         }
 
         return action;
+    }
+
+    handleKeyUp(event) {
+        this.keysPressed.delete(event.code);
     }
 
     getNextDirection() {
@@ -962,6 +985,7 @@ class InputManager {
 
     clearBuffer() {
         this.inputBuffer = [];
+        this.inputTimestamps = [];
     }
 
     enable() {
@@ -970,6 +994,48 @@ class InputManager {
 
     disable() {
         this.enabled = false;
+        this.keysPressed.clear();
+    }
+
+    // Section 12: Check if a specific key is currently held
+    isKeyPressed(code) {
+        return this.keysPressed.has(code);
+    }
+
+    // Check if any movement key is held
+    isMovementKeyHeld() {
+        const movementKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyS', 'KeyA', 'KeyD'];
+        return movementKeys.some(key => this.keysPressed.has(key));
+    }
+
+    // Get the opposite direction (for 180-degree turn prevention)
+    getOppositeDirection(dir) {
+        const opposites = { UP: 'DOWN', DOWN: 'UP', LEFT: 'RIGHT', RIGHT: 'LEFT' };
+        return opposites[dir] || null;
+    }
+
+    // Check if direction change is valid (not 180-degree turn)
+    isValidDirectionChange(newDir, currentDir) {
+        if (!currentDir) return true;
+        return this.getOppositeDirection(newDir) !== currentDir;
+    }
+
+    // Set reversed controls (for poison effect)
+    setReversedControls(reversed) {
+        this.controlsReversed = reversed;
+    }
+
+    // Get input rate (inputs per second) - for detecting rapid input
+    getInputRate() {
+        const now = Date.now();
+        // Only count inputs in last second
+        this.inputTimestamps = this.inputTimestamps.filter(t => now - t < 1000);
+        return this.inputTimestamps.length;
+    }
+
+    // Check if player is inputting rapidly (for combo feedback)
+    isRapidInput() {
+        return this.getInputRate() > 5;
     }
 }
 
