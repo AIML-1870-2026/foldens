@@ -1059,6 +1059,7 @@ class DungeonMap {
 // ============================================
 
 // Snake Entity
+// Section 4: Core Mechanics - Enhanced movement system with smooth interpolation
 class Snake {
     constructor(startX, startY, direction = DIRECTIONS.RIGHT) {
         this.segments = [];
@@ -1072,6 +1073,13 @@ class Snake {
         // Visual properties
         this.wobblePhase = 0;
         this.visualPositions = [];
+
+        // Section 4: Enhanced movement tracking
+        this.moveHistory = []; // Track recent movements for smooth animation
+        this.speedMultiplier = 1.0; // For terrain effects
+        this.momentum = { x: 0, y: 0 }; // For ice terrain momentum
+        this.turnAngle = 0; // Current visual turn angle
+        this.targetTurnAngle = 0; // Target turn angle for smooth turning
 
         // Initialize segments
         for (let i = 0; i < CONFIG.INITIAL_SNAKE_LENGTH; i++) {
@@ -1148,6 +1156,55 @@ class Snake {
     collidesWithSelf() {
         if (this.ghostMode) return false;
         return this.segments.slice(1).some(s => s.x === this.head.x && s.y === this.head.y);
+    }
+
+    // Section 4: Core Mechanics - Enhanced collision detection
+    getCollisionBox() {
+        return {
+            x: this.head.x,
+            y: this.head.y,
+            width: 1,
+            height: 1
+        };
+    }
+
+    // Check if a position would cause collision (for AI or prediction)
+    wouldCollideAt(x, y, map) {
+        // Check wall collision
+        if (map.isWall(x, y)) return true;
+        // Check self collision
+        if (!this.ghostMode && this.occupies(x, y, true)) return true;
+        return false;
+    }
+
+    // Get the direction angle in radians (for visual rotation)
+    getDirectionAngle() {
+        if (this.direction.x === 1) return 0;
+        if (this.direction.x === -1) return Math.PI;
+        if (this.direction.y === 1) return Math.PI / 2;
+        if (this.direction.y === -1) return -Math.PI / 2;
+        return 0;
+    }
+
+    // Apply terrain speed modifier
+    applyTerrainEffect(terrain) {
+        switch (terrain) {
+            case 'MUD':
+                this.speedMultiplier = 0.5;
+                this.momentum = { x: 0, y: 0 };
+                break;
+            case 'ICE':
+                this.speedMultiplier = 1.5;
+                // Build momentum on ice
+                this.momentum.x = this.direction.x * 0.3;
+                this.momentum.y = this.direction.y * 0.3;
+                break;
+            default:
+                this.speedMultiplier = 1.0;
+                // Gradually reduce momentum
+                this.momentum.x *= 0.8;
+                this.momentum.y *= 0.8;
+        }
     }
 
     updateVisuals(dt) {
