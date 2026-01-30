@@ -1615,22 +1615,133 @@ class Hazard {
 
 // ============================================
 // SECTION 8: SCORE POPUP CLASS
+// Enhanced scoring feedback with visual effects
 // ============================================
 
 class ScorePopup {
-    constructor(x, y, text, isCombo = false) {
+    constructor(x, y, text, isCombo = false, options = {}) {
         this.x = x;
         this.y = y;
         this.text = text;
         this.isCombo = isCombo;
         this.life = 1;
+        this.maxLife = 1;
         this.vy = -2;
+
+        // Section 8: Enhanced feedback options
+        this.color = options.color || (isCombo ? COLORS.snakeGlow : COLORS.gold);
+        this.scale = options.scale || (isCombo ? 1.3 : 1);
+        this.baseSize = options.size || 14;
+        this.bouncePhase = 0;
+        this.type = options.type || 'score'; // 'score', 'combo', 'bonus', 'achievement'
+
+        // Special effects based on type
+        if (this.type === 'achievement') {
+            this.scale = 1.5;
+            this.color = COLORS.gold;
+            this.vy = -1;
+            this.life = 2;
+            this.maxLife = 2;
+        } else if (this.type === 'bonus') {
+            this.color = COLORS.gemPurple;
+            this.scale = 1.2;
+        }
     }
 
     update(dt) {
         this.y += this.vy;
         this.life -= dt / 1000;
+        this.bouncePhase += dt * 0.02;
+
+        // Slow down as it fades
+        this.vy *= 0.98;
+
         return this.life > 0;
+    }
+
+    // Get current opacity based on remaining life
+    getAlpha() {
+        return Utils.easeOutQuad(this.life / this.maxLife);
+    }
+
+    // Get current scale with bounce effect
+    getCurrentScale() {
+        const lifeRatio = this.life / this.maxLife;
+        const bounce = lifeRatio > 0.7 ? Math.sin(this.bouncePhase) * 0.1 : 0;
+        return this.scale * (0.8 + lifeRatio * 0.2) + bounce;
+    }
+
+    // Get font size
+    getFontSize() {
+        return Math.floor(this.baseSize * this.getCurrentScale());
+    }
+}
+
+// Section 8: Combo Feedback Manager
+class ComboManager {
+    constructor() {
+        this.combo = 1;
+        this.maxCombo = 1;
+        this.timer = 0;
+        this.timeout = CONFIG.COMBO_TIMEOUT;
+        this.streakStart = 0; // Time when streak started
+        this.highComboTime = 0; // Time spent at max combo
+    }
+
+    // Add to combo and return new multiplier
+    increment() {
+        this.combo = Math.min(this.combo + 1, CONFIG.MAX_COMBO);
+        this.maxCombo = Math.max(this.maxCombo, this.combo);
+        this.timer = this.timeout;
+
+        if (this.combo === CONFIG.MAX_COMBO && this.streakStart === 0) {
+            this.streakStart = Date.now();
+        }
+
+        return this.combo;
+    }
+
+    // Update combo timer
+    update(dt) {
+        if (this.combo > 1) {
+            this.timer -= dt;
+
+            // Track time at max combo
+            if (this.combo === CONFIG.MAX_COMBO) {
+                this.highComboTime += dt;
+            }
+
+            if (this.timer <= 0) {
+                this.reset();
+            }
+        }
+    }
+
+    // Reset combo
+    reset() {
+        this.combo = 1;
+        this.timer = 0;
+        this.streakStart = 0;
+    }
+
+    // Get combo multiplier
+    getMultiplier() {
+        return this.combo;
+    }
+
+    // Get combo progress (0-1 for meter display)
+    getProgress() {
+        return this.timer / this.timeout;
+    }
+
+    // Check if combo is about to expire
+    isExpiring() {
+        return this.combo > 1 && this.timer < 1000;
+    }
+
+    // Get time spent at max combo
+    getMaxComboTime() {
+        return this.highComboTime;
     }
 }
 
