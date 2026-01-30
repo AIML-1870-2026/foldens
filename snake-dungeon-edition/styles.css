@@ -77,8 +77,11 @@ body {
    ============================================ */
 #game-container {
     position: relative;
-    width: 800px;
-    height: 600px;
+    width: min(800px, 100vw);
+    height: min(600px, 100vh);
+    aspect-ratio: 4 / 3;
+    max-width: 100vw;
+    max-height: 100vh;
     background: linear-gradient(135deg, var(--stone-dark), var(--floor-dark));
     border: 4px solid var(--ui-border);
     border-radius: 8px;
@@ -115,6 +118,9 @@ body {
         rgba(0, 0, 0, 0.98) 100%);
     z-index: 10;
     animation: fadeIn 0.3s ease-out;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 20px 10px;
 }
 
 .hidden {
@@ -131,7 +137,7 @@ body {
    ============================================ */
 .game-title {
     font-family: var(--font-title);
-    font-size: 48px;
+    font-size: clamp(28px, 6vw, 48px);
     color: var(--snake-primary);
     text-shadow:
         3px 3px 0 var(--stone-dark),
@@ -143,10 +149,10 @@ body {
 
 .game-subtitle {
     font-family: var(--font-title);
-    font-size: 18px;
+    font-size: clamp(12px, 2.5vw, 18px);
     color: var(--torch-orange);
     text-shadow: 2px 2px 0 var(--stone-dark);
-    margin-top: 10px;
+    margin-top: 8px;
     letter-spacing: 2px;
 }
 
@@ -167,10 +173,10 @@ body {
 
 h2 {
     font-family: var(--font-title);
-    font-size: 24px;
+    font-size: clamp(18px, 3.5vw, 24px);
     color: var(--torch-orange);
     text-shadow: 2px 2px 0 var(--stone-dark);
-    margin-bottom: 20px;
+    margin-bottom: 15px;
     text-align: center;
 }
 
@@ -188,17 +194,19 @@ h3 {
     background: var(--ui-background);
     border: 3px solid var(--ui-border);
     border-radius: 8px;
-    padding: 30px 40px;
+    padding: 20px 25px;
     box-shadow:
         0 0 20px rgba(0, 0, 0, 0.5),
         inset 0 1px 0 rgba(255, 255, 255, 0.1);
-    max-width: 90%;
-    max-height: 90%;
+    max-width: calc(100% - 40px);
+    max-height: calc(100% - 40px);
     overflow-y: auto;
+    overflow-x: hidden;
+    flex-shrink: 0;
 }
 
 .wide-panel {
-    width: 700px;
+    width: min(700px, calc(100% - 40px));
 }
 
 /* ============================================
@@ -206,18 +214,19 @@ h3 {
    ============================================ */
 .menu-btn {
     font-family: var(--font-body);
-    font-size: 24px;
+    font-size: clamp(18px, 3vw, 24px);
     color: var(--ui-text);
     background: linear-gradient(180deg, var(--stone-mid) 0%, var(--stone-dark) 100%);
     border: 2px solid var(--ui-border);
     border-radius: 4px;
-    padding: 12px 30px;
-    margin: 8px 0;
+    padding: 10px 20px;
+    margin: 6px 0;
     cursor: pointer;
     transition: all 0.15s ease;
     text-transform: uppercase;
     letter-spacing: 1px;
-    min-width: 250px;
+    min-width: min(250px, 80%);
+    max-width: 100%;
 }
 
 .menu-btn:hover {
@@ -247,7 +256,8 @@ h3 {
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin-top: 20px;
+    margin-top: 15px;
+    width: 100%;
 }
 
 /* ============================================
@@ -255,10 +265,10 @@ h3 {
    ============================================ */
 .high-score-display {
     font-family: var(--font-title);
-    font-size: 14px;
+    font-size: clamp(10px, 2vw, 14px);
     color: var(--gold);
-    margin: 30px 0;
-    padding: 15px 25px;
+    margin: 15px 0;
+    padding: 10px 15px;
     background: rgba(244, 208, 63, 0.1);
     border: 2px solid var(--gold);
     border-radius: 4px;
@@ -306,7 +316,7 @@ h3 {
 
 .hud-score, .hud-length, .hud-high-score {
     font-family: var(--font-title);
-    font-size: 12px;
+    font-size: clamp(9px, 1.5vw, 12px);
     margin-bottom: 5px;
     text-shadow: 2px 2px 0 var(--void-black);
 }
@@ -451,7 +461,7 @@ h3 {
     display: flex;
     justify-content: space-between;
     padding: 5px 0;
-    font-size: 18px;
+    font-size: clamp(14px, 2.5vw, 18px);
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -522,14 +532,16 @@ input[type="checkbox"] {
    ============================================ */
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 20px;
-    margin: 20px 0;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin: 15px 0;
+    max-height: 50vh;
+    overflow-y: auto;
 }
 
 .stat-category {
     background: rgba(0, 0, 0, 0.3);
-    padding: 15px;
+    padding: 12px;
     border-radius: 4px;
 }
 
@@ -544,10 +556,10 @@ input[type="checkbox"] {
    ============================================ */
 .achievements-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 15px;
-    margin: 20px 0;
-    max-height: 400px;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin: 15px 0;
+    max-height: 50vh;
     overflow-y: auto;
 }
 
@@ -623,10 +635,10 @@ input[type="checkbox"] {
    ============================================ */
 .level-grid {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 15px;
-    margin: 20px 0;
-    max-height: 400px;
+    grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+    gap: 12px;
+    margin: 15px 0;
+    max-height: 50vh;
     overflow-y: auto;
 }
 
@@ -1053,59 +1065,151 @@ input[type="checkbox"] {
 @media (max-width: 850px) {
     #game-container {
         width: 100vw;
-        height: 75vw;
+        height: 100vh;
         max-height: 100vh;
         border-radius: 0;
+        border-width: 2px;
+    }
+
+    .screen {
+        padding: 15px 10px;
     }
 
     .menu-panel {
-        padding: 20px;
-        max-width: 95%;
+        padding: 15px 20px;
+        max-width: calc(100% - 20px);
+        max-height: calc(100% - 30px);
     }
 
-    .menu-btn {
-        min-width: 200px;
-        font-size: 20px;
-        padding: 10px 20px;
+    .wide-panel {
+        width: calc(100% - 20px);
     }
 
-    .stats-grid {
-        grid-template-columns: 1fr;
+    h2 {
+        font-size: clamp(16px, 3vw, 24px);
+        margin-bottom: 15px;
     }
 
-    .achievements-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-
-    .level-grid {
-        grid-template-columns: repeat(4, 1fr);
+    .stat-row {
+        font-size: 16px;
+        padding: 4px 0;
     }
 }
 
 @media (max-width: 600px) {
-    .game-title {
-        font-size: 32px;
+    .screen {
+        padding: 10px 5px;
     }
 
-    .game-subtitle {
-        font-size: 12px;
+    .menu-panel {
+        padding: 12px 15px;
     }
 
     h2 {
-        font-size: 18px;
+        margin-bottom: 10px;
+    }
+
+    h3 {
+        font-size: 10px;
+    }
+
+    .stat-row {
+        font-size: 14px;
+    }
+
+    .achievement-card {
+        padding: 10px;
+    }
+
+    .achievement-icon {
+        font-size: 24px;
+    }
+
+    .achievement-name {
+        font-size: 8px;
+    }
+
+    .achievement-desc {
+        font-size: 12px;
+    }
+
+    .level-card {
+        padding: 10px;
+    }
+
+    .level-number {
+        font-size: 16px;
+    }
+
+    .settings-group {
+        padding: 10px;
+        margin: 10px 0;
+    }
+
+    .setting-row label {
+        font-size: 14px;
+    }
+
+    input[type="range"] {
+        width: 100px;
+    }
+
+    .run-stats {
+        padding: 10px;
+        margin: 10px 0;
+    }
+
+    .final-score {
+        font-size: 16px;
+        margin: 10px 0;
+    }
+
+    .final-score span:last-child {
+        font-size: 28px;
+    }
+
+    .game-tip {
+        font-size: 14px;
+        padding: 8px;
+        margin: 10px 0;
+    }
+
+    #game-over-title {
+        font-size: 24px;
+    }
+
+    #new-high-score-banner {
+        font-size: 12px;
+        padding: 8px 15px;
+    }
+}
+
+@media (max-height: 500px) {
+    .screen {
+        justify-content: flex-start;
+        padding-top: 10px;
+    }
+
+    .title-container {
+        margin-bottom: 5px;
+    }
+
+    .high-score-display {
+        margin: 10px 0;
+        padding: 8px 12px;
+    }
+
+    .menu-options {
+        margin-top: 10px;
     }
 
     .menu-btn {
-        min-width: 180px;
-        font-size: 18px;
+        padding: 8px 15px;
+        margin: 4px 0;
     }
 
-    .achievements-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .level-grid {
-        grid-template-columns: repeat(3, 1fr);
+    h2 {
+        margin-bottom: 10px;
     }
 }
 
