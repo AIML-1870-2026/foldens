@@ -300,6 +300,220 @@ const GAME_TIPS = [
 ];
 
 // ============================================
+// PROCEDURAL LEVEL GENERATOR
+// ============================================
+
+const ProceduralGenerator = {
+    // Level name parts for random generation
+    nameAdjectives: ['Dark', 'Twisted', 'Ancient', 'Forgotten', 'Cursed', 'Hidden', 'Mystic', 'Shadow', 'Crystal', 'Infernal'],
+    nameNouns: ['Depths', 'Passage', 'Cavern', 'Labyrinth', 'Chamber', 'Crypt', 'Sanctum', 'Vault', 'Dungeon', 'Maze'],
+
+    // Generate a random level name
+    generateName(level) {
+        const adj = this.nameAdjectives[Math.floor(Math.random() * this.nameAdjectives.length)];
+        const noun = this.nameNouns[Math.floor(Math.random() * this.nameNouns.length)];
+        return `${adj} ${noun} ${level}`;
+    },
+
+    // Generate a procedural level based on difficulty (1-100+)
+    generate(difficulty = 1, seed = null) {
+        // Use seed for reproducible levels
+        const rng = seed !== null ? this.seededRandom(seed) : Math.random;
+
+        // Scale parameters based on difficulty
+        const gridWidth = Math.min(30, 15 + Math.floor(difficulty / 5));
+        const gridHeight = Math.min(25, 12 + Math.floor(difficulty / 6));
+        const foodCount = Math.min(15, 3 + Math.floor(difficulty / 3));
+        const wallCount = Math.min(20, Math.floor(difficulty / 2));
+        const hazardCount = Math.min(8, Math.floor((difficulty - 3) / 4));
+
+        // Generate snake start position (away from edges)
+        const snakeStart = {
+            x: 2 + Math.floor(rng() * 3),
+            y: Math.floor(gridHeight / 2),
+            dir: 'RIGHT'
+        };
+
+        // Generate walls
+        const walls = this.generateWalls(gridWidth, gridHeight, wallCount, snakeStart, rng);
+
+        // Create occupied grid for placement validation
+        const occupied = this.createOccupiedGrid(gridWidth, gridHeight, walls, snakeStart);
+
+        // Generate food positions
+        const food = this.generateFood(gridWidth, gridHeight, foodCount, occupied, difficulty, rng);
+
+        // Generate hazards (after difficulty 3)
+        const hazards = difficulty > 3 ?
+            this.generateHazards(gridWidth, gridHeight, hazardCount, occupied, difficulty, rng) : [];
+
+        // Calculate par values
+        const parTime = 20 + foodCount * 5 + wallCount * 2;
+        const parMoves = foodCount * 12 + wallCount * 3;
+
+        // Flashlight mode for higher difficulties
+        const flashlight = difficulty >= 10 && rng() > 0.6;
+
+        return {
+            name: this.generateName(difficulty),
+            gridWidth,
+            gridHeight,
+            snakeStart,
+            walls,
+            food,
+            hazards,
+            goal: { collect: foodCount },
+            parTime,
+            parMoves,
+            flashlight,
+            procedural: true,
+            difficulty,
+            seed
+        };
+    },
+
+    // Simple seeded random number generator
+    seededRandom(seed) {
+        let s = seed;
+        return function() {
+            s = Math.sin(s) * 10000;
+            return s - Math.floor(s);
+        };
+    },
+
+    // Generate wall obstacles
+    generateWalls(width, height, count, snakeStart, rng) {
+        const walls = [];
+        const safeZone = 4; // Keep area around snake start clear
+
+        for (let i = 0; i < count; i++) {
+            const isHorizontal = rng() > 0.5;
+            const length = 2 + Math.floor(rng() * 4);
+
+            let x, y, attempts = 50;
+            do {
+                if (isHorizontal) {
+                    x = 1 + Math.floor(rng() * (width - length - 2));
+                    y = 1 + Math.floor(rng() * (height - 2));
+                } else {
+                    x = 1 + Math.floor(rng() * (width - 2));
+                    y = 1 + Math.floor(rng() * (height - length - 2));
+                }
+                attempts--;
+            } while (
+                attempts > 0 &&
+                Math.abs(x - snakeStart.x) < safeZone &&
+                Math.abs(y - snakeStart.y) < safeZone
+            );
+
+            if (attempts > 0) {
+                walls.push({
+                    x,
+                    y,
+                    w: isHorizontal ? length : 1,
+                    h: isHorizontal ? 1 : length
+                });
+            }
+        }
+
+        return walls;
+    },
+
+    // Create grid marking occupied cells
+    createOccupiedGrid(width, height, walls, snakeStart) {
+        const grid = Array(height).fill(null).map(() => Array(width).fill(false));
+
+        // Mark borders
+        for (let x = 0; x < width; x++) {
+            grid[0][x] = true;
+            grid[height - 1][x] = true;
+        }
+        for (let y = 0; y < height; y++) {
+            grid[y][0] = true;
+            grid[y][width - 1] = true;
+        }
+
+        // Mark walls
+        walls.forEach(wall => {
+            for (let dy = 0; dy < (wall.h || 1); dy++) {
+                for (let dx = 0; dx < (wall.w || 1); dx++) {
+                    if (wall.y + dy < height && wall.x + dx < width) {
+                        grid[wall.y + dy][wall.x + dx] = true;
+                    }
+                }
+            }
+        });
+
+        // Mark snake start area
+        for (let i = 0; i < 4; i++) {
+            const sx = snakeStart.x - i;
+            if (sx >= 0 && sx < width) {
+                grid[snakeStart.y][sx] = true;
+            }
+        }
+
+        return grid;
+    },
+
+    // Generate food items
+    generateFood(width, height, count, occupied, difficulty, rng) {
+        const food = [];
+        const foodTypes = ['FRUIT', 'FRUIT', 'FRUIT', 'GEM'];
+        if (difficulty >= 5) foodTypes.push('ENERGY_ORB');
+        if (difficulty >= 8) foodTypes.push('GOLDEN_SKULL');
+
+        for (let i = 0; i < count; i++) {
+            let x, y, attempts = 100;
+            do {
+                x = 2 + Math.floor(rng() * (width - 4));
+                y = 2 + Math.floor(rng() * (height - 4));
+                attempts--;
+            } while (attempts > 0 && (occupied[y][x] || food.some(f => f.x === x && f.y === y)));
+
+            if (attempts > 0) {
+                const type = foodTypes[Math.floor(rng() * foodTypes.length)];
+                food.push({ x, y, type });
+                occupied[y][x] = true;
+            }
+        }
+
+        return food;
+    },
+
+    // Generate hazards
+    generateHazards(width, height, count, occupied, difficulty, rng) {
+        const hazards = [];
+        const hazardTypes = ['STATIC_OBSTACLE'];
+        if (difficulty >= 6) hazardTypes.push('MOVING_OBSTACLE');
+        if (difficulty >= 12) hazardTypes.push('BOMB');
+
+        for (let i = 0; i < count; i++) {
+            let x, y, attempts = 100;
+            do {
+                x = 3 + Math.floor(rng() * (width - 6));
+                y = 3 + Math.floor(rng() * (height - 6));
+                attempts--;
+            } while (attempts > 0 && occupied[y][x]);
+
+            if (attempts > 0) {
+                const type = hazardTypes[Math.floor(rng() * hazardTypes.length)];
+                const hazard = { x, y, type };
+
+                if (type === 'MOVING_OBSTACLE') {
+                    hazard.dir = rng() > 0.5 ? 'DOWN' : 'RIGHT';
+                    hazard.range = 3 + Math.floor(rng() * 5);
+                }
+
+                hazards.push(hazard);
+                occupied[y][x] = true;
+            }
+        }
+
+        return hazards;
+    }
+};
+
+// ============================================
 // SECTION 2: UTILITY FUNCTIONS
 // ============================================
 
@@ -2891,6 +3105,11 @@ class Game {
         this.hazardSpawnTimer = 0;
         this.wallSpawnTimer = 0;
 
+        // Endless mode state
+        this.endlessMode = false;
+        this.endlessLevel = 1;
+        this.currentProceduralLevel = null;
+
         // Power-up states
         this.activePowerups = {};
         this.slowMotionActive = false;
@@ -3026,6 +3245,7 @@ class Game {
         document.getElementById('btn-achievements-back').addEventListener('click', () => this.returnToMenu());
         document.getElementById('btn-credits-back').addEventListener('click', () => this.returnToMenu());
         document.getElementById('btn-puzzle-back').addEventListener('click', () => this.returnToMenu());
+        document.getElementById('btn-endless-mode').addEventListener('click', () => this.startEndlessMode());
 
         // Settings changes
         this.ui.masterVolume.addEventListener('input', () => this.saveSettings());
@@ -3081,10 +3301,96 @@ class Game {
         this.audio.init();
         this.state.setMode(GAME_MODES.PUZZLE);
         this.state.currentLevel = levelIndex;
+        this.endlessMode = false;
         this.initPuzzleGame(levelIndex);
-        this.hideAllScreens(); // Bug fix: Hide all screens first
+        this.hideAllScreens();
         this.showScreen('hud');
         this.state.setState(GAME_STATES.PLAYING);
+    }
+
+    startEndlessMode() {
+        this.audio.init();
+        this.state.setMode(GAME_MODES.PUZZLE);
+        this.endlessMode = true;
+        this.endlessLevel = 1;
+        this.currentProceduralLevel = ProceduralGenerator.generate(this.endlessLevel);
+        this.state.currentLevel = -1; // Mark as procedural
+        this.initProceduralGame(this.currentProceduralLevel);
+        this.hideAllScreens();
+        this.showScreen('hud');
+        this.state.setState(GAME_STATES.PLAYING);
+    }
+
+    initProceduralGame(level) {
+        // Load procedural level map
+        this.map.loadPuzzleLevel(level);
+
+        // Set cell size for level dimensions
+        this.renderer.setCellSize(this.map.width, this.map.height);
+
+        // Reset snake at level start position
+        const dir = DIRECTIONS[level.snakeStart.dir];
+        this.snake = new Snake(level.snakeStart.x, level.snakeStart.y, dir);
+
+        // Reset entities
+        this.foods = [];
+        this.powerups = [];
+        this.hazards = [];
+        this.scorePopups = [];
+        this.particles.clear();
+
+        // Spawn level food
+        level.food.forEach(f => {
+            this.foods.push(new Food(f.x, f.y, f.type));
+        });
+
+        // Spawn level hazards
+        if (level.hazards) {
+            level.hazards.forEach(h => {
+                this.hazards.push(new Hazard(h.x, h.y, h.type, h));
+            });
+        }
+
+        // Reset game state
+        this.score = 0;
+        this.combo = 1;
+        this.maxCombo = 1;
+        this.comboTimer = 0;
+        this.gameTime = 0;
+        this.difficultyLevel = this.endlessLevel;
+        this.tickTimer = 0;
+        this.currentTickRate = CONFIG.BASE_TICK_RATE;
+
+        // Puzzle mode specific
+        this.puzzleCollected = 0;
+        this.puzzleGoal = level.goal.collect;
+        this.puzzleMoves = 0;
+        this.flashlightEnabled = level.flashlight || false;
+
+        // Reset power-up states
+        this.activePowerups = {};
+        this.slowMotionActive = false;
+        this.timeFreezeActive = false;
+
+        // Reset death animation
+        this.deathAnimation = { active: false, timer: 0, slowMoTimer: 0 };
+
+        // Reset run stats
+        this.runStats = {
+            score: 0,
+            time: 0,
+            maxLength: CONFIG.INITIAL_SNAKE_LENGTH,
+            maxCombo: 1,
+            foodEaten: 0,
+            powerupsUsed: 0
+        };
+
+        // Update HUD
+        this.updateHUD();
+
+        // Enable input
+        this.input.enable();
+        this.input.clearBuffer();
     }
 
     initGame() {
@@ -3255,6 +3561,9 @@ class Game {
         this.hideAllScreens();
         if (this.state.gameMode === GAME_MODES.SURVIVAL) {
             this.startSurvivalMode();
+        } else if (this.endlessMode) {
+            // Restart endless from level 1
+            this.startEndlessMode();
         } else {
             this.startPuzzleLevel(this.state.currentLevel);
         }
@@ -4048,7 +4357,30 @@ class Game {
     }
 
     completePuzzle() {
-        // Calculate stars
+        // Handle endless mode - advance to next level
+        if (this.endlessMode) {
+            this.endlessLevel++;
+            this.currentProceduralLevel = ProceduralGenerator.generate(this.endlessLevel);
+
+            // Brief celebration before next level
+            this.audio.playSound('achievement');
+            this.renderer.flash();
+
+            // Add score bonus for completing level
+            const levelBonus = this.endlessLevel * 100;
+            this.score += levelBonus;
+            const popupX = this.snake.head.x * this.renderer.cellSize + this.renderer.cellSize / 2 + this.renderer.offsetX;
+            const popupY = this.snake.head.y * this.renderer.cellSize + this.renderer.cellSize / 2 + this.renderer.offsetY;
+            this.scorePopups.push(new ScorePopup(popupX, popupY, `LEVEL ${this.endlessLevel}!`, true));
+
+            // Start next level after short delay
+            setTimeout(() => {
+                this.initProceduralGame(this.currentProceduralLevel);
+            }, 500);
+            return;
+        }
+
+        // Calculate stars for regular puzzle mode
         const level = PUZZLE_LEVELS[this.state.currentLevel];
         let stars = 1;
         if (this.gameTime <= level.parTime * 1000) stars++;
