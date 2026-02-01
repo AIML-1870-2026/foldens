@@ -384,29 +384,30 @@ const ProceduralGenerator = {
     // Generate wall obstacles
     generateWalls(width, height, count, snakeStart, rng) {
         const walls = [];
-        const safeZone = 4; // Keep area around snake start clear
+        const safeZoneX = 8; // Keep large horizontal area clear for snake
+        const safeZoneY = 4; // Keep vertical area clear
 
         for (let i = 0; i < count; i++) {
             const isHorizontal = rng() > 0.5;
             const length = 2 + Math.floor(rng() * 4);
 
             let x, y, attempts = 50;
+            let tooClose;
             do {
                 if (isHorizontal) {
-                    x = 1 + Math.floor(rng() * (width - length - 2));
-                    y = 1 + Math.floor(rng() * (height - 2));
+                    x = 2 + Math.floor(rng() * (width - length - 4));
+                    y = 2 + Math.floor(rng() * (height - 4));
                 } else {
-                    x = 1 + Math.floor(rng() * (width - 2));
-                    y = 1 + Math.floor(rng() * (height - length - 2));
+                    x = 2 + Math.floor(rng() * (width - 4));
+                    y = 2 + Math.floor(rng() * (height - length - 4));
                 }
+                // Check if wall is too close to snake start (use OR, not AND)
+                tooClose = Math.abs(x - snakeStart.x) < safeZoneX &&
+                           Math.abs(y - snakeStart.y) < safeZoneY;
                 attempts--;
-            } while (
-                attempts > 0 &&
-                Math.abs(x - snakeStart.x) < safeZone &&
-                Math.abs(y - snakeStart.y) < safeZone
-            );
+            } while (attempts > 0 && tooClose);
 
-            if (attempts > 0) {
+            if (attempts > 0 && !tooClose) {
                 walls.push({
                     x,
                     y,
@@ -3110,6 +3111,9 @@ class Game {
         this.endlessLevel = 1;
         this.currentProceduralLevel = null;
 
+        // Spawn grace period (snake doesn't move immediately)
+        this.spawnGraceTimer = 0;
+
         // Power-up states
         this.activePowerups = {};
         this.slowMotionActive = false;
@@ -3246,6 +3250,7 @@ class Game {
         document.getElementById('btn-credits-back').addEventListener('click', () => this.returnToMenu());
         document.getElementById('btn-puzzle-back').addEventListener('click', () => this.returnToMenu());
         document.getElementById('btn-endless-mode').addEventListener('click', () => this.startEndlessMode());
+        document.getElementById('btn-fullscreen').addEventListener('click', () => this.toggleFullscreen());
 
         // Settings changes
         this.ui.masterVolume.addEventListener('input', () => this.saveSettings());
@@ -3360,6 +3365,9 @@ class Game {
         this.difficultyLevel = this.endlessLevel;
         this.tickTimer = 0;
         this.currentTickRate = CONFIG.BASE_TICK_RATE;
+
+        // Grace period - snake doesn't move for 1 second
+        this.spawnGraceTimer = 1000;
 
         // Puzzle mode specific
         this.puzzleCollected = 0;
@@ -3510,6 +3518,9 @@ class Game {
         this.difficultyLevel = 0;
         this.tickTimer = 0;
         this.currentTickRate = CONFIG.BASE_TICK_RATE;
+
+        // Grace period for puzzle mode
+        this.spawnGraceTimer = 1000;
 
         // Puzzle mode specific
         this.puzzleCollected = 0;
@@ -3779,6 +3790,27 @@ class Game {
         this.showScreen('startScreen');
     }
 
+    toggleFullscreen() {
+        const container = document.getElementById('game-container');
+        if (!document.fullscreenElement) {
+            if (container.requestFullscreen) {
+                container.requestFullscreen();
+            } else if (container.webkitRequestFullscreen) {
+                container.webkitRequestFullscreen();
+            } else if (container.msRequestFullscreen) {
+                container.msRequestFullscreen();
+            }
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            } else if (document.webkitExitFullscreen) {
+                document.webkitExitFullscreen();
+            } else if (document.msExitFullscreen) {
+                document.msExitFullscreen();
+            }
+        }
+    }
+
     updateMenuHighScore() {
         this.ui.menuHighScore.textContent = this.data.getHighScore();
     }
@@ -3807,19 +3839,26 @@ class Game {
         // Update power-up timers
         this.updatePowerups(dt);
 
+        // Update spawn grace timer
+        if (this.spawnGraceTimer > 0) {
+            this.spawnGraceTimer -= dt;
+        }
+
         // Apply slow motion modifier
         let effectiveDt = dt;
         if (this.slowMotionActive) {
             effectiveDt = dt * 0.5;
         }
 
-        // Update tick timer
-        this.tickTimer += effectiveDt;
+        // Update tick timer (only if grace period is over)
+        if (this.spawnGraceTimer <= 0) {
+            this.tickTimer += effectiveDt;
 
-        // Process game tick
-        if (this.tickTimer >= this.currentTickRate) {
-            this.tickTimer = 0;
-            this.gameTick();
+            // Process game tick
+            if (this.tickTimer >= this.currentTickRate) {
+                this.tickTimer = 0;
+                this.gameTick();
+            }
         }
 
         // Update entities
@@ -3857,9 +3896,15 @@ class Game {
             this.updateSpawning(dt);
         }
 
-        // Update combo timer
+        // Update combo timer and bar
         if (this.combo > 1) {
             this.comboTimer -= dt;
+            // Update combo bar fill to show remaining time
+            const fillPercent = Math.max(0, (this.comboTimer / CONFIG.COMBO_TIMEOUT) * 100);
+            const comboBarFill = this.ui.comboMeter.querySelector('.combo-bar-fill');
+            if (comboBarFill) {
+                comboBarFill.style.width = `${fillPercent}%`;
+            }
             if (this.comboTimer <= 0) {
                 this.combo = 1;
                 this.comboTimer = 0;
