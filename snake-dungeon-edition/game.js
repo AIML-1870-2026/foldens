@@ -32,7 +32,7 @@ const CONFIG = {
 
     // Scoring
     COMBO_TIMEOUT: 3000,
-    MAX_COMBO: 5,
+    MAX_COMBO: 10,
 
     // Food spawn
     FOOD_SPAWN_INTERVAL: 2000,
