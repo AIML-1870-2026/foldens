@@ -3362,9 +3362,10 @@ class Game {
         this.maxCombo = 1;
         this.comboTimer = 0;
         this.gameTime = 0;
-        this.difficultyLevel = this.endlessLevel;
+        // Clamp difficulty to valid tick rate range
+        this.difficultyLevel = Math.min(this.endlessLevel, CONFIG.TICK_RATES.length - 1);
         this.tickTimer = 0;
-        this.currentTickRate = CONFIG.BASE_TICK_RATE;
+        this.currentTickRate = CONFIG.TICK_RATES[this.difficultyLevel];
 
         // Grace period - snake doesn't move for 1 second
         this.spawnGraceTimer = 1000;
