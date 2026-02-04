@@ -13,6 +13,11 @@ const Simulation = {
     running: true,
     initialized: false,
 
+    // Interactive spawn mode
+    spawnMode: 'none', // 'none', 'boids', 'obstacles'
+    isSpawning: false,
+    lastSpawnPos: null,
+
     // Performance tracking
     lastFrameTime: 0,
     frameCount: 0,
@@ -51,6 +56,13 @@ const Simulation = {
         // Create presets manager
         this.presets = new Presets();
 
+        // Check for URL config before creating UI
+        const urlConfig = this.presets.getConfigFromURL();
+        if (urlConfig) {
+            console.log('Loading config from URL...');
+            this.loadConfig(urlConfig);
+        }
+
         // Create UI controller (must be last, after other objects exist)
         this.ui = new UI(this);
 
@@ -88,17 +100,76 @@ const Simulation = {
                 case 'KeyR':
                     this.reset();
                     break;
+                case 'KeyB':
+                    // Toggle boid spawn mode
+                    this.setSpawnMode(this.spawnMode === 'boids' ? 'none' : 'boids');
+                    break;
+                case 'KeyO':
+                    // Toggle obstacle spawn mode
+                    this.setSpawnMode(this.spawnMode === 'obstacles' ? 'none' : 'obstacles');
+                    break;
+                case 'KeyC':
+                    // Clear obstacles
+                    this.flock.clearObstacles();
+                    break;
+                case 'KeyG':
+                    // Toggle chart
+                    this.renderer.toggleChart();
+                    break;
             }
         });
 
-        // Canvas click for boid selection
+        // Canvas interactions
         const canvas = document.getElementById('simulation-canvas');
+
+        canvas.addEventListener('mousedown', (e) => {
+            const { x, y } = this.getCanvasCoords(e);
+
+            if (this.spawnMode !== 'none') {
+                this.isSpawning = true;
+                this.lastSpawnPos = { x, y };
+                this.handleSpawn(x, y);
+            }
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (this.isSpawning && this.spawnMode !== 'none') {
+                const { x, y } = this.getCanvasCoords(e);
+
+                // Only spawn if moved enough from last position
+                if (this.lastSpawnPos) {
+                    const dist = Math.sqrt(
+                        Math.pow(x - this.lastSpawnPos.x, 2) +
+                        Math.pow(y - this.lastSpawnPos.y, 2)
+                    );
+                    if (dist > 15) {
+                        this.handleSpawn(x, y);
+                        this.lastSpawnPos = { x, y };
+                    }
+                }
+            }
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            this.isSpawning = false;
+            this.lastSpawnPos = null;
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            this.isSpawning = false;
+            this.lastSpawnPos = null;
+        });
+
+        // Canvas click for boid selection (only when not spawning)
         canvas.addEventListener('click', (e) => {
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
-            const x = (e.clientX - rect.left) * scaleX;
-            const y = (e.clientY - rect.top) * scaleY;
+            if (this.spawnMode !== 'none') return;
+
+            const { x, y } = this.getCanvasCoords(e);
+
+            // Right-click or shift-click to remove obstacles
+            if (e.shiftKey) {
+                if (this.flock.removeObstacleAt(x, y)) return;
+            }
 
             const boid = this.flock.getBoidAt(x, y);
             if (boid) {
@@ -107,6 +178,54 @@ const Simulation = {
                 this.flock.clearSelection();
             }
         });
+
+        // Right-click to remove obstacles
+        canvas.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            const { x, y } = this.getCanvasCoords(e);
+            this.flock.removeObstacleAt(x, y);
+        });
+    },
+
+    // Get canvas coordinates from mouse event
+    getCanvasCoords(e) {
+        const canvas = document.getElementById('simulation-canvas');
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        return {
+            x: (e.clientX - rect.left) * scaleX,
+            y: (e.clientY - rect.top) * scaleY
+        };
+    },
+
+    // Handle spawn at position
+    handleSpawn(x, y) {
+        if (this.spawnMode === 'boids') {
+            this.flock.addBoidsAt(x, y, 3, 15);
+        } else if (this.spawnMode === 'obstacles') {
+            this.flock.addObstacle(x, y, 30);
+        }
+    },
+
+    // Set spawn mode
+    setSpawnMode(mode) {
+        this.spawnMode = mode;
+
+        // Update cursor style
+        const canvas = document.getElementById('simulation-canvas');
+        if (mode === 'boids') {
+            canvas.style.cursor = 'crosshair';
+        } else if (mode === 'obstacles') {
+            canvas.style.cursor = 'cell';
+        } else {
+            canvas.style.cursor = 'default';
+        }
+
+        // Update UI if available
+        if (this.ui) {
+            this.ui.updateSpawnModeButtons();
+        }
     },
 
     // Resize canvas to fit container
@@ -219,6 +338,7 @@ const Simulation = {
     reset() {
         this.flock.reset(CONFIG.simulation.boidCount);
         this.shepherd.reset();
+        this.setSpawnMode('none');
 
         // Reset to default config values
         Object.assign(CONFIG.behavior, {
@@ -340,6 +460,18 @@ const Simulation = {
             console.error('Error loading config:', e);
             return false;
         }
+    },
+
+    // Get shareable URL for current config
+    getShareableURL() {
+        const config = this.getConfig();
+        return this.presets.getShareableURL(config);
+    },
+
+    // Copy shareable URL to clipboard
+    copyShareableURL() {
+        const config = this.getConfig();
+        return this.presets.copyShareableURL(config);
     }
 };
 

@@ -13,6 +13,8 @@ class UI {
         this.setupShepherdControls();
         this.setupPresetButtons();
         this.setupExportImport();
+        this.setupSpawnControls();
+        this.setupChartControls();
         this.setupTooltips();
 
         // Initial sync from config
@@ -281,6 +283,7 @@ class UI {
         const exportBtn = document.getElementById('export-btn');
         const importBtn = document.getElementById('import-btn');
         const importFile = document.getElementById('import-file');
+        const shareBtn = document.getElementById('share-url-btn');
 
         if (exportBtn) {
             exportBtn.addEventListener('click', () => {
@@ -314,6 +317,73 @@ class UI {
                 // Reset file input
                 importFile.value = '';
             });
+        }
+
+        // Share URL button
+        if (shareBtn) {
+            shareBtn.addEventListener('click', () => {
+                const url = this.simulation.copyShareableURL();
+                alert('URL copied to clipboard!\n\n' + url);
+            });
+        }
+    }
+
+    // Setup interactive spawn controls
+    setupSpawnControls() {
+        const spawnBoidsBtn = document.getElementById('spawn-boids-btn');
+        const spawnObstaclesBtn = document.getElementById('spawn-obstacles-btn');
+        const clearObstaclesBtn = document.getElementById('clear-obstacles-btn');
+
+        if (spawnBoidsBtn) {
+            spawnBoidsBtn.addEventListener('click', () => {
+                const newMode = this.simulation.spawnMode === 'boids' ? 'none' : 'boids';
+                this.simulation.setSpawnMode(newMode);
+            });
+        }
+
+        if (spawnObstaclesBtn) {
+            spawnObstaclesBtn.addEventListener('click', () => {
+                const newMode = this.simulation.spawnMode === 'obstacles' ? 'none' : 'obstacles';
+                this.simulation.setSpawnMode(newMode);
+            });
+        }
+
+        if (clearObstaclesBtn) {
+            clearObstaclesBtn.addEventListener('click', () => {
+                this.simulation.flock.clearObstacles();
+            });
+        }
+    }
+
+    // Setup chart controls
+    setupChartControls() {
+        const chartToggle = document.getElementById('chart-toggle');
+        const chartMetric = document.getElementById('chart-metric');
+
+        if (chartToggle) {
+            chartToggle.addEventListener('click', () => {
+                this.simulation.renderer.toggleChart();
+                chartToggle.classList.toggle('active', this.simulation.renderer.showChart);
+            });
+        }
+
+        if (chartMetric) {
+            chartMetric.addEventListener('change', () => {
+                this.simulation.renderer.setChartMetric(chartMetric.value);
+            });
+        }
+    }
+
+    // Update spawn mode buttons
+    updateSpawnModeButtons() {
+        const spawnBoidsBtn = document.getElementById('spawn-boids-btn');
+        const spawnObstaclesBtn = document.getElementById('spawn-obstacles-btn');
+
+        if (spawnBoidsBtn) {
+            spawnBoidsBtn.classList.toggle('active', this.simulation.spawnMode === 'boids');
+        }
+        if (spawnObstaclesBtn) {
+            spawnObstaclesBtn.classList.toggle('active', this.simulation.spawnMode === 'obstacles');
         }
     }
 

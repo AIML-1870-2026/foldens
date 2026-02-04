@@ -178,9 +178,46 @@
                 </div>
             </section>
 
+            <!-- Interactive Section -->
+            <section class="control-section">
+                <h2>Interactive</h2>
+                <div class="control-group">
+                    <label>Paint Mode (B/O keys)</label>
+                    <div class="button-group">
+                        <button id="spawn-boids-btn" class="btn btn-toggle">Boids</button>
+                        <button id="spawn-obstacles-btn" class="btn btn-toggle">Obstacles</button>
+                    </div>
+                </div>
+                <div class="button-row">
+                    <button id="clear-obstacles-btn" class="btn btn-small">Clear Obstacles</button>
+                </div>
+            </section>
+
+            <!-- Chart Section -->
+            <section class="control-section">
+                <h2>Analytics</h2>
+                <div class="control-group">
+                    <label>Live Chart (G key)</label>
+                    <div class="button-group">
+                        <button id="chart-toggle" class="btn btn-toggle">Show Chart</button>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label for="chart-metric">Metric</label>
+                    <select id="chart-metric">
+                        <option value="speedVariance">Speed Variance</option>
+                        <option value="compactness">Flock Compactness</option>
+                        <option value="alignment">Flock Alignment</option>
+                    </select>
+                </div>
+            </section>
+
             <!-- Export Section -->
             <section class="control-section">
-                <h2>Export</h2>
+                <h2>Share &amp; Export</h2>
+                <div class="button-row">
+                    <button id="share-url-btn" class="btn btn-small btn-primary">Share URL</button>
+                </div>
                 <div class="button-row">
                     <button id="export-btn" class="btn btn-small">Export JSON</button>
                     <button id="import-btn" class="btn btn-small">Import JSON</button>

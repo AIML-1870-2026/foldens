@@ -1,4 +1,4 @@
-// ===== Renderer - Canvas Drawing =====
+// ===== Renderer - Canvas Drawing with Performance Optimizations =====
 
 class Renderer {
     constructor(canvas) {
@@ -16,8 +16,113 @@ class Renderer {
         this.showNeighborConnections = true;
         this.showVelocity = true;
 
-        // Performance
+        // Performance: Offscreen canvas for quadtree visualization
+        this.quadtreeCanvas = document.createElement('canvas');
+        this.quadtreeCtx = this.quadtreeCanvas.getContext('2d');
+        this.quadtreeFrameCounter = 0;
+        this.quadtreeUpdateInterval = 6; // Update every 6 frames
+
+        // Performance: Offscreen boid shape cache
+        this.boidShapeCache = new Map();
+        this.shapeCacheSize = 16; // Size of cached boid images
+
+        // Dynamic trails based on speed
+        this.dynamicTrails = true;
+
+        // Turn waves visualization
+        this.turnWaves = true;
+
+        // Chart rendering
+        this.showChart = false;
+        this.chartMetric = 'speedVariance'; // 'speedVariance', 'compactness', 'alignment'
+
+        // Performance tracking
         this.lastDrawTime = 0;
+
+        // Initialize shape cache
+        this.initShapeCache();
+    }
+
+    // Initialize offscreen boid shape cache for performance
+    initShapeCache() {
+        const shapes = ['bird', 'fish', 'arrow'];
+        const palettes = ['warm', 'cool', 'colorblind'];
+
+        for (const paletteName of palettes) {
+            const paletteColors = CONFIG.palettes[paletteName].colors;
+
+            for (let speciesIndex = 0; speciesIndex < 3; speciesIndex++) {
+                const color = paletteColors[speciesIndex % paletteColors.length];
+                const shape = shapes[speciesIndex % shapes.length];
+
+                // Create variations for different darkness levels (for turn waves)
+                for (let darkness = 0; darkness <= 3; darkness++) {
+                    const key = `${paletteName}-${speciesIndex}-${darkness}`;
+                    const cache = this.createBoidShapeCanvas(shape, color, darkness * 0.15);
+                    this.boidShapeCache.set(key, cache);
+                }
+            }
+        }
+    }
+
+    // Create a cached boid shape on an offscreen canvas
+    createBoidShapeCanvas(shape, color, darkenAmount = 0) {
+        const size = this.shapeCacheSize;
+        const canvas = document.createElement('canvas');
+        canvas.width = size * 2;
+        canvas.height = size * 2;
+        const ctx = canvas.getContext('2d');
+
+        ctx.translate(size, size);
+
+        // Darken color for turn waves effect
+        let drawColor = color;
+        if (darkenAmount > 0) {
+            drawColor = this.darkenColor(color, darkenAmount);
+        }
+
+        ctx.fillStyle = drawColor;
+        ctx.beginPath();
+
+        if (shape === 'bird') {
+            ctx.moveTo(size, 0);
+            ctx.lineTo(-size * 0.5, -size * 0.6);
+            ctx.lineTo(-size * 0.2, 0);
+            ctx.lineTo(-size * 0.5, size * 0.6);
+            ctx.closePath();
+        } else if (shape === 'fish') {
+            ctx.moveTo(size, 0);
+            ctx.quadraticCurveTo(0, -size * 0.5, -size * 0.6, -size * 0.3);
+            ctx.lineTo(-size * 0.8, -size * 0.5);
+            ctx.lineTo(-size * 0.6, 0);
+            ctx.lineTo(-size * 0.8, size * 0.5);
+            ctx.lineTo(-size * 0.6, size * 0.3);
+            ctx.quadraticCurveTo(0, size * 0.5, size, 0);
+            ctx.closePath();
+        } else {
+            ctx.moveTo(size, 0);
+            ctx.lineTo(-size * 0.7, -size * 0.5);
+            ctx.lineTo(-size * 0.4, 0);
+            ctx.lineTo(-size * 0.7, size * 0.5);
+            ctx.closePath();
+        }
+
+        ctx.fill();
+
+        return canvas;
+    }
+
+    // Darken a hex color
+    darkenColor(hex, amount) {
+        let r = parseInt(hex.slice(1, 3), 16);
+        let g = parseInt(hex.slice(3, 5), 16);
+        let b = parseInt(hex.slice(5, 7), 16);
+
+        r = Math.max(0, Math.floor(r * (1 - amount)));
+        g = Math.max(0, Math.floor(g * (1 - amount)));
+        b = Math.max(0, Math.floor(b * (1 - amount)));
+
+        return `rgb(${r}, ${g}, ${b})`;
     }
 
     // Resize canvas maintaining aspect ratio
@@ -39,17 +144,32 @@ class Renderer {
         this.canvas.width = width;
         this.canvas.height = height;
 
+        // Resize quadtree canvas too
+        this.quadtreeCanvas.width = width;
+        this.quadtreeCanvas.height = height;
+
         return { width, height };
     }
 
     // Clear canvas with trail effect
-    clear() {
+    clear(flock) {
         const themeColors = CONFIG.themes[this.theme];
 
         if (this.trailOpacity > 0) {
-            // Semi-transparent overlay for trail effect
-            const opacity = 1 - this.trailOpacity;
-            this.ctx.fillStyle = themeColors.trailOverlay + opacity + ')';
+            // Dynamic trail based on average speed
+            let trailMult = 1.0;
+            if (this.dynamicTrails && flock && flock.boids.length > 0) {
+                let avgSpeed = 0;
+                for (const boid of flock.boids) {
+                    avgSpeed += boid.currentSpeed;
+                }
+                avgSpeed /= flock.boids.length;
+                // Faster average = longer trails
+                trailMult = Utils.map(avgSpeed, 1, CONFIG.behavior.maxSpeed, 0.7, 1.3);
+            }
+
+            const opacity = (1 - this.trailOpacity * trailMult);
+            this.ctx.fillStyle = themeColors.trailOverlay + Math.max(0.5, opacity) + ')';
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         } else {
             // Full clear
@@ -64,59 +184,51 @@ class Renderer {
         return paletteColors[species % paletteColors.length];
     }
 
-    // Draw a single boid
+    // Draw a single boid using cached shapes for performance
     drawBoid(boid, isSelected = false) {
         const { x, y } = boid.position;
         const angle = boid.velocity.heading();
-        const speed = boid.velocity.mag();
+        const speed = boid.currentSpeed;
 
         // Size varies slightly with speed
         const baseSize = CONFIG.boid.baseSize;
         const elongation = 1 + (speed / CONFIG.behavior.maxSpeed) * CONFIG.boid.speedElongation;
-        const size = baseSize * elongation;
+        const scale = (baseSize * elongation) / this.shapeCacheSize;
 
-        const color = this.getSpeciesColor(boid.species);
+        // Turn waves: calculate darkness based on heading change rate
+        let darknessLevel = 0;
+        if (this.turnWaves) {
+            // Map heading change rate to darkness level (0-3)
+            darknessLevel = Math.min(3, Math.floor(boid.headingChangeRate * 20));
+        }
+
+        // Get cached shape
+        const cacheKey = `${this.palette}-${boid.species}-${darknessLevel}`;
+        const cachedShape = this.boidShapeCache.get(cacheKey);
 
         this.ctx.save();
         this.ctx.translate(x, y);
         this.ctx.rotate(angle);
+        this.ctx.scale(scale, scale);
 
-        // Draw shape based on species
-        this.ctx.fillStyle = color;
-        this.ctx.beginPath();
-
-        const shape = CONFIG.shapes[boid.species % CONFIG.shapes.length];
-
-        if (shape === 'bird') {
-            // Bird silhouette
-            this.ctx.moveTo(size, 0);
-            this.ctx.lineTo(-size * 0.5, -size * 0.6);
-            this.ctx.lineTo(-size * 0.2, 0);
-            this.ctx.lineTo(-size * 0.5, size * 0.6);
-            this.ctx.closePath();
-        } else if (shape === 'fish') {
-            // Fish shape
-            this.ctx.moveTo(size, 0);
-            this.ctx.quadraticCurveTo(0, -size * 0.5, -size * 0.6, -size * 0.3);
-            this.ctx.lineTo(-size * 0.8, -size * 0.5);
-            this.ctx.lineTo(-size * 0.6, 0);
-            this.ctx.lineTo(-size * 0.8, size * 0.5);
-            this.ctx.lineTo(-size * 0.6, size * 0.3);
-            this.ctx.quadraticCurveTo(0, size * 0.5, size, 0);
-            this.ctx.closePath();
+        if (cachedShape) {
+            // Use cached bitmap for performance
+            this.ctx.drawImage(cachedShape, -this.shapeCacheSize, -this.shapeCacheSize);
         } else {
-            // Arrow/triangle
-            this.ctx.moveTo(size, 0);
-            this.ctx.lineTo(-size * 0.7, -size * 0.5);
-            this.ctx.lineTo(-size * 0.4, 0);
-            this.ctx.lineTo(-size * 0.7, size * 0.5);
-            this.ctx.closePath();
+            // Fallback to direct drawing
+            this.drawBoidShape(boid, 0, 0, this.shapeCacheSize);
         }
 
-        this.ctx.fill();
+        this.ctx.restore();
 
         // Draw selection highlight
         if (isSelected) {
+            const color = this.getSpeciesColor(boid.species);
+            const size = baseSize * elongation;
+
+            this.ctx.save();
+            this.ctx.translate(x, y);
+
             this.ctx.strokeStyle = '#ffffff';
             this.ctx.lineWidth = 2;
             this.ctx.beginPath();
@@ -130,10 +242,43 @@ class Renderer {
             this.ctx.beginPath();
             this.ctx.arc(0, 0, size * 2, 0, Math.PI * 2);
             this.ctx.stroke();
-            this.ctx.globalAlpha = 1;
+
+            this.ctx.restore();
+        }
+    }
+
+    // Fallback boid shape drawing
+    drawBoidShape(boid, x, y, size) {
+        const color = this.getSpeciesColor(boid.species);
+        const shape = CONFIG.shapes[boid.species % CONFIG.shapes.length];
+
+        this.ctx.fillStyle = color;
+        this.ctx.beginPath();
+
+        if (shape === 'bird') {
+            this.ctx.moveTo(x + size, y);
+            this.ctx.lineTo(x - size * 0.5, y - size * 0.6);
+            this.ctx.lineTo(x - size * 0.2, y);
+            this.ctx.lineTo(x - size * 0.5, y + size * 0.6);
+            this.ctx.closePath();
+        } else if (shape === 'fish') {
+            this.ctx.moveTo(x + size, y);
+            this.ctx.quadraticCurveTo(x, y - size * 0.5, x - size * 0.6, y - size * 0.3);
+            this.ctx.lineTo(x - size * 0.8, y - size * 0.5);
+            this.ctx.lineTo(x - size * 0.6, y);
+            this.ctx.lineTo(x - size * 0.8, y + size * 0.5);
+            this.ctx.lineTo(x - size * 0.6, y + size * 0.3);
+            this.ctx.quadraticCurveTo(x, y + size * 0.5, x + size, y);
+            this.ctx.closePath();
+        } else {
+            this.ctx.moveTo(x + size, y);
+            this.ctx.lineTo(x - size * 0.7, y - size * 0.5);
+            this.ctx.lineTo(x - size * 0.4, y);
+            this.ctx.lineTo(x - size * 0.7, y + size * 0.5);
+            this.ctx.closePath();
         }
 
-        this.ctx.restore();
+        this.ctx.fill();
     }
 
     // Draw perception cone for selected boid
@@ -233,38 +378,80 @@ class Renderer {
         this.ctx.restore();
     }
 
-    // Draw quadtree visualization
-    drawQuadtree(quadtree) {
+    // Draw quadtree visualization (on separate canvas, updated less frequently)
+    updateQuadtreeVisualization(quadtree) {
         if (this.quadtreeVisualization === 'off' || !quadtree) return;
 
-        const boundaries = quadtree.getAllBoundaries();
-        const maxDepth = Math.max(...boundaries.map(b => b.depth));
+        this.quadtreeFrameCounter++;
+        if (this.quadtreeFrameCounter < this.quadtreeUpdateInterval) return;
+        this.quadtreeFrameCounter = 0;
 
-        this.ctx.save();
+        const ctx = this.quadtreeCtx;
+        ctx.clearRect(0, 0, this.quadtreeCanvas.width, this.quadtreeCanvas.height);
+
+        const boundaries = quadtree.getAllBoundaries();
 
         for (const bound of boundaries) {
             if (this.quadtreeVisualization === 'grid') {
-                // Simple grid lines
-                this.ctx.strokeStyle = this.theme === 'nature' ? '#1a3a5a' : '#cccccc';
-                this.ctx.lineWidth = 1;
-                this.ctx.globalAlpha = 0.5;
+                ctx.strokeStyle = this.theme === 'nature' ? '#1a3a5a' : '#cccccc';
+                ctx.lineWidth = 1;
+                ctx.globalAlpha = 0.5;
             } else if (this.quadtreeVisualization === 'active') {
-                // Highlight nodes with boids
                 const intensity = bound.count > 0 ? 0.3 : 0.1;
-                this.ctx.strokeStyle = this.theme === 'nature' ? '#4ECDC4' : '#0066CC';
-                this.ctx.lineWidth = bound.count > 0 ? 2 : 1;
-                this.ctx.globalAlpha = intensity;
+                ctx.strokeStyle = this.theme === 'nature' ? '#4ECDC4' : '#0066CC';
+                ctx.lineWidth = bound.count > 0 ? 2 : 1;
+                ctx.globalAlpha = intensity;
             } else if (this.quadtreeVisualization === 'heatmap') {
-                // Color by boid count
-                const hue = Utils.map(bound.count, 0, 10, 200, 0); // Blue to red
-                this.ctx.fillStyle = `hsla(${hue}, 70%, 50%, 0.2)`;
-                this.ctx.fillRect(bound.x, bound.y, bound.w, bound.h);
-                this.ctx.strokeStyle = `hsla(${hue}, 70%, 50%, 0.5)`;
-                this.ctx.lineWidth = 1;
-                this.ctx.globalAlpha = 1;
+                const hue = Utils.map(bound.count, 0, 10, 200, 0);
+                ctx.fillStyle = `hsla(${hue}, 70%, 50%, 0.2)`;
+                ctx.fillRect(bound.x, bound.y, bound.w, bound.h);
+                ctx.strokeStyle = `hsla(${hue}, 70%, 50%, 0.5)`;
+                ctx.lineWidth = 1;
+                ctx.globalAlpha = 1;
             }
 
-            this.ctx.strokeRect(bound.x, bound.y, bound.w, bound.h);
+            ctx.strokeRect(bound.x, bound.y, bound.w, bound.h);
+        }
+    }
+
+    // Draw quadtree layer
+    drawQuadtree() {
+        if (this.quadtreeVisualization === 'off') return;
+        this.ctx.drawImage(this.quadtreeCanvas, 0, 0);
+    }
+
+    // Draw obstacles
+    drawObstacles(obstacles) {
+        if (!obstacles || obstacles.length === 0) return;
+
+        this.ctx.save();
+
+        for (const obs of obstacles) {
+            // Gradient fill
+            const gradient = this.ctx.createRadialGradient(
+                obs.x, obs.y, 0,
+                obs.x, obs.y, obs.radius
+            );
+
+            if (this.theme === 'nature') {
+                gradient.addColorStop(0, 'rgba(255, 100, 100, 0.6)');
+                gradient.addColorStop(0.7, 'rgba(200, 50, 50, 0.4)');
+                gradient.addColorStop(1, 'rgba(150, 30, 30, 0.2)');
+            } else {
+                gradient.addColorStop(0, 'rgba(100, 100, 100, 0.6)');
+                gradient.addColorStop(0.7, 'rgba(70, 70, 70, 0.4)');
+                gradient.addColorStop(1, 'rgba(50, 50, 50, 0.2)');
+            }
+
+            this.ctx.fillStyle = gradient;
+            this.ctx.beginPath();
+            this.ctx.arc(obs.x, obs.y, obs.radius, 0, Math.PI * 2);
+            this.ctx.fill();
+
+            // Border
+            this.ctx.strokeStyle = this.theme === 'nature' ? '#ff6666' : '#666666';
+            this.ctx.lineWidth = 2;
+            this.ctx.stroke();
         }
 
         this.ctx.restore();
@@ -291,7 +478,7 @@ class Renderer {
             position.x, position.y, 0,
             position.x, position.y, radius
         );
-        gradient.addColorStop(0, color.replace(')', ', 0.2)').replace('rgb', 'rgba'));
+        gradient.addColorStop(0, color.replace(')', ', 0.2)').replace('rgb', 'rgba').replace('#FF6B6B', 'rgba(255,107,107').replace('#4ECDC4', 'rgba(78,205,196'));
         gradient.addColorStop(1, 'transparent');
 
         this.ctx.fillStyle = gradient;
@@ -310,12 +497,82 @@ class Renderer {
         this.ctx.restore();
     }
 
+    // Draw live metrics chart
+    drawChart(flock) {
+        if (!this.showChart || !flock.metrics.history.length) return;
+
+        const chartWidth = 200;
+        const chartHeight = 60;
+        const padding = 10;
+        const x = this.canvas.width - chartWidth - padding;
+        const y = this.canvas.height - chartHeight - padding;
+
+        this.ctx.save();
+
+        // Background
+        this.ctx.fillStyle = this.theme === 'nature' ? 'rgba(10, 22, 40, 0.8)' : 'rgba(255, 255, 255, 0.8)';
+        this.ctx.fillRect(x, y, chartWidth, chartHeight);
+
+        // Border
+        this.ctx.strokeStyle = this.theme === 'nature' ? '#4ECDC4' : '#0066CC';
+        this.ctx.lineWidth = 1;
+        this.ctx.strokeRect(x, y, chartWidth, chartHeight);
+
+        // Draw the metric line
+        const history = flock.metrics.history;
+        if (history.length < 2) {
+            this.ctx.restore();
+            return;
+        }
+
+        // Find min/max for scaling
+        let min = Infinity, max = -Infinity;
+        for (const m of history) {
+            const val = m[this.chartMetric];
+            if (val < min) min = val;
+            if (val > max) max = val;
+        }
+
+        // Add some padding to range
+        const range = max - min || 1;
+        min -= range * 0.1;
+        max += range * 0.1;
+
+        // Draw line
+        this.ctx.strokeStyle = this.theme === 'nature' ? '#4ECDC4' : '#0066CC';
+        this.ctx.lineWidth = 2;
+        this.ctx.beginPath();
+
+        for (let i = 0; i < history.length; i++) {
+            const px = x + (i / (history.length - 1)) * chartWidth;
+            const py = y + chartHeight - ((history[i][this.chartMetric] - min) / (max - min)) * chartHeight;
+
+            if (i === 0) {
+                this.ctx.moveTo(px, py);
+            } else {
+                this.ctx.lineTo(px, py);
+            }
+        }
+        this.ctx.stroke();
+
+        // Label
+        this.ctx.fillStyle = this.theme === 'nature' ? '#ffffff' : '#333333';
+        this.ctx.font = '10px monospace';
+        this.ctx.fillText(this.chartMetric, x + 4, y + 12);
+
+        this.ctx.restore();
+    }
+
     // Main render function
     render(flock, shepherd) {
-        this.clear();
+        this.clear(flock);
 
-        // Draw quadtree first (background layer)
-        this.drawQuadtree(flock.quadtree);
+        // Update and draw quadtree visualization (on separate layer)
+        this.updateQuadtreeVisualization(flock.quadtree);
+        this.drawQuadtree();
+
+        // Draw obstacles
+        this.drawObstacles(flock.obstacles);
 
         // Draw shepherd influence
         if (shepherd) {
@@ -341,6 +598,9 @@ class Renderer {
         if (flock.selectedBoid) {
             this.drawVelocityVector(flock.selectedBoid);
         }
+
+        // Draw live chart
+        this.drawChart(flock);
     }
 
     // Set theme
@@ -356,11 +616,33 @@ class Renderer {
     // Set quadtree visualization mode
     setQuadtreeVisualization(mode) {
         this.quadtreeVisualization = mode;
+        // Reset frame counter to update immediately
+        this.quadtreeFrameCounter = this.quadtreeUpdateInterval;
     }
 
-    // Set color palette
+    // Set color palette and rebuild cache
     setPalette(palette) {
         this.palette = palette;
+    }
+
+    // Toggle chart display
+    toggleChart(show = null) {
+        this.showChart = show !== null ? show : !this.showChart;
+    }
+
+    // Set chart metric
+    setChartMetric(metric) {
+        this.chartMetric = metric;
+    }
+
+    // Toggle dynamic trails
+    setDynamicTrails(enabled) {
+        this.dynamicTrails = enabled;
+    }
+
+    // Toggle turn waves effect
+    setTurnWaves(enabled) {
+        this.turnWaves = enabled;
     }
 }
 

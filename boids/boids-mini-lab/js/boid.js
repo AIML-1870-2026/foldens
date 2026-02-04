@@ -13,6 +13,12 @@ class Boid {
         // Cache for optimization
         this.neighbors = [];
         this.sameSpeciesNeighbors = [];
+        this.neighborDistances = new Map(); // Cache distances for smoothing
+
+        // Visual state tracking
+        this.previousHeading = this.velocity.heading();
+        this.headingChangeRate = 0; // For "turn waves" visual effect
+        this.currentSpeed = this.velocity.mag();
     }
 
     // Static ID counter
@@ -72,33 +78,67 @@ class Boid {
         return this.position.dist(other.position);
     }
 
+    // Calculate perception smoothing factor based on distance
+    // Uses smoothStep to gradually apply forces as neighbors enter perception zone
+    getPerceptionWeight(distance, perceptionRadius) {
+        // Inner zone (full effect) to outer zone (fading effect)
+        const innerRadius = perceptionRadius * 0.3;
+        const outerRadius = perceptionRadius;
+
+        if (distance <= innerRadius) return 1.0;
+        if (distance >= outerRadius) return 0.0;
+
+        // Smooth transition using smoothStep
+        const t = (distance - innerRadius) / (outerRadius - innerRadius);
+        return 1.0 - Utils.smoothStep(t);
+    }
+
     // SEPARATION: Steer away from nearby boids (all species)
-    separation(neighbors, width, height, boundaryMode) {
+    // Uses non-linear weighting for very close boids to prevent overlap
+    separation(neighbors, width, height, boundaryMode, perceptionRadius) {
         const steering = new Vector(0, 0);
-        let count = 0;
+        let totalWeight = 0;
+
+        // Critical distance threshold - exponential repulsion below this
+        const criticalDistance = CONFIG.boid.baseSize * 3;
 
         for (const other of neighbors) {
             if (other === this) continue;
 
             let diff;
+            let distance;
+
             if (boundaryMode === 'wrap') {
                 diff = Utils.wrappedDirection(other.position, this.position, width, height);
+                distance = diff.mag();
             } else {
                 diff = Vector.sub(this.position, other.position);
+                distance = diff.mag();
             }
 
-            const distSq = diff.magSq();
-            if (distSq > 0) {
-                // Weight by inverse distance (closer = stronger repulsion)
+            if (distance > 0) {
                 diff.normalize();
-                diff.div(Math.sqrt(distSq));
+
+                // Non-linear weighting: exponential when very close
+                let weight;
+                if (distance < criticalDistance) {
+                    // Exponential repulsion for very close boids (prevents overlap)
+                    const normalizedDist = distance / criticalDistance;
+                    weight = Math.pow(1 - normalizedDist, 2) * 3 + 1; // Strong push when close
+                } else {
+                    // Standard inverse distance with perception smoothing
+                    const perceptionWeight = this.getPerceptionWeight(distance, perceptionRadius);
+                    weight = perceptionWeight / distance;
+                }
+
+                diff.mult(weight);
                 steering.add(diff);
-                count++;
+                totalWeight += weight;
             }
         }
 
-        if (count > 0) {
-            steering.div(count);
+        if (totalWeight > 0) {
+            steering.div(totalWeight);
             if (steering.magSq() > 0) {
                 steering.setMag(CONFIG.behavior.maxSpeed);
                 steering.sub(this.velocity);
@@ -110,18 +150,24 @@ class Boid {
     }
 
     // ALIGNMENT: Steer toward average heading of same-species neighbors
-    alignment(sameSpeciesNeighbors) {
+    // With perception smoothing
+    alignment(sameSpeciesNeighbors, perceptionRadius, width, height, boundaryMode) {
         const steering = new Vector(0, 0);
-        let count = 0;
+        let totalWeight = 0;
 
         for (const other of sameSpeciesNeighbors) {
             if (other === this) continue;
-            steering.add(other.velocity);
-            count++;
+
+            const distance = this.distanceTo(other, width, height, boundaryMode);
+            const weight = this.getPerceptionWeight(distance, perceptionRadius);
+
+            const weightedVel = other.velocity.copy().mult(weight);
+            steering.add(weightedVel);
+            totalWeight += weight;
         }
 
-        if (count > 0) {
-            steering.div(count);
+        if (totalWeight > 0) {
+            steering.div(totalWeight);
             steering.setMag(CONFIG.behavior.maxSpeed);
             steering.sub(this.velocity);
             steering.limit(CONFIG.behavior.maxForce);
@@ -131,31 +177,34 @@ class Boid {
     }
 
     // COHESION: Steer toward center of same-species neighbors
-    cohesion(sameSpeciesNeighbors, width, height, boundaryMode) {
+    // With perception smoothing
+    cohesion(sameSpeciesNeighbors, width, height, boundaryMode, perceptionRadius) {
         const center = new Vector(0, 0);
-        let count = 0;
+        let totalWeight = 0;
 
         for (const other of sameSpeciesNeighbors) {
             if (other === this) continue;
 
+            const distance = this.distanceTo(other, width, height, boundaryMode);
+            const weight = this.getPerceptionWeight(distance, perceptionRadius);
+
             if (boundaryMode === 'wrap') {
-                // Add wrapped direction for proper averaging
                 const dir = Utils.wrappedDirection(this.position, other.position, width, height);
-                center.add(dir);
+                center.add(dir.mult(weight));
             } else {
-                center.add(other.position);
+                const weightedPos = other.position.copy().mult(weight);
+                center.add(weightedPos);
             }
-            count++;
+            totalWeight += weight;
         }
 
-        if (count > 0) {
+        if (totalWeight > 0) {
             if (boundaryMode === 'wrap') {
-                // Average direction, then add to current position
-                center.div(count);
+                center.div(totalWeight);
                 const target = Vector.add(this.position, center);
                 return this.seek(target);
             } else {
-                center.div(count);
+                center.div(totalWeight);
                 return this.seek(center);
             }
         }
@@ -163,8 +212,58 @@ class Boid {
         return new Vector(0, 0);
     }
 
+    // Predictive obstacle avoidance using look-ahead vector
+    avoidObstacles(obstacles, width, height, boundaryMode) {
+        if (!obstacles || obstacles.length === 0) return new Vector(0, 0);
+
+        const steering = new Vector(0, 0);
+
+        // Look-ahead distance based on current speed
+        const lookAhead = Math.max(30, this.currentSpeed * 15);
+
+        // Project future position
+        const futurePos = this.velocity.copy().normalize().mult(lookAhead).add(this.position);
+
+        for (const obstacle of obstacles) {
+            // Calculate distance from future position to obstacle center
+            let distToObstacle;
+            if (boundaryMode === 'wrap') {
+                distToObstacle = Utils.wrappedDistance(
+                    futurePos.x, futurePos.y,
+                    obstacle.x, obstacle.y,
+                    width, height
+                );
+            } else {
+                distToObstacle = Math.sqrt(
+                    Math.pow(futurePos.x - obstacle.x, 2) +
+                    Math.pow(futurePos.y - obstacle.y, 2)
+                );
+            }
+
+            // Check if collision is imminent
+            const collisionBuffer = obstacle.radius + CONFIG.boid.baseSize * 2;
+
+            if (distToObstacle < collisionBuffer) {
+                // Calculate avoidance direction (perpendicular to velocity)
+                let avoidDir;
+                if (boundaryMode === 'wrap') {
+                    avoidDir = Utils.wrappedDirection(obstacle, this.position, width, height);
+                } else {
+                    avoidDir = Vector.sub(this.position, new Vector(obstacle.x, obstacle.y));
+                }
+
+                // Stronger avoidance when closer to collision
+                const urgency = 1 - (distToObstacle / collisionBuffer);
+                avoidDir.normalize().mult(urgency * CONFIG.behavior.maxForce * 3);
+                steering.add(avoidDir);
+            }
+        }
+
+        return steering;
+    }
+
     // Apply flocking behavior
-    flock(quadtree, width, height, boundaryMode, perceptionRadius, perceptionAngle) {
+    flock(quadtree, width, height, boundaryMode, perceptionRadius, perceptionAngle, obstacles = []) {
         // Find nearby boids using quadtree
         let nearbyBoids;
         if (boundaryMode === 'wrap') {
@@ -199,10 +298,11 @@ class Boid {
             }
         }
 
-        // Calculate steering forces
-        const sep = this.separation(this.neighbors, width, height, boundaryMode);
-        const ali = this.alignment(this.sameSpeciesNeighbors);
-        const coh = this.cohesion(this.sameSpeciesNeighbors, width, height, boundaryMode);
+        // Calculate steering forces with perception smoothing
+        const sep = this.separation(this.neighbors, width, height, boundaryMode, perceptionRadius);
+        const ali = this.alignment(this.sameSpeciesNeighbors, perceptionRadius, width, height, boundaryMode);
+        const coh = this.cohesion(this.sameSpeciesNeighbors, width, height, boundaryMode, perceptionRadius);
+        const avoid = this.avoidObstacles(obstacles, width, height, boundaryMode);
 
         // Apply weights from config
         sep.mult(CONFIG.behavior.separation);
@@ -213,6 +313,7 @@ class Boid {
         this.applyForce(sep);
         this.applyForce(ali);
         this.applyForce(coh);
+        this.applyForce(avoid);
     }
 
     // React to the shepherd (mouse cursor)
@@ -243,8 +344,11 @@ class Boid {
         }
 
         if (distance < shepherdRadius && distance > 0) {
-            // Stronger effect when closer
-            const strength = Utils.map(distance, 0, shepherdRadius, shepherdStrength, 0);
+            // Use smoothStep for gradual effect at edges
+            const normalizedDist = distance / shepherdRadius;
+            const smoothFactor = 1 - Utils.smoothStep(normalizedDist);
+            const strength = shepherdStrength * smoothFactor;
+
             direction.normalize();
             direction.mult(strength);
             direction.limit(CONFIG.behavior.maxForce * 2);
@@ -252,11 +356,27 @@ class Boid {
         }
     }
 
-    // Update position
+    // Update position and track visual state
     update() {
+        // Store previous heading for turn wave calculation
+        this.previousHeading = this.velocity.heading();
+
         this.velocity.add(this.acceleration);
         this.velocity.limit(CONFIG.behavior.maxSpeed);
         this.position.add(this.velocity);
+
+        // Update visual state tracking
+        const currentHeading = this.velocity.heading();
+        let headingDiff = currentHeading - this.previousHeading;
+
+        // Normalize angle difference to -PI to PI
+        while (headingDiff > Math.PI) headingDiff -= Math.PI * 2;
+        while (headingDiff < -Math.PI) headingDiff += Math.PI * 2;
+
+        // Smooth the heading change rate (for turn waves visual)
+        this.headingChangeRate = Utils.lerp(this.headingChangeRate, Math.abs(headingDiff), 0.3);
+        this.currentSpeed = this.velocity.mag();
+
         this.acceleration.mult(0); // Reset acceleration
     }
 
