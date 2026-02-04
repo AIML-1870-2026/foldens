@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boids Mini-Lab</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div id="app" class="theme-nature">
+        <!-- Sidebar Controls -->
+        <aside id="sidebar" class="sidebar">
+            <div class="sidebar-header">
+                <h1>Boids Mini-Lab</h1>
+                <button id="collapse-btn" class="collapse-btn" title="Collapse sidebar">&laquo;</button>
+            </div>
+
+            <!-- Simulation Section -->
+            <section class="control-section">
+                <h2>Simulation</h2>
+                <div class="control-group">
+                    <label for="boid-count">Boid Count</label>
+                    <div class="slider-container">
+                        <span class="slider-min">10</span>
+                        <input type="range" id="boid-count" min="10" max="2000" value="100">
+                        <span class="slider-max">2000</span>
+                        <span class="slider-value" id="boid-count-value">100</span>
+                    </div>
+                </div>
+                <div class="button-row">
+                    <button id="play-pause-btn" class="btn btn-primary">Pause</button>
+                    <button id="reset-btn" class="btn">Reset</button>
+                </div>
+            </section>
+
+            <!-- Behavior Section -->
+            <section class="control-section">
+                <h2>Behavior</h2>
+                <div class="control-group">
+                    <label for="separation">Separation</label>
+                    <div class="slider-container">
+                        <span class="slider-min">0</span>
+                        <input type="range" id="separation" min="0" max="5" step="0.1" value="1.5">
+                        <span class="slider-max">5</span>
+                        <span class="slider-value" id="separation-value">1.5</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label for="alignment">Alignment</label>
+                    <div class="slider-container">
+                        <span class="slider-min">0</span>
+                        <input type="range" id="alignment" min="0" max="5" step="0.1" value="1.0">
+                        <span class="slider-max">5</span>
+                        <span class="slider-value" id="alignment-value">1.0</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label for="cohesion">Cohesion</label>
+                    <div class="slider-container">
+                        <span class="slider-min">0</span>
+                        <input type="range" id="cohesion" min="0" max="5" step="0.1" value="1.0">
+                        <span class="slider-max">5</span>
+                        <span class="slider-value" id="cohesion-value">1.0</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label for="max-speed">Max Speed</label>
+                    <div class="slider-container">
+                        <span class="slider-min">1</span>
+                        <input type="range" id="max-speed" min="1" max="10" step="0.5" value="4">
+                        <span class="slider-max">10</span>
+                        <span class="slider-value" id="max-speed-value">4</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label for="neighbor-radius">Neighbor Radius</label>
+                    <div class="slider-container">
+                        <span class="slider-min">20</span>
+                        <input type="range" id="neighbor-radius" min="20" max="150" value="50">
+                        <span class="slider-max">150</span>
+                        <span class="slider-value" id="neighbor-radius-value">50</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label for="perception-angle">Perception Angle</label>
+                    <div class="slider-container">
+                        <span class="slider-min">180&deg;</span>
+                        <input type="range" id="perception-angle" min="180" max="360" value="270">
+                        <span class="slider-max">360&deg;</span>
+                        <span class="slider-value" id="perception-angle-value">270&deg;</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Presets Section -->
+            <section class="control-section">
+                <h2>Presets</h2>
+                <div class="button-row preset-buttons">
+                    <button id="preset-schooling" class="btn btn-small">Schooling</button>
+                    <button id="preset-swarm" class="btn btn-small">Chaotic Swarm</button>
+                    <button id="preset-cluster" class="btn btn-small">Tight Cluster</button>
+                </div>
+                <div class="button-row">
+                    <button id="save-preset-btn" class="btn btn-small">Save</button>
+                    <button id="load-preset-btn" class="btn btn-small">Load</button>
+                </div>
+            </section>
+
+            <!-- Species Section -->
+            <section class="control-section">
+                <h2>Species</h2>
+                <div class="control-group">
+                    <label>Count</label>
+                    <div class="button-group">
+                        <button class="btn btn-toggle species-btn" data-count="1">1</button>
+                        <button class="btn btn-toggle species-btn active" data-count="2">2</button>
+                        <button class="btn btn-toggle species-btn" data-count="3">3</button>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>Palette</label>
+                    <div class="button-group">
+                        <button id="palette-warm" class="btn btn-toggle active">Warm</button>
+                        <button id="palette-cool" class="btn btn-toggle">Cool</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Shepherd Section -->
+            <section class="control-section">
+                <h2>Shepherd (Mouse)</h2>
+                <div class="control-group">
+                    <label>Mode</label>
+                    <div class="button-group">
+                        <button class="btn btn-toggle shepherd-btn active" data-mode="repel">Repel</button>
+                        <button class="btn btn-toggle shepherd-btn" data-mode="attract">Attract</button>
+                        <button class="btn btn-toggle shepherd-btn" data-mode="neutral">Neutral</button>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label for="shepherd-radius">Radius</label>
+                    <div class="slider-container">
+                        <span class="slider-min">50</span>
+                        <input type="range" id="shepherd-radius" min="50" max="200" value="100">
+                        <span class="slider-max">200</span>
+                        <span class="slider-value" id="shepherd-radius-value">100</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Display Section -->
+            <section class="control-section">
+                <h2>Display</h2>
+                <div class="control-group">
+                    <label>Theme</label>
+                    <div class="button-group">
+                        <button id="theme-nature" class="btn btn-toggle active">Nature</button>
+                        <button id="theme-minimal" class="btn btn-toggle">Minimal</button>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label for="trail-opacity">Trails</label>
+                    <div class="slider-container">
+                        <span class="slider-min">0%</span>
+                        <input type="range" id="trail-opacity" min="0" max="50" value="5">
+                        <span class="slider-max">50%</span>
+                        <span class="slider-value" id="trail-opacity-value">5%</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label for="quadtree-viz">Quadtree</label>
+                    <select id="quadtree-viz">
+                        <option value="off">Off</option>
+                        <option value="grid">Grid Lines</option>
+                        <option value="active">Active Regions</option>
+                        <option value="heatmap">Heat Map</option>
+                    </select>
+                </div>
+            </section>
+
+            <!-- Export Section -->
+            <section class="control-section">
+                <h2>Export</h2>
+                <div class="button-row">
+                    <button id="export-btn" class="btn btn-small">Export JSON</button>
+                    <button id="import-btn" class="btn btn-small">Import JSON</button>
+                </div>
+                <input type="file" id="import-file" accept=".json" style="display: none;">
+            </section>
+        </aside>
+
+        <!-- Main Canvas Area -->
+        <main id="canvas-container">
+            <canvas id="simulation-canvas"></canvas>
+
+            <!-- Metrics Overlay -->
+            <div id="metrics-overlay">
+                <div class="metric"><span id="fps-display">FPS: 60</span></div>
+                <div class="metric"><span id="boid-display">Boids: 100</span></div>
+                <div class="metric" id="species-display"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/config.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/quadtree.js"></script>
+    <script src="js/boid.js"></script>
+    <script src="js/flock.js"></script>
+    <script src="js/shepherd.js"></script>
+    <script src="js/renderer.js"></script>
+    <script src="js/presets.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
