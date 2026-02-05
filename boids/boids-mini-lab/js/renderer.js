@@ -39,6 +39,19 @@ class Renderer {
         // Performance tracking
         this.lastDrawTime = 0;
 
+        // Performance: Pre-computed constants
+        this.TWO_PI = this.TWO_PI;
+        this.cachedBaseSize = CONFIG.boid.baseSize;
+        this.cachedSpeedElongation = CONFIG.boid.speedElongation;
+        this.trailFrameSkip = 0;
+        this.cachedAvgSpeed = 1;
+
+        // Performance: Pre-computed shepherd colors (avoid string parsing)
+        this.shepherdColors = {
+            repel: { hex: '#FF6B6B', rgba: 'rgba(255,107,107,' },
+            attract: { hex: '#4ECDC4', rgba: 'rgba(78,205,196,' }
+        };
+
         // Initialize shape cache
         this.initShapeCache();
     }
@@ -156,16 +169,22 @@ class Renderer {
         const themeColors = CONFIG.themes[this.theme];
 
         if (this.trailOpacity > 0) {
-            // Dynamic trail based on average speed
+            // Dynamic trail based on average speed (calculate every 4 frames for performance)
             let trailMult = 1.0;
             if (this.dynamicTrails && flock && flock.boids.length > 0) {
-                let avgSpeed = 0;
-                for (const boid of flock.boids) {
-                    avgSpeed += boid.currentSpeed;
+                this.trailFrameSkip++;
+                if (this.trailFrameSkip >= 4) {
+                    this.trailFrameSkip = 0;
+                    let avgSpeed = 0;
+                    const boids = flock.boids;
+                    const len = boids.length;
+                    for (let i = 0; i < len; i++) {
+                        avgSpeed += boids[i].currentSpeed;
+                    }
+                    this.cachedAvgSpeed = avgSpeed / len;
                 }
-                avgSpeed /= flock.boids.length;
                 // Faster average = longer trails
-                trailMult = Utils.map(avgSpeed, 1, CONFIG.behavior.maxSpeed, 0.7, 1.3);
+                trailMult = Utils.map(this.cachedAvgSpeed, 1, CONFIG.behavior.maxSpeed, 0.7, 1.3);
             }
 
             const opacity = (1 - this.trailOpacity * trailMult);
@@ -186,14 +205,14 @@ class Renderer {
 
     // Draw a single boid using cached shapes for performance
     drawBoid(boid, isSelected = false) {
-        const { x, y } = boid.position;
+        const x = boid.position.x;
+        const y = boid.position.y;
         const angle = boid.velocity.heading();
         const speed = boid.currentSpeed;
 
-        // Size varies slightly with speed
-        const baseSize = CONFIG.boid.baseSize;
-        const elongation = 1 + (speed / CONFIG.behavior.maxSpeed) * CONFIG.boid.speedElongation;
-        const scale = (baseSize * elongation) / this.shapeCacheSize;
+        // Size varies slightly with speed (use cached values)
+        const elongation = 1 + (speed / CONFIG.behavior.maxSpeed) * this.cachedSpeedElongation;
+        const scale = (this.cachedBaseSize * elongation) / this.shapeCacheSize;
 
         // Turn waves: calculate darkness based on heading change rate
         let darknessLevel = 0;
@@ -224,7 +243,7 @@ class Renderer {
         // Draw selection highlight
         if (isSelected) {
             const color = this.getSpeciesColor(boid.species);
-            const size = baseSize * elongation;
+            const size = this.cachedBaseSize * elongation;
 
             this.ctx.save();
             this.ctx.translate(x, y);
@@ -232,7 +251,7 @@ class Renderer {
             this.ctx.strokeStyle = '#ffffff';
             this.ctx.lineWidth = 2;
             this.ctx.beginPath();
-            this.ctx.arc(0, 0, size * 1.5, 0, Math.PI * 2);
+            this.ctx.arc(0, 0, size * 1.5, 0, this.TWO_PI);
             this.ctx.stroke();
 
             // Outer glow
@@ -240,7 +259,7 @@ class Renderer {
             this.ctx.lineWidth = 3;
             this.ctx.globalAlpha = 0.5;
             this.ctx.beginPath();
-            this.ctx.arc(0, 0, size * 2, 0, Math.PI * 2);
+            this.ctx.arc(0, 0, size * 2, 0, this.TWO_PI);
             this.ctx.stroke();
 
             this.ctx.restore();
@@ -393,12 +412,12 @@ class Renderer {
 
         for (const bound of boundaries) {
             if (this.quadtreeVisualization === 'grid') {
-                ctx.strokeStyle = this.theme === 'nature' ? '#1a3a5a' : '#cccccc';
+                ctx.strokeStyle = this.theme === 'dark' ? '#1a3a5a' : '#cccccc';
                 ctx.lineWidth = 1;
                 ctx.globalAlpha = 0.5;
             } else if (this.quadtreeVisualization === 'active') {
                 const intensity = bound.count > 0 ? 0.3 : 0.1;
-                ctx.strokeStyle = this.theme === 'nature' ? '#4ECDC4' : '#0066CC';
+                ctx.strokeStyle = this.theme === 'dark' ? '#4ECDC4' : '#0066CC';
                 ctx.lineWidth = bound.count > 0 ? 2 : 1;
                 ctx.globalAlpha = intensity;
             } else if (this.quadtreeVisualization === 'heatmap') {
@@ -433,7 +452,7 @@ class Renderer {
                 obs.x, obs.y, obs.radius
             );
 
-            if (this.theme === 'nature') {
+            if (this.theme === 'dark') {
                 gradient.addColorStop(0, 'rgba(255, 100, 100, 0.6)');
                 gradient.addColorStop(0.7, 'rgba(200, 50, 50, 0.4)');
                 gradient.addColorStop(1, 'rgba(150, 30, 30, 0.2)');
@@ -445,11 +464,11 @@ class Renderer {
 
             this.ctx.fillStyle = gradient;
             this.ctx.beginPath();
-            this.ctx.arc(obs.x, obs.y, obs.radius, 0, Math.PI * 2);
+            this.ctx.arc(obs.x, obs.y, obs.radius, 0, this.TWO_PI);
             this.ctx.fill();
 
             // Border
-            this.ctx.strokeStyle = this.theme === 'nature' ? '#ff6666' : '#666666';
+            this.ctx.strokeStyle = this.theme === 'dark' ? '#ff6666' : '#666666';
             this.ctx.lineWidth = 2;
             this.ctx.stroke();
         }
@@ -463,35 +482,38 @@ class Renderer {
 
         this.ctx.save();
 
-        const color = mode === 'repel' ? '#FF6B6B' : '#4ECDC4';
+        // Use pre-computed colors for performance
+        const colorData = this.shepherdColors[mode];
+        const color = colorData.hex;
+        const rgbaBase = colorData.rgba;
 
         // Outer circle
         this.ctx.strokeStyle = color;
         this.ctx.lineWidth = 2;
         this.ctx.globalAlpha = 0.4;
         this.ctx.beginPath();
-        this.ctx.arc(position.x, position.y, radius, 0, Math.PI * 2);
+        this.ctx.arc(position.x, position.y, radius, 0, this.TWO_PI);
         this.ctx.stroke();
 
-        // Inner glow
+        // Inner glow (using pre-computed rgba)
         const gradient = this.ctx.createRadialGradient(
             position.x, position.y, 0,
             position.x, position.y, radius
         );
-        gradient.addColorStop(0, color.replace(')', ', 0.2)').replace('rgb', 'rgba').replace('#FF6B6B', 'rgba(255,107,107').replace('#4ECDC4', 'rgba(78,205,196'));
+        gradient.addColorStop(0, rgbaBase + '0.2)');
         gradient.addColorStop(1, 'transparent');
 
         this.ctx.fillStyle = gradient;
         this.ctx.globalAlpha = 0.3;
         this.ctx.beginPath();
-        this.ctx.arc(position.x, position.y, radius, 0, Math.PI * 2);
+        this.ctx.arc(position.x, position.y, radius, 0, this.TWO_PI);
         this.ctx.fill();
 
         // Center dot
         this.ctx.fillStyle = color;
         this.ctx.globalAlpha = 0.8;
         this.ctx.beginPath();
-        this.ctx.arc(position.x, position.y, 3, 0, Math.PI * 2);
+        this.ctx.arc(position.x, position.y, 3, 0, this.TWO_PI);
         this.ctx.fill();
 
         this.ctx.restore();
@@ -510,11 +532,11 @@ class Renderer {
         this.ctx.save();
 
         // Background
-        this.ctx.fillStyle = this.theme === 'nature' ? 'rgba(10, 22, 40, 0.8)' : 'rgba(255, 255, 255, 0.8)';
+        this.ctx.fillStyle = this.theme === 'dark' ? 'rgba(10, 22, 40, 0.8)' : 'rgba(255, 255, 255, 0.8)';
         this.ctx.fillRect(x, y, chartWidth, chartHeight);
 
         // Border
-        this.ctx.strokeStyle = this.theme === 'nature' ? '#4ECDC4' : '#0066CC';
+        this.ctx.strokeStyle = this.theme === 'dark' ? '#4ECDC4' : '#0066CC';
         this.ctx.lineWidth = 1;
         this.ctx.strokeRect(x, y, chartWidth, chartHeight);
 
@@ -539,7 +561,7 @@ class Renderer {
         max += range * 0.1;
 
         // Draw line
-        this.ctx.strokeStyle = this.theme === 'nature' ? '#4ECDC4' : '#0066CC';
+        this.ctx.strokeStyle = this.theme === 'dark' ? '#4ECDC4' : '#0066CC';
         this.ctx.lineWidth = 2;
         this.ctx.beginPath();
 
@@ -556,7 +578,7 @@ class Renderer {
         this.ctx.stroke();
 
         // Label
-        this.ctx.fillStyle = this.theme === 'nature' ? '#ffffff' : '#333333';
+        this.ctx.fillStyle = this.theme === 'dark' ? '#ffffff' : '#333333';
         this.ctx.font = '10px monospace';
         this.ctx.fillText(this.chartMetric, x + 4, y + 12);
 
@@ -589,9 +611,12 @@ class Renderer {
             this.drawNeighborConnections(flock.selectedBoid);
         }
 
-        // Draw all boids
-        for (const boid of flock.boids) {
-            this.drawBoid(boid, boid === flock.selectedBoid);
+        // Draw all boids (use index-based loop for performance)
+        const boids = flock.boids;
+        const selectedBoid = flock.selectedBoid;
+        for (let i = 0, len = boids.length; i < len; i++) {
+            const boid = boids[i];
+            this.drawBoid(boid, boid === selectedBoid);
         }
 
         // Draw velocity vector for selected boid (on top)

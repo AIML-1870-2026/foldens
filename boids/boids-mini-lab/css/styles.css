@@ -17,7 +17,7 @@ body {
 }
 
 /* ===== Theme Variables ===== */
-.theme-nature {
+.theme-dark {
     --bg-primary: #0a1628;
     --bg-secondary: #0f1f3a;
     --bg-sidebar: #0d1929;
@@ -34,7 +34,7 @@ body {
     --btn-active-text: #0a1628;
 }
 
-.theme-minimal {
+.theme-light {
     --bg-primary: #f5f5f5;
     --bg-secondary: #ffffff;
     --bg-sidebar: #ffffff;
@@ -312,7 +312,7 @@ select:focus {
     color: var(--text-primary);
 }
 
-.theme-minimal #metrics-overlay {
+.theme-light #metrics-overlay {
     background-color: rgba(255, 255, 255, 0.9);
     color: var(--text-primary);
     border: 1px solid var(--border-color);

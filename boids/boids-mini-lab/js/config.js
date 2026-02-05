@@ -35,7 +35,7 @@ const CONFIG = {
 
     // Display defaults
     display: {
-        theme: 'nature', // 'nature' or 'minimal'
+        theme: 'dark', // 'dark' or 'light'
         trailOpacity: 0.05, // 0 to 0.5
         quadtreeVisualization: 'off' // 'off', 'grid', 'active', 'heatmap'
     },
@@ -76,11 +76,11 @@ const CONFIG = {
 
     // Theme colors
     themes: {
-        nature: {
+        dark: {
             background: '#0a1628',
             trailOverlay: 'rgba(10, 22, 40, '
         },
-        minimal: {
+        light: {
             background: '#f5f5f5',
             trailOverlay: 'rgba(245, 245, 245, '
         }

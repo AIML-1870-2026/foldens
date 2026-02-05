@@ -133,23 +133,23 @@ class UI {
 
     // Setup theme toggle
     setupThemeToggle() {
-        const natureBtn = document.getElementById('theme-nature');
-        const minimalBtn = document.getElementById('theme-minimal');
+        const darkBtn = document.getElementById('theme-dark');
+        const lightBtn = document.getElementById('theme-light');
         const appElement = document.getElementById('app');
 
-        if (natureBtn && minimalBtn) {
-            natureBtn.addEventListener('click', () => {
-                appElement.className = 'theme-nature';
-                this.simulation.renderer.setTheme('nature');
-                natureBtn.classList.add('active');
-                minimalBtn.classList.remove('active');
+        if (darkBtn && lightBtn) {
+            darkBtn.addEventListener('click', () => {
+                appElement.className = 'theme-dark';
+                this.simulation.renderer.setTheme('dark');
+                darkBtn.classList.add('active');
+                lightBtn.classList.remove('active');
             });
 
-            minimalBtn.addEventListener('click', () => {
-                appElement.className = 'theme-minimal';
-                this.simulation.renderer.setTheme('minimal');
-                minimalBtn.classList.add('active');
-                natureBtn.classList.remove('active');
+            lightBtn.addEventListener('click', () => {
+                appElement.className = 'theme-light';
+                this.simulation.renderer.setTheme('light');
+                lightBtn.classList.add('active');
+                darkBtn.classList.remove('active');
             });
         }
 
@@ -436,11 +436,11 @@ class UI {
         });
 
         // Sync theme buttons
-        const natureBtn = document.getElementById('theme-nature');
-        const minimalBtn = document.getElementById('theme-minimal');
-        if (natureBtn && minimalBtn) {
-            natureBtn.classList.toggle('active', this.simulation.renderer.theme === 'nature');
-            minimalBtn.classList.toggle('active', this.simulation.renderer.theme === 'minimal');
+        const darkBtn = document.getElementById('theme-dark');
+        const lightBtn = document.getElementById('theme-light');
+        if (darkBtn && lightBtn) {
+            darkBtn.classList.toggle('active', this.simulation.renderer.theme === 'dark');
+            lightBtn.classList.toggle('active', this.simulation.renderer.theme === 'light');
         }
 
         // Sync palette buttons
