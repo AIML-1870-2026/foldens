@@ -11,19 +11,19 @@ const MODELS = {
         dispMin: 0.0,
         dispMax: 0.4,
         params: [
-            { key: 'feed', uniform: 'u_feed', label: 'Feed (F)', min: 0.01, max: 0.08, step: 0.001, default: 0.030, tip: 'How fast chemical A is replenished. Higher = more activity.' },
-            { key: 'kill', uniform: 'u_kill', label: 'Kill (K)', min: 0.03, max: 0.07, step: 0.001, default: 0.062, tip: 'How fast chemical B decays. Higher = sparser patterns.' },
+            { key: 'feed', uniform: 'u_feed', label: 'Feed (F)', min: 0.01, max: 0.08, step: 0.001, default: 0.034, tip: 'How fast chemical A is replenished. Higher = more activity.' },
+            { key: 'kill', uniform: 'u_kill', label: 'Kill (K)', min: 0.03, max: 0.07, step: 0.001, default: 0.063, tip: 'How fast chemical B decays. Higher = sparser patterns.' },
             { key: 'dA', uniform: 'u_dA', label: 'Diff A', min: 0.5, max: 1.2, step: 0.01, default: 1.0, tip: 'Diffusion rate of chemical A.' },
             { key: 'dB', uniform: 'u_dB', label: 'Diff B', min: 0.1, max: 0.6, step: 0.01, default: 0.5, tip: 'Diffusion rate of chemical B.' }
         ],
         presets: [
-            { name: 'Spots',   vals: { feed: 0.030, kill: 0.062 }, tip: 'Self-replicating round dots' },
-            { name: 'Stripes', vals: { feed: 0.035, kill: 0.065 }, tip: 'Parallel lines and filaments' },
+            { name: 'Spots',   vals: { feed: 0.034, kill: 0.063 }, tip: 'Self-replicating round dots' },
+            { name: 'Stripes', vals: { feed: 0.042, kill: 0.063 }, tip: 'Parallel lines and filaments' },
             { name: 'Maze',    vals: { feed: 0.029, kill: 0.057 }, tip: 'Winding labyrinthine corridors' },
             { name: 'Coral',   vals: { feed: 0.055, kill: 0.062 }, tip: 'Branching coral-like growth' },
-            { name: 'Mitosis', vals: { feed: 0.028, kill: 0.062 }, tip: 'Blobs splitting like dividing cells' },
-            { name: 'Chaos',   vals: { feed: 0.018, kill: 0.051 }, tip: 'Turbulent shifting regions' },
-            { name: 'Worms',   vals: { feed: 0.038, kill: 0.061 }, tip: 'Elongated wriggling shapes' },
+            { name: 'Mitosis', vals: { feed: 0.037, kill: 0.065 }, tip: 'Blobs splitting like dividing cells' },
+            { name: 'Chaos',   vals: { feed: 0.026, kill: 0.051 }, tip: 'Turbulent shifting regions' },
+            { name: 'Worms',   vals: { feed: 0.058, kill: 0.065 }, tip: 'Elongated wriggling shapes' },
             { name: 'Holes',   vals: { feed: 0.039, kill: 0.058 }, tip: 'Negative-space dots in a field' }
         ],
         seed(data, w, h) {
@@ -668,12 +668,12 @@ function onParamSpaceClick(e) {
 
 // ===== JOURNEY MODE =====
 const JOURNEY_PATH = [
-    { feed: 0.030, kill: 0.062 }, // Spots
-    { feed: 0.035, kill: 0.065 }, // Stripes
+    { feed: 0.034, kill: 0.063 }, // Spots
+    { feed: 0.042, kill: 0.063 }, // Stripes
     { feed: 0.029, kill: 0.057 }, // Maze
     { feed: 0.055, kill: 0.062 }, // Coral
-    { feed: 0.018, kill: 0.051 }, // Chaos
-    { feed: 0.030, kill: 0.062 }  // Back to spots
+    { feed: 0.026, kill: 0.051 }, // Chaos
+    { feed: 0.034, kill: 0.063 }  // Back to spots
 ];
 const JOURNEY_DURATION = 15000; // 15 seconds
 
