@@ -14,13 +14,84 @@
     <main>
         <div id="canvas-container">
             <canvas id="sim-canvas"></canvas>
+            <div id="brush-cursor"></div>
+            <div id="webgl-error">
+                <div>WebGL 2.0 is not supported by your browser.</div>
+                <div style="font-size:14px;">Please use a modern browser such as Chrome, Firefox, or Edge.</div>
+            </div>
         </div>
+
         <aside id="sidebar">
-            <!-- Controls will be built here -->
+            <!-- Model Selector -->
+            <div class="control-group">
+                <h3>Model</h3>
+                <div id="model-selector" class="segmented-control">
+                    <button class="active" data-model="gray-scott" data-tip="Classic two-chemical system producing spots, stripes, and mazes">Gray-Scott</button>
+                    <button data-model="brusselator" data-tip="Oscillatory chemical model with wave-like patterns">Brusselator</button>
+                    <button data-model="schnakenberg" data-tip="Minimal activator-inhibitor system">Schnakenberg</button>
+                </div>
+            </div>
+
+            <!-- Presets -->
+            <div class="control-group">
+                <h3>Presets</h3>
+                <div id="presets" class="preset-grid"></div>
+            </div>
+
+            <!-- Parameter Space (Gray-Scott only) -->
+            <div class="control-group" id="param-space-group">
+                <h3>Parameter Space</h3>
+                <div id="param-space-container">
+                    <canvas id="param-space" width="200" height="200"></canvas>
+                    <div id="param-crosshair"></div>
+                </div>
+            </div>
+
+            <!-- Parameters -->
+            <div class="control-group">
+                <h3>Parameters</h3>
+                <div id="param-sliders"></div>
+                <div class="slider-row" style="margin-top:4px;">
+                    <label data-tip="Simulation steps computed per animation frame">Speed</label>
+                    <input type="range" id="speed-slider" min="1" max="32" value="8">
+                    <span class="val" id="speed-val">8</span>
+                </div>
+            </div>
+
+            <!-- Brush -->
+            <div class="control-group">
+                <h3>Brush</h3>
+                <div class="slider-row">
+                    <label data-tip="Radius of the painting brush in pixels">Size</label>
+                    <input type="range" id="brush-size" min="2" max="50" value="15">
+                    <span class="val" id="brush-size-val">15</span>
+                </div>
+                <div class="toggle-group">
+                    <button id="brush-a" data-tip="Paint chemical A (activator)">A</button>
+                    <button id="brush-b" class="active" data-tip="Paint chemical B (inhibitor) — creates new pattern seeds">B</button>
+                </div>
+            </div>
+
+            <!-- Color Scheme -->
+            <div class="control-group">
+                <h3>Color Scheme</h3>
+                <div id="color-swatches"></div>
+            </div>
+
+            <!-- Actions -->
+            <div class="control-group">
+                <h3>Actions</h3>
+                <div class="action-grid">
+                    <button id="btn-play" data-tip="Play or pause the simulation (Space)">Pause</button>
+                    <button id="btn-reset" data-tip="Reset with fresh random seeds (R)">Reset</button>
+                    <button id="btn-save" data-tip="Download canvas as PNG (S)">Save</button>
+                    <button id="btn-journey" data-tip="Cinematic tour through parameter space (J)">Journey</button>
+                </div>
+            </div>
         </aside>
     </main>
 
-    <footer id="status-bar">
+    <footer>
         <span id="fps">0 FPS</span>
         <span id="resolution">0 x 0</span>
         <span id="iterations">0 iterations</span>
