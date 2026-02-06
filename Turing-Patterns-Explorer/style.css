@@ -81,7 +81,7 @@ main {
 #webgl-error {
     position: absolute;
     inset: 0;
-    display: flex;
+    display: none;
     align-items: center;
     justify-content: center;
     flex-direction: column;
@@ -90,7 +90,6 @@ main {
     font-size: 18px;
     padding: 40px;
     text-align: center;
-    display: none;
 }
 
 /* ---- Sidebar ---- */
