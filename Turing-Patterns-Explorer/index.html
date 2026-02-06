@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Turing Patterns Explorer</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>Turing Patterns Explorer</h1>
+    </header>
+
+    <main>
+        <div id="canvas-container">
+            <canvas id="sim-canvas"></canvas>
+        </div>
+        <aside id="sidebar">
+            <!-- Controls will be built here -->
+        </aside>
+    </main>
+
+    <footer id="status-bar">
+        <span id="fps">0 FPS</span>
+        <span id="resolution">0 x 0</span>
+        <span id="iterations">0 iterations</span>
+    </footer>
+
+    <script src="shaders.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
