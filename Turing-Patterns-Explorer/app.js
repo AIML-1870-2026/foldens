@@ -11,8 +11,8 @@ const MODELS = {
         dispMin: 0.0,
         dispMax: 0.4,
         params: [
-            { key: 'feed', uniform: 'u_feed', label: 'Feed (F)', min: 0.01, max: 0.08, step: 0.001, default: 0.034, tip: 'How fast chemical A is replenished. Higher = more activity.' },
-            { key: 'kill', uniform: 'u_kill', label: 'Kill (K)', min: 0.03, max: 0.07, step: 0.001, default: 0.063, tip: 'How fast chemical B decays. Higher = sparser patterns.' },
+            { key: 'feed', uniform: 'u_feed', label: 'Feed (F)', min: 0.01, max: 0.08, step: 0.002, default: 0.034, tip: 'How fast chemical A is replenished. Higher = more activity.' },
+            { key: 'kill', uniform: 'u_kill', label: 'Kill (K)', min: 0.03, max: 0.07, step: 0.002, default: 0.062, tip: 'How fast chemical B decays. Higher = sparser patterns.' },
             { key: 'dA', uniform: 'u_dA', label: 'Diff A', min: 0.5, max: 1.2, step: 0.01, default: 1.0, tip: 'Diffusion rate of chemical A.' },
             { key: 'dB', uniform: 'u_dB', label: 'Diff B', min: 0.1, max: 0.6, step: 0.01, default: 0.5, tip: 'Diffusion rate of chemical B.' }
         ],
@@ -45,9 +45,9 @@ const MODELS = {
         ],
         presets: [
             { name: 'Spots',   vals: { a: 4.5, b: 7.5, du: 2.0, dv: 16.0 }, tip: 'Turing spots' },
-            { name: 'Stripes', vals: { a: 3.0, b: 9.0, du: 2.0, dv: 16.0 }, tip: 'Turing stripes' },
-            { name: 'Waves',   vals: { a: 1.0, b: 3.0, du: 2.0, dv: 14.0 }, tip: 'Oscillatory wave patterns' },
-            { name: 'Hexagons',vals: { a: 4.5, b: 8.0, du: 2.0, dv: 20.0 }, tip: 'Hexagonal arrangement' }
+            { name: 'Stripes', vals: { a: 4.5, b: 9.5, du: 2.0, dv: 16.0 }, tip: 'Turing stripes' },
+            { name: 'Maze',    vals: { a: 4.5, b: 11.0, du: 2.0, dv: 16.0 }, tip: 'Labyrinthine corridors' },
+            { name: 'Fine',    vals: { a: 4.5, b: 7.5, du: 1.5, dv: 20.0 }, tip: 'Fine-grained patterns' }
         ],
         seed(data, w, h, params) {
             const a = params.a, b = params.b;
@@ -72,7 +72,7 @@ const MODELS = {
             { name: 'Spots',   vals: { a: 0.1, b: 0.9, du: 1.0, dv: 10.0 }, tip: 'Classic Turing spots' },
             { name: 'Stripes', vals: { a: 0.05, b: 1.0, du: 1.0, dv: 20.0 }, tip: 'Stripe patterns' },
             { name: 'Mixed',   vals: { a: 0.1, b: 0.9, du: 1.0, dv: 30.0 }, tip: 'Spots and stripes mixed' },
-            { name: 'Dense',   vals: { a: 0.2, b: 1.5, du: 1.5, dv: 15.0 }, tip: 'Dense small patterns' }
+            { name: 'Dense',   vals: { a: 0.2, b: 1.5, du: 0.5, dv: 20.0 }, tip: 'Dense small patterns' }
         ],
         seed(data, w, h, params) {
             const a = params.a, b = params.b;
@@ -86,14 +86,14 @@ const MODELS = {
 
 // ===== COLOR SCHEMES =====
 const COLOR_SCHEMES = {
-    grayscale: { name: 'Grayscale', stops: [[0,255,255,255],[1,0,0,0]] },
-    ocean:     { name: 'Ocean',     stops: [[0,0,20,60],[0.4,0,100,160],[0.7,0,200,230],[1,230,245,255]] },
-    plasma:    { name: 'Plasma',    stops: [[0,13,8,135],[0.25,126,3,168],[0.5,204,71,120],[0.75,248,149,64],[1,240,249,33]] },
-    inferno:   { name: 'Inferno',   stops: [[0,0,0,4],[0.25,87,16,110],[0.5,188,55,84],[0.75,249,142,9],[1,252,255,164]] },
-    neon:      { name: 'Neon',      stops: [[0,0,0,10],[0.4,0,80,255],[0.7,180,0,255],[1,255,50,180]] },
-    earth:     { name: 'Earth',     stops: [[0,30,20,10],[0.3,120,100,50],[0.6,80,140,50],[1,30,90,30]] },
-    ice:       { name: 'Ice',       stops: [[0,10,15,60],[0.4,50,120,200],[0.7,140,200,255],[1,235,248,255]] },
-    matrix:    { name: 'Matrix',    stops: [[0,0,0,0],[0.5,0,80,10],[1,0,255,70]] }
+    grayscale: { name: 'Grayscale', stops: [[0,240,240,240],[1,10,10,10]] },
+    ocean:     { name: 'Ocean',     stops: [[0,0,8,30],[0.25,0,50,130],[0.5,0,140,200],[0.75,40,210,250],[1,200,245,255]] },
+    plasma:    { name: 'Plasma',    stops: [[0,10,5,120],[0.2,100,0,170],[0.4,210,30,110],[0.6,255,110,40],[0.8,255,200,30],[1,250,255,100]] },
+    inferno:   { name: 'Inferno',   stops: [[0,0,0,3],[0.2,60,10,90],[0.4,170,40,80],[0.6,240,80,30],[0.8,255,180,10],[1,255,255,150]] },
+    neon:      { name: 'Neon',      stops: [[0,2,0,15],[0.25,0,40,220],[0.5,100,0,255],[0.75,255,0,180],[1,255,100,220]] },
+    earth:     { name: 'Earth',     stops: [[0,15,8,3],[0.2,70,40,15],[0.45,170,140,40],[0.7,50,150,35],[1,20,75,12]] },
+    ice:       { name: 'Ice',       stops: [[0,3,5,40],[0.25,15,50,140],[0.5,60,140,230],[0.75,160,215,255],[1,235,248,255]] },
+    matrix:    { name: 'Matrix',    stops: [[0,0,0,0],[0.25,0,30,3],[0.5,0,120,20],[0.75,0,220,50],[1,50,255,80]] }
 };
 
 // ===== APPLICATION STATE =====
@@ -427,22 +427,27 @@ function animate(t) {
 }
 
 // ===== UI BUILDING =====
+function decimalsForStep(step) {
+    return Math.max(0, Math.round(-Math.log10(step)));
+}
+
 function buildParamSliders() {
     const div = document.getElementById('param-sliders');
     div.innerHTML = '';
     const model = MODELS[S.model];
     for (const p of model.params) {
+        const dec = decimalsForStep(p.step);
         const row = document.createElement('div');
         row.className = 'slider-row';
         row.innerHTML = `
             <label data-tip="${p.tip}">${p.label}</label>
             <input type="range" min="${p.min}" max="${p.max}" step="${p.step}" value="${S.params[p.key]}" data-key="${p.key}">
-            <span class="val" id="val-${p.key}">${Number(S.params[p.key]).toFixed(3)}</span>
+            <span class="val" id="val-${p.key}">${Number(S.params[p.key]).toFixed(dec)}</span>
         `;
         const input = row.querySelector('input');
         input.addEventListener('input', () => {
             S.params[p.key] = parseFloat(input.value);
-            document.getElementById('val-' + p.key).textContent = Number(input.value).toFixed(3);
+            document.getElementById('val-' + p.key).textContent = Number(input.value).toFixed(dec);
             if (S.model === 'gray-scott') updateParamSpaceCrosshair();
         });
         div.appendChild(row);
@@ -495,7 +500,8 @@ function applyPreset(preset) {
         const input = document.querySelector(`#param-sliders input[data-key="${p.key}"]`);
         if (input) {
             input.value = S.params[p.key];
-            document.getElementById('val-' + p.key).textContent = Number(S.params[p.key]).toFixed(3);
+            const dec = decimalsForStep(p.step);
+            document.getElementById('val-' + p.key).textContent = Number(S.params[p.key]).toFixed(dec);
         }
     }
     // Reset simulation
@@ -669,8 +675,8 @@ function onParamSpaceClick(e) {
     // Update sliders
     const feedInput = document.querySelector('#param-sliders input[data-key="feed"]');
     const killInput = document.querySelector('#param-sliders input[data-key="kill"]');
-    if (feedInput) { feedInput.value = S.params.feed; document.getElementById('val-feed').textContent = S.params.feed.toFixed(3); }
-    if (killInput) { killInput.value = S.params.kill; document.getElementById('val-kill').textContent = S.params.kill.toFixed(3); }
+    if (feedInput) { feedInput.value = S.params.feed; document.getElementById('val-feed').textContent = S.params.feed.toFixed(decimalsForStep(0.001)); }
+    if (killInput) { killInput.value = S.params.kill; document.getElementById('val-kill').textContent = S.params.kill.toFixed(decimalsForStep(0.001)); }
 
     updateParamSpaceCrosshair();
     resetSimulation();
@@ -728,8 +734,8 @@ function updateJourney(t) {
     // Update slider UI
     const feedInput = document.querySelector('#param-sliders input[data-key="feed"]');
     const killInput = document.querySelector('#param-sliders input[data-key="kill"]');
-    if (feedInput) { feedInput.value = S.params.feed; document.getElementById('val-feed').textContent = S.params.feed.toFixed(3); }
-    if (killInput) { killInput.value = S.params.kill; document.getElementById('val-kill').textContent = S.params.kill.toFixed(3); }
+    if (feedInput) { feedInput.value = S.params.feed; document.getElementById('val-feed').textContent = S.params.feed.toFixed(decimalsForStep(0.001)); }
+    if (killInput) { killInput.value = S.params.kill; document.getElementById('val-kill').textContent = S.params.kill.toFixed(decimalsForStep(0.001)); }
     updateParamSpaceCrosshair();
 }
 
