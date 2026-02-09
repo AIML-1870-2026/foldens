@@ -99,7 +99,7 @@ void main() {
         if (u_brushChem < 0.5) cu += s * u_a;
         else cv += s * (u_b / max(u_a, 0.01));
     }
-    fc = vec4(max(cu,0.0), max(cv,0.0), 0.0, 1.0);
+    fc = vec4(clamp(cu,0.0,25.0), clamp(cv,0.0,25.0), 0.0, 1.0);
 }`,
 
 // ---- Schnakenberg reaction-diffusion ----

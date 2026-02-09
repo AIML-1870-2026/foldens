@@ -33,8 +33,8 @@ const MODELS = {
     },
     'brusselator': {
         shader: 'brusselator',
-        dt: 0.02,
-        stepsMultiplier: 4,
+        dt: 0.008,
+        stepsMultiplier: 10,
         dispMin: 0.0,
         dispMax: 2.0,
         params: [
@@ -53,7 +53,7 @@ const MODELS = {
             const a = params.a, b = params.b;
             const u0 = a, v0 = b / a;
             for (let i = 0; i < w * h; i++) { data[i * 4] = u0; data[i * 4 + 1] = v0; }
-            seedPerturb(data, w, h, u0, v0, 0.5);
+            seedPerturb(data, w, h, u0, v0, 0.15);
         }
     },
     'schnakenberg': {
