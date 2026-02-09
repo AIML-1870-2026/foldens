@@ -33,10 +33,10 @@ const MODELS = {
     },
     'brusselator': {
         shader: 'brusselator',
-        dt: 0.002,
-        stepsMultiplier: 40,
+        dt: 0.02,
+        stepsMultiplier: 4,
         dispMin: 0.0,
-        dispMax: 4.5,
+        dispMax: 2.0,
         params: [
             { key: 'a', uniform: 'u_a', label: 'A', min: 0.5, max: 5.0, step: 0.1, default: 4.5, tip: 'Production rate of activator.' },
             { key: 'b', uniform: 'u_b', label: 'B', min: 1.0, max: 12.0, step: 0.1, default: 7.5, tip: 'Conversion rate.' },
@@ -58,10 +58,10 @@ const MODELS = {
     },
     'schnakenberg': {
         shader: 'schnakenberg',
-        dt: 0.002,
-        stepsMultiplier: 40,
+        dt: 0.02,
+        stepsMultiplier: 4,
         dispMin: 0.0,
-        dispMax: 3.0,
+        dispMax: 1.5,
         params: [
             { key: 'a', uniform: 'u_a', label: 'a', min: 0.01, max: 0.3, step: 0.01, default: 0.1, tip: 'Base production of activator.' },
             { key: 'b', uniform: 'u_b', label: 'b', min: 0.3, max: 2.0, step: 0.05, default: 0.9, tip: 'Base production of inhibitor.' },
@@ -295,7 +295,7 @@ function initGL() {
         const paramUniforms = model.params.map(p => p.uniform);
         S.programs[key].u = getUniforms(S.programs[key], [...commonU, ...paramUniforms]);
     }
-    S.programs.display.u = getUniforms(S.programs.display, ['u_state', 'u_lut', 'u_min', 'u_max']);
+    S.programs.display.u = getUniforms(S.programs.display, ['u_state', 'u_lut', 'u_min', 'u_max', 'u_steady']);
 
     // Color LUT
     S.colorLUTTex = createLUTTexture(S.colorScheme);
@@ -389,6 +389,16 @@ function display() {
 
     gl.uniform1f(prog.u.u_min, model.dispMin);
     gl.uniform1f(prog.u.u_max, model.dispMax);
+
+    // Compute steady-state for deviation display (Brusselator/Schnakenberg)
+    let steady = 0;
+    if (S.model === 'brusselator') {
+        steady = S.params.b / Math.max(S.params.a, 0.01);
+    } else if (S.model === 'schnakenberg') {
+        const ss = S.params.a + S.params.b;
+        steady = S.params.b / Math.max(ss * ss, 0.01);
+    }
+    gl.uniform1f(prog.u.u_steady, steady);
 
     gl.bindVertexArray(S.quadVAO);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);

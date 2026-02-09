@@ -147,17 +147,24 @@ void main() {
 }`,
 
 // ---- Display / color-mapping shader ----
+// u_steady > 0 = deviation-from-steady-state mode (Brusselator/Schnakenberg)
+// u_steady = 0 = raw concentration mode (Gray-Scott)
 display: `#version 300 es
 precision highp float;
 uniform sampler2D u_state;
 uniform sampler2D u_lut;
-uniform float u_min, u_max;
+uniform float u_min, u_max, u_steady;
 in vec2 v_uv;
 out vec4 fc;
 void main() {
-    float v = texture(u_state, v_uv).g;
-    float t = clamp((v - u_min) / (u_max - u_min), 0.0, 1.0);
-    fc = texture(u_lut, vec2(t, 0.5));
+    float raw = texture(u_state, v_uv).g;
+    float val;
+    if (u_steady > 0.001) {
+        val = clamp(abs(raw - u_steady) / u_max, 0.0, 1.0);
+    } else {
+        val = clamp((raw - u_min) / (u_max - u_min), 0.0, 1.0);
+    }
+    fc = texture(u_lut, vec2(val, 0.5));
 }`
 
 };
