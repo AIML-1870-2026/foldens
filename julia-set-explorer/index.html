@@ -266,14 +266,14 @@ const e = React.createElement;
 
 // ─── Color Palettes ───
 const PALETTES = {
-  classic: { name: "Classic", stops: [{pos:0,color:[0,7,100]},{pos:0.16,color:[32,107,203]},{pos:0.42,color:[237,255,255]},{pos:0.6425,color:[255,170,0]},{pos:0.8575,color:[0,2,0]},{pos:1,color:[0,7,100]}] },
-  inferno: { name: "Inferno", stops: [{pos:0,color:[0,0,4]},{pos:0.25,color:[100,15,80]},{pos:0.5,color:[210,50,10]},{pos:0.75,color:[255,175,15]},{pos:1,color:[255,255,224]}] },
-  ocean:   { name: "Ocean",   stops: [{pos:0,color:[0,0,40]},{pos:0.3,color:[0,50,120]},{pos:0.6,color:[0,150,180]},{pos:0.85,color:[150,230,240]},{pos:1,color:[240,255,255]}] },
-  neon:    { name: "Neon",    stops: [{pos:0,color:[0,0,0]},{pos:0.25,color:[80,0,180]},{pos:0.5,color:[255,0,128]},{pos:0.75,color:[0,255,255]},{pos:1,color:[0,0,0]}] },
-  earth:   { name: "Earth",   stops: [{pos:0,color:[30,15,5]},{pos:0.3,color:[120,60,10]},{pos:0.55,color:[200,150,50]},{pos:0.8,color:[230,210,160]},{pos:1,color:[250,240,220]}] },
-  grayscale:{ name: "Grayscale", stops: [{pos:0,color:[0,0,0]},{pos:1,color:[255,255,255]}] },
+  classic: { name: "Classic", stops: [{pos:0,color:[4,12,110]},{pos:0.16,color:[32,107,203]},{pos:0.42,color:[237,255,255]},{pos:0.6425,color:[255,170,0]},{pos:0.8575,color:[8,8,4]},{pos:1,color:[4,12,110]}] },
+  inferno: { name: "Inferno", stops: [{pos:0,color:[15,3,30]},{pos:0.25,color:[120,20,90]},{pos:0.5,color:[220,60,10]},{pos:0.75,color:[255,185,20]},{pos:1,color:[255,255,224]}] },
+  ocean:   { name: "Ocean",   stops: [{pos:0,color:[5,10,55]},{pos:0.3,color:[0,60,140]},{pos:0.6,color:[0,160,195]},{pos:0.85,color:[150,235,245]},{pos:1,color:[240,255,255]}] },
+  neon:    { name: "Neon",    stops: [{pos:0,color:[12,0,25]},{pos:0.25,color:[100,0,200]},{pos:0.5,color:[255,0,140]},{pos:0.75,color:[0,255,255]},{pos:1,color:[12,0,25]}] },
+  earth:   { name: "Earth",   stops: [{pos:0,color:[50,25,10]},{pos:0.3,color:[140,70,15]},{pos:0.55,color:[210,160,55]},{pos:0.8,color:[235,215,165]},{pos:1,color:[250,240,220]}] },
+  grayscale:{ name: "Grayscale", stops: [{pos:0,color:[25,25,25]},{pos:1,color:[255,255,255]}] },
   psychedelic:{ name: "Psychedelic", stops: [{pos:0,color:[255,0,0]},{pos:0.167,color:[255,255,0]},{pos:0.333,color:[0,255,0]},{pos:0.5,color:[0,255,255]},{pos:0.667,color:[0,0,255]},{pos:0.833,color:[255,0,255]},{pos:1,color:[255,0,0]}] },
-  ice:     { name: "Ice",     stops: [{pos:0,color:[0,10,60]},{pos:0.35,color:[30,80,180]},{pos:0.65,color:[160,210,255]},{pos:0.85,color:[240,245,255]},{pos:1,color:[255,220,230]}] },
+  ice:     { name: "Ice",     stops: [{pos:0,color:[8,15,70]},{pos:0.35,color:[35,90,195]},{pos:0.65,color:[165,215,255]},{pos:0.85,color:[242,248,255]},{pos:1,color:[255,225,235]}] },
 };
 
 // ─── Presets ───
@@ -639,6 +639,10 @@ function App() {
   const [splitBanner, setSplitBanner] = useState(true);
   const morphRef = useRef(null);
 
+  // Keep a ref to current state so async callbacks (worker, timeouts) always see latest values
+  const stateRef = useRef(state);
+  useEffect(() => { stateRef.current = state; });
+
   // Init worker
   useEffect(() => {
     workerRef.current = createWorker();
@@ -648,11 +652,12 @@ function App() {
         const elapsed = performance.now() - renderTimeRef.current;
         setRenderMs(Math.round(elapsed));
         iterationBufferRef.current = { buffer: msg.buffer, width: msg.width, height: msg.height, jobId: msg.jobId };
-        // Apply current colors
+        // Apply current colors using stateRef to avoid stale closure
         const canvas = canvasRef.current;
+        const cur = stateRef.current;
         if (canvas && msg.jobId === jobIdRef.current) {
-          const stops = PALETTES[state.colorScheme]?.stops || PALETTES.classic.stops;
-          const imgData = applyColors(msg.buffer, msg.width, msg.height, state.maxIterations, stops, state.colorOffset);
+          const stops = PALETTES[cur.colorScheme]?.stops || PALETTES.classic.stops;
+          const imgData = applyColors(msg.buffer, msg.width, msg.height, cur.maxIterations, stops, cur.colorOffset);
           const ctx = canvas.getContext("2d");
           ctx.putImageData(imgData, 0, 0);
         }
@@ -665,12 +670,12 @@ function App() {
     return () => workerRef.current?.terminate();
   }, []);
 
-  // Reapply colors when only colorScheme or colorOffset changes
-  const prevColorRef = useRef({ scheme: state.colorScheme, offset: state.colorOffset });
+  // Reapply colors when only colorScheme or colorOffset changes (no re-render of fractal needed)
+  const prevColorRef = useRef({ scheme: state.colorScheme, offset: state.colorOffset, maxIter: state.maxIterations });
   useEffect(() => {
     const prev = prevColorRef.current;
-    if (prev.scheme !== state.colorScheme || prev.offset !== state.colorOffset) {
-      prev.scheme = state.colorScheme; prev.offset = state.colorOffset;
+    if (prev.scheme !== state.colorScheme || prev.offset !== state.colorOffset || prev.maxIter !== state.maxIterations) {
+      prev.scheme = state.colorScheme; prev.offset = state.colorOffset; prev.maxIter = state.maxIterations;
       const ib = iterationBufferRef.current;
       if (ib && canvasRef.current) {
         const stops = PALETTES[state.colorScheme]?.stops || PALETTES.classic.stops;
@@ -697,13 +702,13 @@ function App() {
     return () => window.removeEventListener("resize", resize);
   }, [state.controlPanelOpen, state.splitView]);
 
-  // Full-res render trigger
-  function triggerFullRender(s) {
-    s = s || state;
+  // Full-res render trigger — always reads from stateRef inside the timeout to get latest values
+  function triggerFullRender() {
     clearTimeout(renderTimeoutRef.current);
     renderTimeoutRef.current = setTimeout(() => {
       const canvas = canvasRef.current;
       if (!canvas || !workerRef.current) return;
+      const s = stateRef.current;
       const id = ++jobIdRef.current;
       renderTimeRef.current = performance.now();
       workerRef.current.postMessage({
@@ -723,7 +728,7 @@ function App() {
     if (key !== prevRenderState.current) {
       prevRenderState.current = key;
       renderPreview(canvasRef.current, state);
-      triggerFullRender(state);
+      triggerFullRender();
     }
   }, [state.fractalType, state.c, state.viewport, state.maxIterations]);
 
@@ -936,19 +941,21 @@ function App() {
   }
 
   function finishExport(buffer, w, h) {
-    const stops = PALETTES[state.colorScheme]?.stops || PALETTES.classic.stops;
-    const imgData = applyColors(buffer, w, h, state.maxIterations, stops, state.colorOffset);
+    const cur = stateRef.current;
+    const stops = PALETTES[cur.colorScheme]?.stops || PALETTES.classic.stops;
+    const imgData = applyColors(buffer, w, h, cur.maxIterations, stops, cur.colorOffset);
     const offCanvas = document.createElement("canvas");
     offCanvas.width = w; offCanvas.height = h;
     offCanvas.getContext("2d").putImageData(imgData, 0, 0);
     offCanvas.toBlob((blob) => {
+      const s = stateRef.current;
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      const sign = state.c.im >= 0 ? "+" : "-";
-      if (state.fractalType === "julia") {
-        a.download = `julia_c${state.c.re}${sign}${Math.abs(state.c.im)}i_${state.maxIterations}iter.png`;
+      const sign = s.c.im >= 0 ? "+" : "-";
+      if (s.fractalType === "julia") {
+        a.download = `julia_c${s.c.re}${sign}${Math.abs(s.c.im)}i_${s.maxIterations}iter.png`;
       } else {
-        a.download = `${state.fractalType}_zoom${Math.round(state.viewport.zoom)}x_${state.maxIterations}iter.png`;
+        a.download = `${s.fractalType}_zoom${Math.round(s.viewport.zoom)}x_${s.maxIterations}iter.png`;
       }
       a.href = url; document.body.appendChild(a); a.click();
       document.body.removeChild(a); URL.revokeObjectURL(url);
