@@ -1,0 +1,1297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Julia Set Explorer</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@800&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@300;400&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #08080f;
+    --panel-bg: rgba(255,255,255,0.03);
+    --panel-border: rgba(255,255,255,0.06);
+    --text-primary: rgba(255,255,255,0.87);
+    --text-secondary: rgba(255,255,255,0.5);
+    --text-muted: rgba(255,255,255,0.3);
+    --btn-bg: rgba(255,255,255,0.05);
+    --btn-hover: rgba(255,255,255,0.1);
+    --slider-track: rgba(255,255,255,0.1);
+    --accent: #4a9eff;
+  }
+
+  html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--text-primary); font-family: 'DM Sans', sans-serif; font-size: 13px; }
+
+  #app { display: flex; flex-direction: column; height: 100vh; }
+
+  /* Header */
+  .header {
+    height: 48px; display: flex; align-items: center; gap: 8px; padding: 0 12px;
+    background: var(--panel-bg); backdrop-filter: blur(12px); border-bottom: 1px solid var(--panel-border);
+    flex-shrink: 0; z-index: 10;
+  }
+  .header h1 { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 18px; margin-right: 12px; white-space: nowrap; }
+  .header-group { display: flex; align-items: center; gap: 4px; }
+  .header-divider { width: 1px; height: 24px; background: var(--panel-border); margin: 0 6px; }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex; align-items: center; gap: 5px; padding: 6px 10px; border: none; border-radius: 6px;
+    background: var(--btn-bg); color: var(--text-primary); font-family: inherit; font-size: 12px; cursor: pointer;
+    transition: background 150ms ease; white-space: nowrap;
+  }
+  .btn:hover { background: var(--btn-hover); }
+  .btn.active { background: var(--accent); color: #fff; }
+  .btn svg { width: 14px; height: 14px; }
+
+  .btn-group { display: flex; gap: 1px; background: var(--panel-border); border-radius: 6px; overflow: hidden; }
+  .btn-group .btn { border-radius: 0; }
+
+  /* Preset strip */
+  .preset-strip { display: flex; gap: 4px; overflow-x: auto; padding: 2px 0; }
+  .preset-strip::-webkit-scrollbar { display: none; }
+  .preset-btn {
+    padding: 4px 10px; border: none; border-radius: 4px; background: var(--btn-bg);
+    color: var(--text-secondary); font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 500;
+    cursor: pointer; white-space: nowrap; transition: all 150ms ease;
+  }
+  .preset-btn:hover { background: var(--btn-hover); color: var(--text-primary); }
+
+  /* Main area */
+  .main-area { display: flex; flex: 1; overflow: hidden; position: relative; }
+
+  /* Canvas */
+  .canvas-wrap { flex: 1; position: relative; overflow: hidden; cursor: crosshair; }
+  .canvas-wrap.dragging { cursor: grabbing; }
+  .canvas-wrap canvas { display: block; width: 100%; height: 100%; }
+
+  /* Split view */
+  .split-container { display: flex; flex: 1; }
+  .split-panel { flex: 1; position: relative; overflow: hidden; cursor: crosshair; }
+  .split-panel.dragging { cursor: grabbing; }
+  .split-panel canvas { display: block; width: 100%; height: 100%; }
+  .split-divider { width: 1px; background: rgba(255,255,255,0.15); flex-shrink: 0; }
+  .split-label {
+    position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+    font-size: 11px; color: var(--text-muted); background: rgba(0,0,0,0.5);
+    padding: 2px 8px; border-radius: 4px; pointer-events: none; z-index: 2;
+    font-family: 'JetBrains Mono', monospace; white-space: nowrap;
+  }
+
+  /* Control panel */
+  .control-panel {
+    width: 280px; flex-shrink: 0; overflow-y: auto; padding: 16px;
+    background: var(--panel-bg); backdrop-filter: blur(12px); border-left: 1px solid var(--panel-border);
+    transition: margin-right 300ms ease-out;
+  }
+  .control-panel.collapsed { margin-right: -280px; }
+  .control-panel::-webkit-scrollbar { width: 4px; }
+  .control-panel::-webkit-scrollbar-thumb { background: var(--panel-border); border-radius: 2px; }
+
+  .panel-section { margin-bottom: 20px; }
+  .panel-section h3 {
+    font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 10px;
+  }
+
+  .c-display {
+    font-family: 'JetBrains Mono', monospace; font-size: 14px; color: var(--accent);
+    margin-bottom: 10px; text-align: center;
+  }
+
+  /* Slider rows */
+  .slider-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .slider-row label { width: 60px; flex-shrink: 0; font-size: 12px; color: var(--text-secondary); }
+  .slider-row input[type="range"] { flex: 1; }
+  .slider-row .val {
+    width: 52px; text-align: right; font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; color: var(--text-primary); flex-shrink: 0;
+  }
+  .slider-row input[type="number"] {
+    width: 60px; background: rgba(255,255,255,0.05); border: 1px solid var(--panel-border);
+    border-radius: 4px; color: var(--text-primary); font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; padding: 2px 4px; text-align: right;
+  }
+  .slider-row input[type="number"]:focus { outline: none; border-color: var(--accent); }
+
+  /* Sliders */
+  input[type="range"] {
+    -webkit-appearance: none; appearance: none; height: 4px; border-radius: 2px;
+    background: var(--slider-track); outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none; width: 14px; height: 14px; border-radius: 50%;
+    background: var(--accent); cursor: pointer; border: none;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 14px; height: 14px; border-radius: 50%; background: var(--accent); cursor: pointer; border: none;
+  }
+
+  /* Palette strip */
+  .palette-grid { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px; }
+  .palette-swatch {
+    width: 56px; height: 18px; border-radius: 3px; cursor: pointer; border: 2px solid transparent;
+    transition: border-color 150ms ease;
+  }
+  .palette-swatch.active { border-color: var(--accent); }
+  .palette-swatch:hover { border-color: rgba(255,255,255,0.3); }
+
+  /* Viewport info */
+  .viewport-info { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-secondary); line-height: 1.6; }
+
+  /* Status bar */
+  .status-bar {
+    height: 24px; display: flex; align-items: center; padding: 0 12px; gap: 16px;
+    font-family: 'JetBrains Mono', monospace; font-weight: 300; font-size: 11px;
+    color: var(--text-muted); background: var(--panel-bg); border-top: 1px solid var(--panel-border);
+    flex-shrink: 0;
+  }
+
+  /* Education panel */
+  .edu-section { background: rgba(74,158,255,0.05); border: 1px solid rgba(74,158,255,0.15); border-radius: 6px; padding: 12px; font-size: 13px; line-height: 1.6; }
+  .edu-section h4 { font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--accent); }
+  .edu-section p { color: var(--text-secondary); margin-bottom: 6px; }
+  .edu-section code { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-primary); }
+  .badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 2px 6px; border-radius: 10px; }
+  .badge.connected { background: rgba(74,222,128,0.15); color: #4ade80; }
+  .badge.disconnected { background: rgba(248,113,113,0.15); color: #f87171; }
+
+  /* Orbit info */
+  .orbit-info {
+    background: rgba(0,0,0,0.7); border: 1px solid var(--panel-border); border-radius: 6px;
+    padding: 10px; font-family: 'JetBrains Mono', monospace; font-size: 11px; line-height: 1.6;
+    color: var(--text-secondary); margin-top: 8px;
+  }
+
+  /* Animation controls */
+  .anim-bar {
+    display: flex; align-items: center; gap: 8px; padding: 6px 12px;
+    background: var(--panel-bg); backdrop-filter: blur(12px); border-top: 1px solid var(--panel-border);
+    flex-shrink: 0;
+  }
+  .anim-bar select {
+    background: var(--btn-bg); border: 1px solid var(--panel-border); border-radius: 4px;
+    color: var(--text-primary); font-family: inherit; font-size: 12px; padding: 4px 8px;
+  }
+
+  /* Export dialog */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex;
+    align-items: center; justify-content: center; z-index: 100;
+  }
+  .modal {
+    background: #12121a; border: 1px solid var(--panel-border); border-radius: 8px;
+    padding: 24px; min-width: 320px; max-width: 400px;
+  }
+  .modal h2 { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 16px; margin-bottom: 16px; }
+  .modal .export-option {
+    display: flex; justify-content: space-between; align-items: center; padding: 10px;
+    border: 1px solid var(--panel-border); border-radius: 6px; margin-bottom: 8px; cursor: pointer;
+    transition: background 150ms ease;
+  }
+  .modal .export-option:hover { background: var(--btn-hover); }
+  .modal .export-option .label { font-weight: 500; }
+  .modal .export-option .dims { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); }
+
+  /* Progress bar */
+  .progress-wrap { margin-top: 12px; }
+  .progress-bar { height: 4px; background: var(--slider-track); border-radius: 2px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--accent); transition: width 100ms linear; }
+  .progress-text { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-secondary); margin-top: 4px; text-align: center; }
+
+  /* Toast */
+  .toast {
+    position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
+    background: rgba(0,0,0,0.8); border: 1px solid var(--panel-border);
+    padding: 8px 16px; border-radius: 6px; font-size: 12px; color: var(--text-primary);
+    z-index: 200; pointer-events: none; animation: toastIn 200ms ease, toastOut 300ms ease 1.7s forwards;
+  }
+  @keyframes toastIn { from { opacity: 0; transform: translateX(-50%) translateY(10px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+  @keyframes toastOut { to { opacity: 0; transform: translateX(-50%) translateY(-10px); } }
+
+  /* Panel toggle */
+  .panel-toggle {
+    position: absolute; right: 280px; top: 50%; transform: translateY(-50%);
+    width: 20px; height: 40px; background: var(--panel-bg); border: 1px solid var(--panel-border);
+    border-right: none; border-radius: 6px 0 0 6px; display: flex; align-items: center;
+    justify-content: center; cursor: pointer; z-index: 5; transition: right 300ms ease-out;
+    color: var(--text-muted);
+  }
+  .panel-toggle.collapsed { right: 0; }
+  .panel-toggle:hover { color: var(--text-primary); }
+
+  /* Split view banner */
+  .split-banner {
+    position: absolute; top: 50px; left: 50%; transform: translateX(-50%); z-index: 10;
+    background: rgba(0,0,0,0.85); border: 1px solid var(--panel-border); border-radius: 8px;
+    padding: 12px 16px; max-width: 500px; font-size: 12px; line-height: 1.6;
+    color: var(--text-secondary);
+  }
+  .split-banner .close-banner {
+    position: absolute; top: 4px; right: 8px; background: none; border: none;
+    color: var(--text-muted); cursor: pointer; font-size: 16px;
+  }
+
+  /* Responsive: Tablet */
+  @media (max-width: 1023px) {
+    .control-panel { width: 260px; }
+    .header h1 { font-size: 15px; }
+    .preset-btn { font-size: 10px; padding: 3px 8px; }
+  }
+
+  /* Responsive: Mobile */
+  @media (max-width: 767px) {
+    .header { height: 40px; padding: 0 8px; }
+    .header h1 { font-size: 14px; margin-right: 6px; }
+    .header .hide-mobile { display: none; }
+    .control-panel { position: fixed; bottom: 0; left: 0; right: 0; width: 100%; height: 50vh; border-left: none; border-top: 1px solid var(--panel-border); z-index: 20; transform: translateY(calc(100% - 40px)); transition: transform 300ms ease-out; }
+    .control-panel.open-mobile { transform: translateY(0); }
+    .panel-toggle { display: none; }
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
+<script>
+"use strict";
+
+const { useState, useReducer, useRef, useEffect, useCallback, useMemo, memo } = React;
+const e = React.createElement;
+
+// ─── Color Palettes ───
+const PALETTES = {
+  classic: { name: "Classic", stops: [{pos:0,color:[0,7,100]},{pos:0.16,color:[32,107,203]},{pos:0.42,color:[237,255,255]},{pos:0.6425,color:[255,170,0]},{pos:0.8575,color:[0,2,0]},{pos:1,color:[0,7,100]}] },
+  inferno: { name: "Inferno", stops: [{pos:0,color:[0,0,4]},{pos:0.25,color:[100,15,80]},{pos:0.5,color:[210,50,10]},{pos:0.75,color:[255,175,15]},{pos:1,color:[255,255,224]}] },
+  ocean:   { name: "Ocean",   stops: [{pos:0,color:[0,0,40]},{pos:0.3,color:[0,50,120]},{pos:0.6,color:[0,150,180]},{pos:0.85,color:[150,230,240]},{pos:1,color:[240,255,255]}] },
+  neon:    { name: "Neon",    stops: [{pos:0,color:[0,0,0]},{pos:0.25,color:[80,0,180]},{pos:0.5,color:[255,0,128]},{pos:0.75,color:[0,255,255]},{pos:1,color:[0,0,0]}] },
+  earth:   { name: "Earth",   stops: [{pos:0,color:[30,15,5]},{pos:0.3,color:[120,60,10]},{pos:0.55,color:[200,150,50]},{pos:0.8,color:[230,210,160]},{pos:1,color:[250,240,220]}] },
+  grayscale:{ name: "Grayscale", stops: [{pos:0,color:[0,0,0]},{pos:1,color:[255,255,255]}] },
+  psychedelic:{ name: "Psychedelic", stops: [{pos:0,color:[255,0,0]},{pos:0.167,color:[255,255,0]},{pos:0.333,color:[0,255,0]},{pos:0.5,color:[0,255,255]},{pos:0.667,color:[0,0,255]},{pos:0.833,color:[255,0,255]},{pos:1,color:[255,0,0]}] },
+  ice:     { name: "Ice",     stops: [{pos:0,color:[0,10,60]},{pos:0.35,color:[30,80,180]},{pos:0.65,color:[160,210,255]},{pos:0.85,color:[240,245,255]},{pos:1,color:[255,220,230]}] },
+};
+
+// ─── Presets ───
+const PRESETS = [
+  { name: "Dendrite",       c:{re:0,im:1},              description:"Tree-like branching pattern forming the boundary between connected and disconnected Julia sets.", suggestedPalette:"ice" },
+  { name: "Douady Rabbit",  c:{re:-0.1226,im:0.7449},   description:"Three-lobed shape discovered by mathematician Adrien Douady. The three 'ears' correspond to a period-3 attracting cycle.", suggestedPalette:"classic" },
+  { name: "San Marco",      c:{re:-0.75,im:0},           description:"Named after St. Mark's Basilica in Venice for its cathedral-like symmetrical arches.", suggestedPalette:"earth" },
+  { name: "Siegel Disk",    c:{re:-0.3905,im:0.5868},    description:"Contains smooth circular regions (Siegel disks) floating amid chaotic fractal detail.", suggestedPalette:"ocean" },
+  { name: "Spiral",         c:{re:-0.7455,im:0.1130},    description:"Elegant double-spiral arms extending outward. One of the most popular Julia sets.", suggestedPalette:"neon" },
+  { name: "Star",           c:{re:-0.5251,im:0.5251},    description:"Star-shaped pattern with pointed symmetry. Equal real and imaginary parts create diagonal structure.", suggestedPalette:"psychedelic" },
+  { name: "Lightning",      c:{re:-0.0305,im:0.6210},    description:"Jagged tendrils branching outward, reminiscent of electrical discharge.", suggestedPalette:"inferno" },
+  { name: "Galaxy",         c:{re:0.355,im:0.355},       description:"Swirling arms reminiscent of a spiral galaxy, producing intricate fractal dust.", suggestedPalette:"classic" },
+];
+
+// ─── Animation Paths ───
+function getPathC(t, path) {
+  const TAU = Math.PI * 2;
+  switch (path) {
+    case "circle":
+      return { re: 0.7885 * Math.cos(TAU * t), im: 0.7885 * Math.sin(TAU * t) };
+    case "figure8":
+      return { re: 0.7 * Math.sin(2 * TAU * t), im: 0.7 * Math.sin(TAU * t) };
+    case "cardioid":
+      return { re: 0.5 * Math.cos(TAU*t) - 0.25 * Math.cos(2*TAU*t), im: 0.5 * Math.sin(TAU*t) - 0.25 * Math.sin(2*TAU*t) };
+    case "tour": {
+      const total = PRESETS.length;
+      const segment = 1 / total;
+      const idx = Math.min(Math.floor(t / segment), total - 1);
+      const nextIdx = (idx + 1) % total;
+      let local = (t - idx * segment) / segment;
+      // Cubic ease in-out
+      local = local < 0.5 ? 4*local*local*local : 1 - Math.pow(-2*local+2,3)/2;
+      return {
+        re: PRESETS[idx].c.re + (PRESETS[nextIdx].c.re - PRESETS[idx].c.re) * local,
+        im: PRESETS[idx].c.im + (PRESETS[nextIdx].c.im - PRESETS[idx].c.im) * local
+      };
+    }
+    default: return { re: 0, im: 0 };
+  }
+}
+
+// ─── Default viewports ───
+const DEFAULTS = {
+  julia:       { centerX: 0,    centerY: 0,    zoom: 1 },
+  mandelbrot:  { centerX: -0.5, centerY: 0,    zoom: 1 },
+  burningship: { centerX: -0.4, centerY: -0.6, zoom: 0.7 },
+};
+
+// ─── Reducer ───
+const initialState = {
+  fractalType: "julia",
+  c: { re: -0.7269, im: 0.1889 },
+  viewport: { centerX: 0, centerY: 0, zoom: 1 },
+  maxIterations: 200,
+  colorScheme: "classic",
+  colorOffset: 0.0,
+  splitView: false,
+  mandelbrotViewport: { centerX: -0.5, centerY: 0, zoom: 1 },
+  splitViewLocked: false,
+  hoverC: null,
+  animation: { playing: false, speed: 1.0, path: "circle" },
+  educationMode: false,
+  orbitPoint: null,
+  orbitData: null,
+  controlPanelOpen: true,
+  showAnimationControls: false,
+  showExportDialog: false,
+};
+
+function reducer(state, action) {
+  switch (action.type) {
+    case "SET_FRACTAL_TYPE": {
+      const ft = action.fractalType;
+      const vp = { ...DEFAULTS[ft] };
+      return { ...state, fractalType: ft, viewport: vp, orbitPoint: null, orbitData: null };
+    }
+    case "SET_C": return { ...state, c: { re: action.re, im: action.im } };
+    case "SET_VIEWPORT": return { ...state, viewport: { centerX: action.centerX, centerY: action.centerY, zoom: action.zoom } };
+    case "SET_MAX_ITERATIONS": return { ...state, maxIterations: action.maxIterations };
+    case "SET_COLOR_SCHEME": return { ...state, colorScheme: action.colorScheme };
+    case "SET_COLOR_OFFSET": return { ...state, colorOffset: action.colorOffset };
+    case "TOGGLE_SPLIT_VIEW": return { ...state, splitView: !state.splitView, splitViewLocked: false, hoverC: null };
+    case "SET_MANDELBROT_VIEWPORT": return { ...state, mandelbrotViewport: { centerX: action.centerX, centerY: action.centerY, zoom: action.zoom } };
+    case "SET_HOVER_C": return { ...state, hoverC: action.re != null ? { re: action.re, im: action.im } : null };
+    case "LOCK_SPLIT_VIEW_C": return { ...state, splitViewLocked: true, c: { re: action.re, im: action.im } };
+    case "SET_ANIMATION": return { ...state, animation: { ...state.animation, ...action }, showAnimationControls: action.playing !== undefined ? action.playing || state.showAnimationControls : state.showAnimationControls };
+    case "TOGGLE_ANIMATION": {
+      const nowPlaying = !state.animation.playing;
+      return { ...state, animation: { ...state.animation, playing: nowPlaying }, showAnimationControls: nowPlaying || state.showAnimationControls };
+    }
+    case "STOP_ANIMATION": return { ...state, animation: { ...state.animation, playing: false }, showAnimationControls: false };
+    case "SET_ORBIT_POINT": return { ...state, orbitPoint: action.re != null ? { re: action.re, im: action.im } : null };
+    case "SET_ORBIT_DATA": return { ...state, orbitData: action.orbit };
+    case "TOGGLE_CONTROL_PANEL": return { ...state, controlPanelOpen: !state.controlPanelOpen };
+    case "TOGGLE_EDUCATION_MODE": return { ...state, educationMode: !state.educationMode, orbitPoint: state.educationMode ? null : state.orbitPoint, orbitData: state.educationMode ? null : state.orbitData };
+    case "SET_EXPORT_DIALOG": return { ...state, showExportDialog: action.show };
+    case "RESET_VIEW": {
+      const dv = { ...DEFAULTS[state.fractalType] };
+      return { ...state, viewport: dv, c: { re: -0.7269, im: 0.1889 }, maxIterations: 200, orbitPoint: null, orbitData: null };
+    }
+    case "APPLY_PRESET": {
+      const p = action.preset;
+      return { ...state, fractalType: "julia", c: { ...p.c }, colorScheme: p.suggestedPalette, viewport: { centerX: 0, centerY: 0, zoom: p.suggestedZoom || 1 }, orbitPoint: null, orbitData: null };
+    }
+    default: return state;
+  }
+}
+
+// ─── Web Worker ───
+function createWorker() {
+  const code = `
+self.onmessage = function(ev) {
+  var d = ev.data;
+  if (d.type === 'render') { render(d); }
+  else if (d.type === 'export') { renderExport(d); }
+};
+
+function computePixel(re, im, cRe, cIm, maxIter, fractalType) {
+  var zr, zi, tr, ti, i, nr, ni;
+  if (fractalType === 'julia') {
+    zr = re; zi = im;
+  } else {
+    zr = 0; zi = 0; cRe = re; cIm = im;
+  }
+  for (i = 0; i < maxIter; i++) {
+    tr = zr * zr; ti = zi * zi;
+    if (tr + ti > 4.0) {
+      var log_zn = Math.log(tr + ti) / 2;
+      var nu = Math.log(log_zn / Math.LN2) / Math.LN2;
+      return i + 1 - nu;
+    }
+    if (fractalType === 'burningship') {
+      nr = Math.abs(zr); ni = Math.abs(zi);
+      zi = 2 * nr * ni + cIm;
+      zr = nr * nr - ni * ni + cRe;
+    } else {
+      zi = 2 * zr * zi + cIm;
+      zr = tr - ti + cRe;
+    }
+  }
+  return -1;
+}
+
+function render(d) {
+  var w = d.width, h = d.height;
+  var buf = new Float32Array(w * h);
+  var ar = w / h, xr = 4.0 / d.zoom, yr = xr / ar;
+  for (var py = 0; py < h; py++) {
+    for (var px = 0; px < w; px++) {
+      var re = d.centerX + (px / w - 0.5) * xr;
+      var im = d.centerY - (py / h - 0.5) * yr;
+      buf[py * w + px] = computePixel(re, im, d.cRe, d.cIm, d.maxIter, d.fractalType);
+    }
+    if (py % 50 === 0) self.postMessage({ type: 'progress', progress: py / h, jobId: d.jobId });
+  }
+  self.postMessage({ type: 'result', buffer: buf, width: w, height: h, jobId: d.jobId }, [buf.buffer]);
+}
+
+function renderExport(d) {
+  var w = d.width, h = d.height;
+  var buf = new Float32Array(w * h);
+  var ar = w / h, xr = 4.0 / d.zoom, yr = xr / ar;
+  for (var py = 0; py < h; py++) {
+    for (var px = 0; px < w; px++) {
+      var re = d.centerX + (px / w - 0.5) * xr;
+      var im = d.centerY - (py / h - 0.5) * yr;
+      buf[py * w + px] = computePixel(re, im, d.cRe, d.cIm, d.maxIter, d.fractalType);
+    }
+    if (py % 20 === 0) self.postMessage({ type: 'exportProgress', progress: py / h });
+  }
+  self.postMessage({ type: 'exportResult', buffer: buf, width: w, height: h }, [buf.buffer]);
+}
+  `;
+  const blob = new Blob([code], { type: "application/javascript" });
+  return new Worker(URL.createObjectURL(blob));
+}
+
+// ─── Color mapping ───
+function iterToColor(smoothIter, maxIter, stops, colorOffset) {
+  if (smoothIter < 0) return [0, 0, 0];
+  let t = (smoothIter / maxIter + colorOffset) % 1.0;
+  if (t < 0) t += 1.0;
+  let lo = stops[0], hi = stops[stops.length - 1];
+  for (let i = 0; i < stops.length - 1; i++) {
+    if (t >= stops[i].pos && t < stops[i + 1].pos) { lo = stops[i]; hi = stops[i + 1]; break; }
+  }
+  const range = hi.pos - lo.pos;
+  const f = range === 0 ? 0 : (t - lo.pos) / range;
+  return [
+    Math.round(lo.color[0] + f * (hi.color[0] - lo.color[0])),
+    Math.round(lo.color[1] + f * (hi.color[1] - lo.color[1])),
+    Math.round(lo.color[2] + f * (hi.color[2] - lo.color[2]))
+  ];
+}
+
+function applyColors(buffer, w, h, maxIter, stops, colorOffset) {
+  const imgData = new ImageData(w, h);
+  const data = imgData.data;
+  for (let i = 0; i < w * h; i++) {
+    const c = iterToColor(buffer[i], maxIter, stops, colorOffset);
+    const j = i * 4;
+    data[j] = c[0]; data[j+1] = c[1]; data[j+2] = c[2]; data[j+3] = 255;
+  }
+  return imgData;
+}
+
+// ─── Low-res preview render (main thread) ───
+function renderPreview(canvas, state, overrideC) {
+  if (!canvas) return;
+  const w = canvas.width, h = canvas.height;
+  const pw = Math.ceil(w / 4), ph = Math.ceil(h / 4);
+  const buf = new Float32Array(pw * ph);
+  const ar = pw / ph;
+  const vp = state._viewport || state.viewport;
+  const xr = 4.0 / vp.zoom, yr = xr / ar;
+  const cRe = overrideC ? overrideC.re : state.c.re;
+  const cIm = overrideC ? overrideC.im : state.c.im;
+  const ft = state._fractalType || state.fractalType;
+  const maxIter = Math.min(state.maxIterations, 100); // Cap for speed
+
+  for (let py = 0; py < ph; py++) {
+    for (let px = 0; px < pw; px++) {
+      const re = vp.centerX + (px / pw - 0.5) * xr;
+      const im = vp.centerY - (py / ph - 0.5) * yr;
+      let zr, zi, cr, ci;
+      if (ft === 'julia') { zr = re; zi = im; cr = cRe; ci = cIm; }
+      else { zr = 0; zi = 0; cr = re; ci = im; }
+      let iter = 0, escaped = false;
+      for (let n = 0; n < maxIter; n++) {
+        const tr = zr*zr, ti = zi*zi;
+        if (tr + ti > 4) {
+          const logzn = Math.log(tr + ti) / 2;
+          const nu = Math.log(logzn / Math.LN2) / Math.LN2;
+          buf[py*pw+px] = n + 1 - nu;
+          escaped = true; break;
+        }
+        if (ft === 'burningship') {
+          const ar2 = Math.abs(zr), ai = Math.abs(zi);
+          zi = 2*ar2*ai + ci; zr = ar2*ar2 - ai*ai + cr;
+        } else {
+          zi = 2*zr*zi + ci; zr = tr - ti + cr;
+        }
+      }
+      if (!escaped) buf[py*pw+px] = -1;
+    }
+  }
+
+  const stops = PALETTES[state.colorScheme]?.stops || PALETTES.classic.stops;
+  const imgData = applyColors(buf, pw, ph, maxIter, stops, state.colorOffset);
+
+  // Draw to offscreen then scale up
+  const offCanvas = document.createElement('canvas');
+  offCanvas.width = pw; offCanvas.height = ph;
+  offCanvas.getContext('2d').putImageData(imgData, 0, 0);
+
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'medium';
+  ctx.drawImage(offCanvas, 0, 0, w, h);
+}
+
+// ─── Orbit computation ───
+function computeOrbit(zRe, zIm, cRe, cIm, maxIter, fractalType) {
+  let re = fractalType === "julia" ? zRe : 0;
+  let im = fractalType === "julia" ? zIm : 0;
+  const cr = fractalType === "julia" ? cRe : zRe;
+  const ci = fractalType === "julia" ? cIm : zIm;
+  const orbit = [{ re, im }];
+  for (let i = 0; i < maxIter; i++) {
+    if (re*re + im*im > 4) break;
+    let nr, ni;
+    if (fractalType === "burningship") {
+      const ar = Math.abs(re), ai = Math.abs(im);
+      nr = ar*ar - ai*ai + cr; ni = 2*ar*ai + ci;
+    } else {
+      nr = re*re - im*im + cr; ni = 2*re*im + ci;
+    }
+    re = nr; im = ni;
+    orbit.push({ re, im });
+  }
+  return orbit;
+}
+
+function isInMandelbrotSet(cRe, cIm, maxIter) {
+  let re = 0, im = 0;
+  for (let i = 0; i < maxIter; i++) {
+    if (re*re + im*im > 4) return false;
+    const nr = re*re - im*im + cRe;
+    im = 2*re*im + cIm; re = nr;
+  }
+  return true;
+}
+
+// ─── Zoom display ───
+function formatZoom(z) {
+  if (z < 1000) return "x" + Math.round(z);
+  if (z < 1e6) return "x" + (z/1e3).toFixed(1) + "K";
+  return "x" + (z/1e6).toFixed(1) + "M";
+}
+
+function formatC(c) {
+  const sign = c.im >= 0 ? "+" : "-";
+  return `c = ${c.re.toFixed(4)} ${sign} ${Math.abs(c.im).toFixed(4)}i`;
+}
+
+// ─── SVG Icons (inline to avoid dependency) ───
+function Icon({ name, size = 14 }) {
+  const s = { width: size, height: size, fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" };
+  const paths = {
+    play: e("polygon", { points: "5 3 19 12 5 21", key: "p" }),
+    pause: e("g", null, e("rect", { x: 6, y: 4, width: 4, height: 16, key: "a" }), e("rect", { x: 14, y: 4, width: 4, height: 16, key: "b" })),
+    download: e("g", null, e("path", { d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4", key: "a" }), e("polyline", { points: "7 10 12 15 17 10", key: "b" }), e("line", { x1: 12, y1: 15, x2: 12, y2: 3, key: "c" })),
+    zoomIn: e("g", null, e("circle", { cx: 11, cy: 11, r: 8, key: "a" }), e("line", { x1: 21, y1: 21, x2: 16.65, y2: 16.65, key: "b" }), e("line", { x1: 11, y1: 8, x2: 11, y2: 14, key: "c" }), e("line", { x1: 8, y1: 11, x2: 14, y2: 11, key: "d" })),
+    zoomOut: e("g", null, e("circle", { cx: 11, cy: 11, r: 8, key: "a" }), e("line", { x1: 21, y1: 21, x2: 16.65, y2: 16.65, key: "b" }), e("line", { x1: 8, y1: 11, x2: 14, y2: 11, key: "c" })),
+    reset: e("g", null, e("polyline", { points: "1 4 1 10 7 10", key: "a" }), e("path", { d: "M3.51 15a9 9 0 1 0 2.13-9.36L1 10", key: "b" })),
+    columns: e("g", null, e("rect", { x: 3, y: 3, width: 18, height: 18, rx: 2, ry: 2, key: "a" }), e("line", { x1: 12, y1: 3, x2: 12, y2: 21, key: "b" })),
+    info: e("g", null, e("circle", { cx: 12, cy: 12, r: 10, key: "a" }), e("line", { x1: 12, y1: 16, x2: 12, y2: 12, key: "b" }), e("line", { x1: 12, y1: 8, x2: 12.01, y2: 8, key: "c" })),
+    x: e("g", null, e("line", { x1: 18, y1: 6, x2: 6, y2: 18, key: "a" }), e("line", { x1: 6, y1: 6, x2: 18, y2: 18, key: "b" })),
+    chevronRight: e("polyline", { points: "9 18 15 12 9 6", key: "p" }),
+    chevronLeft: e("polyline", { points: "15 18 9 12 15 6", key: "p" }),
+    settings: e("g", null, e("circle", { cx: 12, cy: 12, r: 3, key: "a" }), e("path", { d: "M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z", key: "b" })),
+  };
+  return e("svg", { viewBox: "0 0 24 24", ...s }, paths[name]);
+}
+
+// ─── Palette swatch renderer ───
+function paletteSwatch(stops, width, height) {
+  const canvas = document.createElement("canvas");
+  canvas.width = width; canvas.height = 1;
+  const ctx = canvas.getContext("2d");
+  for (let x = 0; x < width; x++) {
+    const c = iterToColor(x, width, stops, 0);
+    ctx.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
+    ctx.fillRect(x, 0, 1, 1);
+  }
+  return canvas.toDataURL();
+}
+
+// ═══════════════════════════════════════════════
+// Main App
+// ═══════════════════════════════════════════════
+function App() {
+  const [state, dispatch] = useReducer(reducer, initialState);
+  const canvasRef = useRef(null);
+  const overlayCanvasRef = useRef(null);
+  const mandelbrotCanvasRef = useRef(null);
+  const juliaCanvasRef = useRef(null);
+  const workerRef = useRef(null);
+  const iterationBufferRef = useRef(null);
+  const renderTimeoutRef = useRef(null);
+  const isDraggingRef = useRef(false);
+  const dragStartRef = useRef({ x: 0, y: 0 });
+  const dragStartViewportRef = useRef(null);
+  const animFrameRef = useRef(null);
+  const tRef = useRef(0);
+  const lastTsRef = useRef(null);
+  const jobIdRef = useRef(0);
+  const renderTimeRef = useRef(0);
+  const [renderMs, setRenderMs] = useState(0);
+  const [canvasSize, setCanvasSize] = useState({ w: 800, h: 600 });
+  const [exportProgress, setExportProgress] = useState(-1);
+  const [toast, setToast] = useState(null);
+  const [splitBanner, setSplitBanner] = useState(true);
+  const morphRef = useRef(null);
+
+  // Init worker
+  useEffect(() => {
+    workerRef.current = createWorker();
+    workerRef.current.onmessage = (ev) => {
+      const msg = ev.data;
+      if (msg.type === "result") {
+        const elapsed = performance.now() - renderTimeRef.current;
+        setRenderMs(Math.round(elapsed));
+        iterationBufferRef.current = { buffer: msg.buffer, width: msg.width, height: msg.height, jobId: msg.jobId };
+        // Apply current colors
+        const canvas = canvasRef.current;
+        if (canvas && msg.jobId === jobIdRef.current) {
+          const stops = PALETTES[state.colorScheme]?.stops || PALETTES.classic.stops;
+          const imgData = applyColors(msg.buffer, msg.width, msg.height, state.maxIterations, stops, state.colorOffset);
+          const ctx = canvas.getContext("2d");
+          ctx.putImageData(imgData, 0, 0);
+        }
+      } else if (msg.type === "exportProgress") {
+        setExportProgress(msg.progress);
+      } else if (msg.type === "exportResult") {
+        finishExport(msg.buffer, msg.width, msg.height);
+      }
+    };
+    return () => workerRef.current?.terminate();
+  }, []);
+
+  // Reapply colors when only colorScheme or colorOffset changes
+  const prevColorRef = useRef({ scheme: state.colorScheme, offset: state.colorOffset });
+  useEffect(() => {
+    const prev = prevColorRef.current;
+    if (prev.scheme !== state.colorScheme || prev.offset !== state.colorOffset) {
+      prev.scheme = state.colorScheme; prev.offset = state.colorOffset;
+      const ib = iterationBufferRef.current;
+      if (ib && canvasRef.current) {
+        const stops = PALETTES[state.colorScheme]?.stops || PALETTES.classic.stops;
+        const imgData = applyColors(ib.buffer, ib.width, ib.height, state.maxIterations, stops, state.colorOffset);
+        canvasRef.current.getContext("2d").putImageData(imgData, 0, 0);
+      }
+    }
+  }, [state.colorScheme, state.colorOffset, state.maxIterations]);
+
+  // Canvas resize
+  useEffect(() => {
+    function resize() {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const rect = canvas.parentElement.getBoundingClientRect();
+      const w = Math.floor(rect.width);
+      const h = Math.floor(rect.height);
+      canvas.width = w; canvas.height = h;
+      if (overlayCanvasRef.current) { overlayCanvasRef.current.width = w; overlayCanvasRef.current.height = h; }
+      setCanvasSize({ w, h });
+    }
+    resize();
+    window.addEventListener("resize", resize);
+    return () => window.removeEventListener("resize", resize);
+  }, [state.controlPanelOpen, state.splitView]);
+
+  // Full-res render trigger
+  function triggerFullRender(s) {
+    s = s || state;
+    clearTimeout(renderTimeoutRef.current);
+    renderTimeoutRef.current = setTimeout(() => {
+      const canvas = canvasRef.current;
+      if (!canvas || !workerRef.current) return;
+      const id = ++jobIdRef.current;
+      renderTimeRef.current = performance.now();
+      workerRef.current.postMessage({
+        type: "render", jobId: id,
+        width: canvas.width, height: canvas.height,
+        centerX: s.viewport.centerX, centerY: s.viewport.centerY, zoom: s.viewport.zoom,
+        maxIter: s.maxIterations, fractalType: s.fractalType,
+        cRe: s.c.re, cIm: s.c.im
+      });
+    }, 150);
+  }
+
+  // Trigger render on relevant state changes
+  const prevRenderState = useRef(null);
+  useEffect(() => {
+    const key = JSON.stringify([state.fractalType, state.c, state.viewport, state.maxIterations]);
+    if (key !== prevRenderState.current) {
+      prevRenderState.current = key;
+      renderPreview(canvasRef.current, state);
+      triggerFullRender(state);
+    }
+  }, [state.fractalType, state.c, state.viewport, state.maxIterations]);
+
+  // Animation loop
+  useEffect(() => {
+    if (!state.animation.playing) {
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+      lastTsRef.current = null;
+      return;
+    }
+    function loop(ts) {
+      if (!lastTsRef.current) { lastTsRef.current = ts; }
+      const dt = (ts - lastTsRef.current) / 1000;
+      lastTsRef.current = ts;
+      tRef.current = (tRef.current + dt * state.animation.speed * 0.1) % 1.0;
+      const c = getPathC(tRef.current, state.animation.path);
+      dispatch({ type: "SET_C", re: c.re, im: c.im });
+      animFrameRef.current = requestAnimationFrame(loop);
+    }
+    animFrameRef.current = requestAnimationFrame(loop);
+    return () => { if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current); };
+  }, [state.animation.playing, state.animation.speed, state.animation.path]);
+
+  // ─── Orbit drawing ───
+  useEffect(() => {
+    if (!state.educationMode || !state.orbitData || !overlayCanvasRef.current) {
+      if (overlayCanvasRef.current) {
+        const ctx = overlayCanvasRef.current.getContext("2d");
+        ctx.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.height);
+      }
+      return;
+    }
+    const canvas = overlayCanvasRef.current;
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const vp = state.viewport;
+    const ar = canvas.width / canvas.height;
+    const xr = 4.0 / vp.zoom, yr = xr / ar;
+    const orbit = state.orbitData;
+
+    function toPixel(re, im) {
+      return {
+        x: ((re - vp.centerX) / xr + 0.5) * canvas.width,
+        y: (-(im - vp.centerY) / yr + 0.5) * canvas.height
+      };
+    }
+
+    // Lines
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(255,255,255,0.3)";
+    ctx.beginPath();
+    for (let i = 0; i < orbit.length; i++) {
+      const p = toPixel(orbit[i].re, orbit[i].im);
+      if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+    }
+    ctx.stroke();
+
+    // Dots
+    for (let i = 0; i < orbit.length; i++) {
+      const p = toPixel(orbit[i].re, orbit[i].im);
+      const t = orbit.length > 1 ? i / (orbit.length - 1) : 0;
+      // Blue -> Cyan -> Green -> Yellow -> Red
+      const r = t < 0.5 ? 0 : Math.round(255 * (t - 0.5) * 2);
+      const g = t < 0.25 ? Math.round(255 * t * 4) : t < 0.75 ? 255 : Math.round(255 * (1 - t) * 4);
+      const b = t < 0.5 ? Math.round(255 * (1 - t * 2)) : 0;
+      ctx.fillStyle = `rgb(${r},${g},${b})`;
+      ctx.beginPath();
+      const rad = i === 0 ? 6 : 4;
+      ctx.arc(p.x, p.y, rad, 0, Math.PI * 2);
+      ctx.fill();
+      if (i === 0) { ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.stroke(); ctx.lineWidth = 1; }
+    }
+  }, [state.orbitData, state.educationMode, state.viewport]);
+
+  // ─── Canvas interaction handlers ───
+  function getCanvasComplex(ev, canvas, vp) {
+    const rect = canvas.getBoundingClientRect();
+    const px = ev.clientX - rect.left;
+    const py = ev.clientY - rect.top;
+    const ar = canvas.width / canvas.height;
+    const xr = 4.0 / vp.zoom, yr = xr / ar;
+    return {
+      re: vp.centerX + (px / rect.width - 0.5) * xr,
+      im: vp.centerY - (py / rect.height - 0.5) * yr
+    };
+  }
+
+  function handleCanvasMouseDown(ev) {
+    if (ev.button !== 0) return;
+    isDraggingRef.current = true;
+    dragStartRef.current = { x: ev.clientX, y: ev.clientY };
+    dragStartViewportRef.current = { ...state.viewport };
+  }
+
+  function handleCanvasMouseMove(ev) {
+    if (!isDraggingRef.current) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const dx = ev.clientX - dragStartRef.current.x;
+    const dy = ev.clientY - dragStartRef.current.y;
+    const rect = canvas.getBoundingClientRect();
+    const ar = rect.width / rect.height;
+    const xr = 4.0 / dragStartViewportRef.current.zoom;
+    const yr = xr / ar;
+    const newCx = dragStartViewportRef.current.centerX - (dx / rect.width) * xr;
+    const newCy = dragStartViewportRef.current.centerY + (dy / rect.height) * yr;
+    dispatch({ type: "SET_VIEWPORT", centerX: newCx, centerY: newCy, zoom: dragStartViewportRef.current.zoom });
+  }
+
+  function handleCanvasMouseUp(ev) {
+    if (!isDraggingRef.current) return;
+    const wasDrag = Math.abs(ev.clientX - dragStartRef.current.x) > 3 || Math.abs(ev.clientY - dragStartRef.current.y) > 3;
+    isDraggingRef.current = false;
+    if (!wasDrag && state.educationMode) {
+      const c = getCanvasComplex(ev, canvasRef.current, state.viewport);
+      dispatch({ type: "SET_ORBIT_POINT", re: c.re, im: c.im });
+      const orbit = computeOrbit(c.re, c.im, state.c.re, state.c.im, state.maxIterations, state.fractalType);
+      dispatch({ type: "SET_ORBIT_DATA", orbit });
+    }
+  }
+
+  function handleCanvasWheel(ev) {
+    ev.preventDefault();
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const mpx = ev.clientX - rect.left;
+    const mpy = ev.clientY - rect.top;
+    const ar = rect.width / rect.height;
+    const curZoom = state.viewport.zoom;
+    const xr = 4.0 / curZoom, yr = xr / ar;
+    const mouseRe = state.viewport.centerX + (mpx / rect.width - 0.5) * xr;
+    const mouseIm = state.viewport.centerY - (mpy / rect.height - 0.5) * yr;
+    const factor = ev.deltaY < 0 ? 1.5 : 1 / 1.5;
+    const newZoom = curZoom * factor;
+    const nxr = 4.0 / newZoom, nyr = nxr / ar;
+    const newCx = mouseRe - (mpx / rect.width - 0.5) * nxr;
+    const newCy = mouseIm + (mpy / rect.height - 0.5) * nyr;
+    dispatch({ type: "SET_VIEWPORT", centerX: newCx, centerY: newCy, zoom: newZoom });
+  }
+
+  // Touch support
+  const touchRef = useRef({ startDist: 0, startZoom: 1, startCx: 0, startCy: 0, startX: 0, startY: 0, single: false });
+
+  function handleTouchStart(ev) {
+    ev.preventDefault();
+    const touches = ev.touches;
+    if (touches.length === 1) {
+      touchRef.current.single = true;
+      touchRef.current.startX = touches[0].clientX;
+      touchRef.current.startY = touches[0].clientY;
+      touchRef.current.startCx = state.viewport.centerX;
+      touchRef.current.startCy = state.viewport.centerY;
+    } else if (touches.length === 2) {
+      touchRef.current.single = false;
+      const dx = touches[1].clientX - touches[0].clientX;
+      const dy = touches[1].clientY - touches[0].clientY;
+      touchRef.current.startDist = Math.sqrt(dx*dx + dy*dy);
+      touchRef.current.startZoom = state.viewport.zoom;
+      touchRef.current.startCx = state.viewport.centerX;
+      touchRef.current.startCy = state.viewport.centerY;
+      touchRef.current.startX = (touches[0].clientX + touches[1].clientX) / 2;
+      touchRef.current.startY = (touches[0].clientY + touches[1].clientY) / 2;
+    }
+  }
+
+  function handleTouchMove(ev) {
+    ev.preventDefault();
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const touches = ev.touches;
+    if (touches.length === 1 && touchRef.current.single) {
+      const dx = touches[0].clientX - touchRef.current.startX;
+      const dy = touches[0].clientY - touchRef.current.startY;
+      const ar = rect.width / rect.height;
+      const xr = 4.0 / state.viewport.zoom, yr = xr / ar;
+      dispatch({ type: "SET_VIEWPORT", centerX: touchRef.current.startCx - (dx/rect.width)*xr, centerY: touchRef.current.startCy + (dy/rect.height)*yr, zoom: state.viewport.zoom });
+    } else if (touches.length === 2) {
+      const dx = touches[1].clientX - touches[0].clientX;
+      const dy = touches[1].clientY - touches[0].clientY;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      const scale = dist / touchRef.current.startDist;
+      const newZoom = touchRef.current.startZoom * scale;
+      const midX = (touches[0].clientX + touches[1].clientX) / 2;
+      const midY = (touches[0].clientY + touches[1].clientY) / 2;
+      const panDx = midX - touchRef.current.startX;
+      const panDy = midY - touchRef.current.startY;
+      const ar = rect.width / rect.height;
+      const xr = 4.0 / touchRef.current.startZoom, yr = xr / ar;
+      const cx = touchRef.current.startCx - (panDx/rect.width)*xr;
+      const cy = touchRef.current.startCy + (panDy/rect.height)*yr;
+      dispatch({ type: "SET_VIEWPORT", centerX: cx, centerY: cy, zoom: newZoom });
+    }
+  }
+
+  // ─── Export ───
+  const exportStateRef = useRef(null);
+
+  function handleExport(w, h) {
+    dispatch({ type: "SET_EXPORT_DIALOG", show: false });
+    setExportProgress(0);
+    exportStateRef.current = { width: w, height: h };
+    workerRef.current.postMessage({
+      type: "export", width: w, height: h,
+      centerX: state.viewport.centerX, centerY: state.viewport.centerY, zoom: state.viewport.zoom,
+      maxIter: state.maxIterations, fractalType: state.fractalType,
+      cRe: state.c.re, cIm: state.c.im
+    });
+  }
+
+  function finishExport(buffer, w, h) {
+    const stops = PALETTES[state.colorScheme]?.stops || PALETTES.classic.stops;
+    const imgData = applyColors(buffer, w, h, state.maxIterations, stops, state.colorOffset);
+    const offCanvas = document.createElement("canvas");
+    offCanvas.width = w; offCanvas.height = h;
+    offCanvas.getContext("2d").putImageData(imgData, 0, 0);
+    offCanvas.toBlob((blob) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const sign = state.c.im >= 0 ? "+" : "-";
+      if (state.fractalType === "julia") {
+        a.download = `julia_c${state.c.re}${sign}${Math.abs(state.c.im)}i_${state.maxIterations}iter.png`;
+      } else {
+        a.download = `${state.fractalType}_zoom${Math.round(state.viewport.zoom)}x_${state.maxIterations}iter.png`;
+      }
+      a.href = url; document.body.appendChild(a); a.click();
+      document.body.removeChild(a); URL.revokeObjectURL(url);
+      setExportProgress(-1);
+      showToast("Image saved!");
+    }, "image/png");
+  }
+
+  function handleQuickDownload() {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    canvas.toBlob((blob) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const sign = state.c.im >= 0 ? "+" : "-";
+      if (state.fractalType === "julia") {
+        a.download = `julia_c${state.c.re}${sign}${Math.abs(state.c.im)}i_${state.maxIterations}iter.png`;
+      } else {
+        a.download = `${state.fractalType}_zoom${Math.round(state.viewport.zoom)}x_${state.maxIterations}iter.png`;
+      }
+      a.href = url; document.body.appendChild(a); a.click();
+      document.body.removeChild(a); URL.revokeObjectURL(url);
+      showToast("Image saved!");
+    }, "image/png");
+  }
+
+  function showToast(msg) {
+    setToast(msg);
+    setTimeout(() => setToast(null), 2200);
+  }
+
+  // ─── Preset morph ───
+  function applyPreset(preset) {
+    if (morphRef.current) cancelAnimationFrame(morphRef.current);
+    const startC = { ...state.c };
+    const endC = { ...preset.c };
+    const startTime = performance.now();
+    const dur = 300;
+    function step(now) {
+      const t = Math.min((now - startTime) / dur, 1);
+      const re = startC.re + (endC.re - startC.re) * t;
+      const im = startC.im + (endC.im - startC.im) * t;
+      dispatch({ type: "SET_C", re, im });
+      if (t < 1) morphRef.current = requestAnimationFrame(step);
+      else dispatch({ type: "APPLY_PRESET", preset });
+    }
+    // Switch to julia and apply palette immediately
+    dispatch({ type: "SET_COLOR_SCHEME", colorScheme: preset.suggestedPalette });
+    morphRef.current = requestAnimationFrame(step);
+  }
+
+  // ─── Zoom buttons ───
+  function zoomIn() {
+    dispatch({ type: "SET_VIEWPORT", centerX: state.viewport.centerX, centerY: state.viewport.centerY, zoom: state.viewport.zoom * 1.5 });
+  }
+  function zoomOut() {
+    dispatch({ type: "SET_VIEWPORT", centerX: state.viewport.centerX, centerY: state.viewport.centerY, zoom: state.viewport.zoom / 1.5 });
+  }
+
+  // ─── Palette swatches (memoized) ───
+  const paletteImages = useMemo(() => {
+    const imgs = {};
+    for (const key in PALETTES) imgs[key] = paletteSwatch(PALETTES[key].stops, 56, 1);
+    return imgs;
+  }, []);
+
+  const isConnected = useMemo(() => {
+    if (state.fractalType !== "julia") return null;
+    return isInMandelbrotSet(state.c.re, state.c.im, 200);
+  }, [state.c.re, state.c.im, state.fractalType]);
+
+  // ═══ RENDER ═══
+  return e("div", { id: "app" },
+
+    // ─── HEADER ───
+    e("div", { className: "header" },
+      e("h1", null, "Julia Set Explorer"),
+      e("div", { className: "header-divider" }),
+
+      // Fractal type selector
+      e("div", { className: "btn-group" },
+        ["julia", "mandelbrot", "burningship"].map(ft =>
+          e("button", {
+            key: ft, className: "btn" + (state.fractalType === ft ? " active" : ""),
+            onClick: () => dispatch({ type: "SET_FRACTAL_TYPE", fractalType: ft })
+          }, ft === "burningship" ? "Burning Ship" : ft.charAt(0).toUpperCase() + ft.slice(1))
+        )
+      ),
+
+      e("div", { className: "header-divider hide-mobile" }),
+
+      // Presets (Julia only)
+      state.fractalType === "julia" && e("div", { className: "preset-strip hide-mobile" },
+        PRESETS.map(p =>
+          e("button", { key: p.name, className: "preset-btn", onClick: () => applyPreset(p), title: `${formatC(p.c)}\n${p.description}` }, p.name)
+        )
+      ),
+
+      e("div", { style: { flex: 1 } }),
+
+      // Toolbar buttons
+      e("button", { className: "btn" + (state.splitView ? " active" : ""), onClick: () => dispatch({ type: "TOGGLE_SPLIT_VIEW" }), title: "Split View" },
+        e(Icon, { name: "columns" }), e("span", { className: "hide-mobile" }, "Split")
+      ),
+      e("button", { className: "btn" + (state.animation.playing ? " active" : ""), onClick: () => dispatch({ type: "TOGGLE_ANIMATION" }), title: "Animate" },
+        e(Icon, { name: state.animation.playing ? "pause" : "play" }), e("span", { className: "hide-mobile" }, "Animate")
+      ),
+      e("button", { className: "btn" + (state.educationMode ? " active" : ""), onClick: () => dispatch({ type: "TOGGLE_EDUCATION_MODE" }), title: "Education" },
+        e(Icon, { name: "info" }), e("span", { className: "hide-mobile" }, "Learn")
+      ),
+      e("button", { className: "btn", onClick: handleQuickDownload, title: "Download" },
+        e(Icon, { name: "download" })
+      ),
+      e("button", { className: "btn", onClick: () => dispatch({ type: "SET_EXPORT_DIALOG", show: true }), title: "Export HD", style: { fontSize: 10 } }, "HD"),
+      e("button", { className: "btn", onClick: () => dispatch({ type: "RESET_VIEW" }), title: "Reset" },
+        e(Icon, { name: "reset" })
+      )
+    ),
+
+    // ─── MAIN AREA ───
+    e("div", { className: "main-area" },
+
+      // Canvas container
+      e("div", {
+        className: "canvas-wrap" + (isDraggingRef.current ? " dragging" : ""),
+        onMouseDown: handleCanvasMouseDown,
+        onMouseMove: handleCanvasMouseMove,
+        onMouseUp: handleCanvasMouseUp,
+        onMouseLeave: () => { isDraggingRef.current = false; },
+        onWheel: handleCanvasWheel,
+        onTouchStart: handleTouchStart,
+        onTouchMove: handleTouchMove,
+        onTouchEnd: () => {},
+      },
+        e("canvas", { ref: canvasRef }),
+        state.educationMode && e("canvas", {
+          ref: overlayCanvasRef,
+          style: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%", pointerEvents: "none" }
+        })
+      ),
+
+      // Panel toggle
+      e("div", {
+        className: "panel-toggle" + (state.controlPanelOpen ? "" : " collapsed"),
+        onClick: () => dispatch({ type: "TOGGLE_CONTROL_PANEL" })
+      }, e(Icon, { name: state.controlPanelOpen ? "chevronRight" : "chevronLeft", size: 12 })),
+
+      // ─── CONTROL PANEL ───
+      e("div", { className: "control-panel" + (state.controlPanelOpen ? "" : " collapsed") },
+
+        // C Parameter (Julia only)
+        state.fractalType === "julia" && e("div", { className: "panel-section" },
+          e("h3", null, "C Parameter"),
+          e("div", { className: "c-display" }, formatC(state.c)),
+          e("div", { className: "slider-row" },
+            e("label", null, "Real (a)"),
+            e("input", { type: "range", min: -2, max: 2, step: 0.001, value: state.c.re,
+              onChange: ev => dispatch({ type: "SET_C", re: parseFloat(ev.target.value), im: state.c.im }) }),
+            e("input", { type: "number", step: 0.001, value: state.c.re,
+              onChange: ev => { const v = parseFloat(ev.target.value); if (!isNaN(v) && v >= -2 && v <= 2) dispatch({ type: "SET_C", re: v, im: state.c.im }); } })
+          ),
+          e("div", { className: "slider-row" },
+            e("label", null, "Imag (b)"),
+            e("input", { type: "range", min: -2, max: 2, step: 0.001, value: state.c.im,
+              onChange: ev => dispatch({ type: "SET_C", re: state.c.re, im: parseFloat(ev.target.value) }) }),
+            e("input", { type: "number", step: 0.001, value: state.c.im,
+              onChange: ev => { const v = parseFloat(ev.target.value); if (!isNaN(v) && v >= -2 && v <= 2) dispatch({ type: "SET_C", re: state.c.re, im: v }); } })
+          )
+        ),
+
+        // Rendering
+        e("div", { className: "panel-section" },
+          e("h3", null, "Rendering"),
+          e("div", { className: "slider-row" },
+            e("label", null, "Iterations"),
+            e("input", { type: "range", min: 50, max: 2000, step: 10, value: state.maxIterations,
+              onChange: ev => dispatch({ type: "SET_MAX_ITERATIONS", maxIterations: parseInt(ev.target.value) }) }),
+            e("span", { className: "val" }, state.maxIterations)
+          )
+        ),
+
+        // Colors
+        e("div", { className: "panel-section" },
+          e("h3", null, "Colors"),
+          e("div", { className: "palette-grid" },
+            Object.keys(PALETTES).map(key =>
+              e("div", {
+                key, className: "palette-swatch" + (state.colorScheme === key ? " active" : ""),
+                style: { backgroundImage: `url(${paletteImages[key]})`, backgroundSize: "cover" },
+                onClick: () => dispatch({ type: "SET_COLOR_SCHEME", colorScheme: key }),
+                title: PALETTES[key].name
+              })
+            )
+          ),
+          e("div", { className: "slider-row" },
+            e("label", null, "Offset"),
+            e("input", { type: "range", min: 0, max: 1, step: 0.005, value: state.colorOffset,
+              onChange: ev => dispatch({ type: "SET_COLOR_OFFSET", colorOffset: parseFloat(ev.target.value) }) }),
+            e("span", { className: "val" }, state.colorOffset.toFixed(2))
+          )
+        ),
+
+        // Viewport
+        e("div", { className: "panel-section" },
+          e("h3", null, "Viewport"),
+          e("div", { className: "viewport-info" },
+            e("div", null, "Zoom: ", formatZoom(state.viewport.zoom)),
+            e("div", null, `Center: (${state.viewport.centerX.toFixed(4)}, ${state.viewport.centerY.toFixed(4)})`)
+          ),
+          e("div", { style: { display: "flex", gap: 4, marginTop: 8 } },
+            e("button", { className: "btn", onClick: zoomIn }, e(Icon, { name: "zoomIn" }), "In"),
+            e("button", { className: "btn", onClick: zoomOut }, e(Icon, { name: "zoomOut" }), "Out")
+          )
+        ),
+
+        // Mobile presets
+        state.fractalType === "julia" && e("div", { className: "panel-section", style: { display: "none" } },
+          e("h3", null, "Presets"),
+          e("div", { className: "preset-strip", style: { display: "flex", flexWrap: "wrap" } },
+            PRESETS.map(p => e("button", { key: p.name, className: "preset-btn", onClick: () => applyPreset(p) }, p.name))
+          )
+        ),
+
+        // Education
+        state.educationMode && e("div", { className: "panel-section" },
+          e("h3", null, "Education"),
+          e("div", { className: "edu-section" },
+            e("h4", null, "What You're Seeing"),
+            state.fractalType === "julia" && e("div", null,
+              e("p", null, e("code", null, `z(n+1) = z(n)\u00B2 + (${state.c.re.toFixed(4)} + ${state.c.im.toFixed(4)}i)`)),
+              e("p", null, `Computing up to ${state.maxIterations} iterations per pixel`),
+              e("p", null, `Magnification: ${formatZoom(state.viewport.zoom)}`),
+              e("hr", { style: { border: "none", borderTop: "1px solid rgba(255,255,255,0.1)", margin: "8px 0" } }),
+              e("h4", null, "Julia Sets"),
+              e("p", null, "A Julia set is the boundary between points whose orbits escape to infinity and points whose orbits stay bounded. The constant c determines the shape."),
+              e("div", { style: { margin: "6px 0" } },
+                e("span", { className: "badge " + (isConnected ? "connected" : "disconnected") },
+                  isConnected ? "\u25CF Connected" : "\u25CF Disconnected"
+                )
+              ),
+              e("p", { style: { fontSize: 11 } }, isConnected
+                ? `This Julia set is connected because c is inside the Mandelbrot set.`
+                : `This Julia set is disconnected because c is outside the Mandelbrot set.`)
+            ),
+            state.fractalType === "mandelbrot" && e("div", null,
+              e("p", null, e("code", null, "z(n+1) = z(n)\u00B2 + c, where c = pixel coordinate")),
+              e("p", null, `Computing up to ${state.maxIterations} iterations per pixel`),
+              e("hr", { style: { border: "none", borderTop: "1px solid rgba(255,255,255,0.1)", margin: "8px 0" } }),
+              e("h4", null, "The Mandelbrot Set"),
+              e("p", null, "The black region IS the Mandelbrot set \u2014 all c values whose orbits never escape. Colored regions show how quickly orbits escape."),
+              e("p", null, "Every point corresponds to a Julia set. Use Split View to explore this connection.")
+            ),
+            state.fractalType === "burningship" && e("div", null,
+              e("p", null, e("code", null, "z(n+1) = (|Re(z)| + i|Im(z)|)\u00B2 + c")),
+              e("p", null, `Computing up to ${state.maxIterations} iterations per pixel`),
+              e("hr", { style: { border: "none", borderTop: "1px solid rgba(255,255,255,0.1)", margin: "8px 0" } }),
+              e("h4", null, "The Burning Ship Fractal"),
+              e("p", null, "Before squaring z, the real and imaginary parts are replaced by their absolute values. This breaks symmetry and creates jagged, asymmetric structures resembling a ship in flames.")
+            ),
+            e("p", { style: { fontSize: 11, fontStyle: "italic", marginTop: 8, color: "var(--text-muted)" } }, "Click on the fractal to visualize the orbit of that point.")
+          ),
+
+          // Orbit info
+          state.orbitData && e("div", { className: "orbit-info" },
+            state.orbitPoint && e("div", null, `z\u2080 = ${state.orbitPoint.re.toFixed(4)} + ${state.orbitPoint.im.toFixed(4)}i`),
+            e("div", null, state.orbitData[state.orbitData.length - 1] && (
+              (() => {
+                const last = state.orbitData[state.orbitData.length - 1];
+                const mag = Math.sqrt(last.re*last.re + last.im*last.im);
+                return mag > 2
+                  ? `Escaped after ${state.orbitData.length - 1} iterations \u2022 |z| = ${mag.toFixed(3)}`
+                  : `Did not escape (bounded) \u2022 ${state.orbitData.length} points in orbit`;
+              })()
+            ))
+          )
+        )
+      )
+    ),
+
+    // ─── ANIMATION BAR ───
+    state.showAnimationControls && e("div", { className: "anim-bar" },
+      e("button", { className: "btn", onClick: () => dispatch({ type: "TOGGLE_ANIMATION" }) },
+        e(Icon, { name: state.animation.playing ? "pause" : "play", size: 14 })
+      ),
+      e("select", { value: state.animation.path, onChange: ev => dispatch({ type: "SET_ANIMATION", path: ev.target.value }) },
+        e("option", { value: "circle" }, "Circle"),
+        e("option", { value: "figure8" }, "Figure Eight"),
+        e("option", { value: "cardioid" }, "Cardioid Trace"),
+        e("option", { value: "tour" }, "Preset Tour")
+      ),
+      e("label", { style: { color: "var(--text-secondary)", fontSize: 11 } }, "Speed"),
+      e("input", { type: "range", min: 0.25, max: 4, step: 0.25, value: state.animation.speed, style: { width: 80 },
+        onChange: ev => dispatch({ type: "SET_ANIMATION", speed: parseFloat(ev.target.value) }) }),
+      e("span", { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: "var(--text-secondary)" } }, state.animation.speed.toFixed(2) + "x"),
+      e("div", { style: { flex: 1 } }),
+      e("button", { className: "btn", onClick: () => dispatch({ type: "STOP_ANIMATION" }) }, e(Icon, { name: "x", size: 12 }), "Stop")
+    ),
+
+    // ─── STATUS BAR ───
+    e("div", { className: "status-bar" },
+      e("span", null, `Render: ${renderMs}ms`),
+      e("span", null, `${canvasSize.w}\u00D7${canvasSize.h}`),
+      e("span", null, state.fractalType === "julia" ? "Julia Set" : state.fractalType === "mandelbrot" ? "Mandelbrot Set" : "Burning Ship"),
+      e("span", null, formatZoom(state.viewport.zoom))
+    ),
+
+    // ─── EXPORT DIALOG ───
+    state.showExportDialog && e("div", { className: "modal-overlay", onClick: () => dispatch({ type: "SET_EXPORT_DIALOG", show: false }) },
+      e("div", { className: "modal", onClick: ev => ev.stopPropagation() },
+        e("h2", null, "Export High Resolution"),
+        [
+          { label: "Full HD", w: 1920, h: 1080 },
+          { label: "4K", w: 3840, h: 2160 },
+          { label: "Print Quality", w: 4800, h: 3600 },
+        ].map(opt =>
+          e("div", { key: opt.label, className: "export-option", onClick: () => handleExport(opt.w, opt.h) },
+            e("span", { className: "label" }, opt.label),
+            e("span", { className: "dims" }, `${opt.w} \u00D7 ${opt.h}`)
+          )
+        ),
+        e("button", { className: "btn", style: { marginTop: 8, width: "100%", justifyContent: "center" }, onClick: () => dispatch({ type: "SET_EXPORT_DIALOG", show: false }) }, "Cancel")
+      )
+    ),
+
+    // ─── EXPORT PROGRESS ───
+    exportProgress >= 0 && e("div", { className: "modal-overlay" },
+      e("div", { className: "modal" },
+        e("h2", null, "Rendering..."),
+        e("div", { className: "progress-wrap" },
+          e("div", { className: "progress-bar" },
+            e("div", { className: "progress-fill", style: { width: (exportProgress * 100) + "%" } })
+          ),
+          e("div", { className: "progress-text" }, Math.round(exportProgress * 100) + "%")
+        )
+      )
+    ),
+
+    // ─── TOAST ───
+    toast && e("div", { className: "toast" }, toast)
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("app")).render(e(App));
+</script>
+</body>
+</html>
