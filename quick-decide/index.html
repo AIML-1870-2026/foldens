@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Quick, Decide! — Decision Neuron Sim</title>
+    <meta name="description" content="A Quick, Draw!-inspired browser game where a real neural network guesses your sketches in real-time.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Architects+Daughter&family=Caveat:wght@400;700&family=Patrick+Hand&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <!-- SVG Filters for sketchy effect -->
+    <svg style="position:absolute;width:0;height:0;">
+        <defs>
+            <filter id="sketchy">
+                <feTurbulence type="turbulence" baseFrequency="0.03" numOctaves="3" result="noise" seed="2"/>
+                <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.5"/>
+            </filter>
+            <filter id="sketchy-strong">
+                <feTurbulence type="turbulence" baseFrequency="0.04" numOctaves="4" result="noise" seed="5"/>
+                <feDisplacementMap in="SourceGraphic" in2="noise" scale="3"/>
+            </filter>
+        </defs>
+    </svg>
+
+    <!-- Settings Button (floating) -->
+    <button id="btn-settings" class="settings-float" title="Settings">⚙️</button>
+
+    <!-- ====== GAME ====== -->
+    <main id="game-container" class="game-main">
+
+        <!-- Screen: Splash -->
+        <section id="screen-splash" class="screen active">
+            <div class="splash-content">
+                <h1 class="splash-title">Quick, Decide! 🧠</h1>
+                <p class="splash-subtitle">Can a neural network guess what you're drawing?</p>
+                <div class="splash-instructions">
+                    <p>You'll draw <strong>6 objects</strong>. 20 seconds each.</p>
+                    <p>Let's see if the AI can keep up!</p>
+                </div>
+                <button id="btn-start" class="sketchy-btn primary-btn">Let's Draw!</button>
+                <div id="model-status" class="model-status">
+                    <span class="loading-dot"></span> Loading neural network...
+                </div>
+                <p class="splash-footer">Powered by a real neural network</p>
+            </div>
+        </section>
+
+        <!-- Screen: Prompt -->
+        <section id="screen-prompt" class="screen">
+            <div class="prompt-content">
+                <div id="prompt-emoji" class="prompt-emoji"></div>
+                <div class="prompt-text">
+                    ✏️ Draw a <span id="prompt-object" class="prompt-object-name"></span>!
+                </div>
+                <div id="round-indicator" class="round-indicator">Round <span id="round-num">1</span>/6</div>
+            </div>
+        </section>
+
+        <!-- Screen: Countdown -->
+        <section id="screen-countdown" class="screen">
+            <div class="countdown-content">
+                <div id="countdown-number" class="countdown-number">3</div>
+            </div>
+        </section>
+
+        <!-- Screen: Drawing -->
+        <section id="screen-drawing" class="screen">
+            <div class="drawing-layout">
+                <!-- Header -->
+                <div class="drawing-header">
+                    <span id="draw-prompt-mini" class="draw-prompt-mini"></span>
+                    <span id="draw-round-mini" class="draw-round-mini">Round 1/6</span>
+                </div>
+
+                <!-- Canvas -->
+                <div id="canvas-wrapper" class="canvas-wrapper">
+                    <canvas id="drawing-canvas" width="500" height="500"></canvas>
+                </div>
+
+                <!-- Controls Bar -->
+                <div class="controls-bar">
+                    <div class="timer-area">
+                        <canvas id="timer-canvas" width="80" height="80"></canvas>
+                        <span id="timer-text" class="timer-text">20</span>
+                    </div>
+                    <div class="canvas-actions">
+                        <button id="btn-undo" class="sketchy-btn small-btn">↩ Undo</button>
+                        <button id="btn-clear" class="sketchy-btn small-btn">✕ Clear</button>
+                    </div>
+                    <div class="score-area">
+                        <span id="score-display" class="score-display">⭐ 0/6</span>
+                    </div>
+                </div>
+
+                <!-- Guess Bar -->
+                <div id="guess-bar" class="guess-bar">
+                    <div class="guess-label">I see...</div>
+                    <div id="guess-list" class="guess-list"></div>
+                </div>
+
+                <!-- Educational Panel -->
+                <div id="neuron-panel" class="neuron-panel collapsed">
+                    <button id="btn-toggle-neuron" class="neuron-toggle">
+                        🔬 Peek Inside the Neuron
+                        <span class="toggle-arrow">▼</span>
+                    </button>
+                    <div id="neuron-content" class="neuron-content">
+                        <div class="neuron-diagram-area">
+                            <canvas id="neuron-diagram-canvas" width="600" height="220"></canvas>
+                        </div>
+                        <div class="neuron-info-row">
+                            <div id="neuron-math" class="neuron-math"></div>
+                            <div class="neuron-side-col">
+                                <div class="model-eye">
+                                    <div class="model-eye-label">Model input (28×28)</div>
+                                    <canvas id="model-eye-canvas" width="28" height="28"></canvas>
+                                </div>
+                                <div class="sigmoid-area">
+                                    <canvas id="sigmoid-plot-canvas" width="180" height="120"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="neuron-confidence" class="neuron-confidence">
+                            <div class="confidence-label">Confidence:</div>
+                            <div class="confidence-bar-track">
+                                <div id="confidence-bar-fill" class="confidence-bar-fill"></div>
+                            </div>
+                            <span id="confidence-value" class="confidence-value">--</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Screen: Result -->
+        <section id="screen-result" class="screen">
+            <div class="result-content">
+                <div id="result-drawing" class="result-drawing">
+                    <canvas id="result-canvas" width="200" height="200"></canvas>
+                </div>
+                <div id="result-text" class="result-text"></div>
+                <div id="result-subtext" class="result-subtext"></div>
+            </div>
+        </section>
+
+        <!-- Screen: Summary -->
+        <section id="screen-summary" class="screen">
+            <div class="summary-content">
+                <h2 id="summary-score" class="summary-score"></h2>
+                <div id="summary-rounds" class="summary-rounds"></div>
+                <div id="summary-stats" class="summary-stats"></div>
+                <div class="summary-actions">
+                    <button id="btn-play-again" class="sketchy-btn primary-btn">Play Again!</button>
+                    <button id="btn-share" class="sketchy-btn small-btn">📋 Share Results</button>
+                </div>
+                <button id="btn-explore-ai" class="explore-link">🔬 Explore how the AI works →</button>
+            </div>
+        </section>
+    </main>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h3 class="modal-title">⚙️ Settings</h3>
+            <label class="setting-row">
+                <input type="checkbox" id="setting-education">
+                <span>🔬 Show educational panel</span>
+            </label>
+            <hr class="sketchy-hr">
+            <div class="stats-display">
+                <h4>Your Stats</h4>
+                <div id="stats-content"></div>
+            </div>
+            <button id="btn-close-settings" class="sketchy-btn small-btn">Close</button>
+        </div>
+    </div>
+
+    <!-- Demo Modal -->
+    <div id="demo-modal" class="modal-overlay hidden">
+        <div class="modal-content demo-modal-content">
+            <div class="demo-header">
+                <h3 class="demo-title">🧠 How the AI Thinks</h3>
+                <span class="demo-step" id="demo-step">1 / 3</span>
+                <button id="btn-close-demo" class="replay-close-btn">✕</button>
+            </div>
+            <div class="demo-body">
+                <div class="demo-canvas-col">
+                    <div class="demo-prompt" id="demo-prompt">⭕ Circle</div>
+                    <canvas id="demo-canvas" width="400" height="400"></canvas>
+                    <div class="demo-narration" id="demo-narration">Watch as the AI processes each stroke...</div>
+                </div>
+                <div class="demo-info-col">
+                    <div class="demo-section">
+                        <div class="demo-section-label">AI Guesses</div>
+                        <div id="demo-guess-list" class="guess-list demo-guess-list"></div>
+                    </div>
+                    <div class="demo-section demo-neuron-section">
+                        <div class="demo-section-label">Inside the Neuron</div>
+                        <canvas id="demo-neuron-canvas" width="600" height="220"></canvas>
+                        <div id="demo-neuron-math" class="neuron-math"></div>
+                        <div class="demo-neuron-bottom">
+                            <div class="demo-sigmoid-area">
+                                <canvas id="demo-sigmoid-canvas" width="180" height="120"></canvas>
+                            </div>
+                            <div class="demo-model-eye-area">
+                                <div class="model-eye-label">Model Input</div>
+                                <canvas id="demo-model-eye" width="28" height="28"></canvas>
+                            </div>
+                        </div>
+                        <div class="demo-confidence">
+                            <div class="confidence-label">Confidence:</div>
+                            <div class="confidence-bar-track">
+                                <div id="demo-confidence-fill" class="confidence-bar-fill"></div>
+                            </div>
+                            <span id="demo-confidence-value" class="confidence-value">--</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="demo-footer">
+                <button id="btn-demo-skip" class="sketchy-btn small-btn">Skip</button>
+                <button id="btn-demo-next" class="sketchy-btn primary-btn hidden">Next Drawing →</button>
+                <button id="btn-demo-play" class="sketchy-btn primary-btn hidden">Let's Draw! 🎨</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Replay Modal -->
+    <div id="replay-modal" class="modal-overlay hidden">
+        <div class="modal-content replay-modal-content">
+            <div class="replay-header">
+                <h3 class="replay-title">🔬 Replay: <span id="replay-prompt"></span></h3>
+                <button id="btn-close-replay" class="replay-close-btn">✕</button>
+            </div>
+            <div class="replay-body">
+                <div class="replay-canvas-col">
+                    <canvas id="replay-canvas" width="500" height="500"></canvas>
+                    <div class="replay-controls">
+                        <button id="replay-play-btn" class="sketchy-btn small-btn">⏸</button>
+                        <input type="range" id="replay-progress" min="0" max="100" value="0" step="0.5" class="replay-slider">
+                        <span id="replay-timer" class="replay-timer-text">0s</span>
+                        <button id="replay-speed-btn" class="sketchy-btn small-btn">1x</button>
+                    </div>
+                </div>
+                <div class="replay-info-col">
+                    <div class="replay-section">
+                        <div class="replay-section-label">AI Guesses</div>
+                        <div id="replay-guess-list" class="guess-list replay-guess-list"></div>
+                    </div>
+                    <div class="replay-section replay-neuron-section">
+                        <div class="replay-section-label">Peek Inside the Neuron</div>
+                        <canvas id="replay-neuron-canvas" width="600" height="220"></canvas>
+                        <div id="replay-neuron-math" class="neuron-math"></div>
+                        <div class="replay-neuron-bottom">
+                            <div class="replay-sigmoid-area">
+                                <canvas id="replay-sigmoid-canvas" width="180" height="120"></canvas>
+                            </div>
+                            <div class="replay-model-eye-area">
+                                <div class="model-eye-label">Model Input</div>
+                                <canvas id="replay-model-eye" width="28" height="28"></canvas>
+                            </div>
+                        </div>
+                        <div class="replay-confidence">
+                            <div class="confidence-label">Confidence:</div>
+                            <div class="confidence-bar-track">
+                                <div id="replay-confidence-fill" class="confidence-bar-fill"></div>
+                            </div>
+                            <span id="replay-confidence-value" class="confidence-value">--</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Streak Notification -->
+    <div id="streak-notification" class="streak-notification hidden">
+        🔥 <span id="streak-count">0</span> in a row!
+    </div>
+
+    <!-- Scripts: CDN libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/roughjs@4.6.6/bundled/rough.js"></script>
+
+    <!-- Scripts: Application (dependency order) -->
+    <script src="js/config.js"></script>
+    <script src="js/categories.js"></script>
+    <script src="js/scoring.js"></script>
+    <script src="js/sketch-ui.js"></script>
+    <script src="js/canvas-drawing.js"></script>
+    <script src="js/preprocessing.js"></script>
+    <script src="js/model.js"></script>
+    <script src="js/timer.js"></script>
+    <script src="js/predictions.js"></script>
+    <script src="js/education.js"></script>
+    <script src="js/demo.js"></script>
+    <script src="js/replay.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
