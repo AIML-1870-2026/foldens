@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>RGB Color Studio</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body, #root { width: 100%; min-height: 100vh; font-family: 'Inter', system-ui, sans-serif; }
+  body { background: linear-gradient(135deg, #1a0533 0%, #0d1b3e 40%, #0a1628 100%); color: #e2e8f0; overflow-x: hidden; }
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
+  .glass {
+    background: rgba(255,255,255,0.07);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  }
+  .glass-inner {
+    background: rgba(255,255,255,0.04);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+  }
+  .swatch-hover { transition: transform 0.2s, box-shadow 0.2s; cursor: pointer; }
+  .swatch-hover:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(255,255,255,0.2); }
+  .toast-enter { animation: toastIn 0.3s ease-out forwards; }
+  .toast-exit { animation: toastOut 0.3s ease-in forwards; }
+  @keyframes toastIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes toastOut { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-10px); } }
+  input[type="range"] { -webkit-appearance: none; background: rgba(255,255,255,0.1); border-radius: 8px; height: 6px; outline: none; }
+  input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #a78bfa; cursor: pointer; border: 2px solid rgba(255,255,255,0.3); }
+  input[type="number"], input[type="text"], select {
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 8px; color: #e2e8f0; padding: 6px 10px; font-size: 13px; outline: none;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  input[type="number"]:focus, input[type="text"]:focus, select:focus { border-color: #a78bfa; }
+  select option { background: #1a0533; color: #e2e8f0; }
+  button { font-family: 'Inter', system-ui, sans-serif; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-type="module">
+
+// ═══════════════════════════════════════════════
+// COLOR MATH UTILITIES
+// ═══════════════════════════════════════════════
+
+function clamp(v, min = 0, max = 1) { return Math.max(min, Math.min(max, v)); }
+
+function hexToRgb(hex) {
+  hex = hex.replace('#', '');
+  if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+  const n = parseInt(hex, 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+function rgbToHex(r, g, b) {
+  return '#' + [r, g, b].map(v => Math.round(clamp(v, 0, 255)).toString(16).padStart(2, '0')).join('').toUpperCase();
+}
+
+function rgbToHsl(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let h, s, l = (max + min) / 2;
+  if (max === min) { h = s = 0; }
+  else {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+      case g: h = ((b - r) / d + 2) / 6; break;
+      case b: h = ((r - g) / d + 4) / 6; break;
+    }
+  }
+  return [Math.round(h * 360), Math.round(s * 100), Math.round(l * 100)];
+}
+
+function hslToRgb(h, s, l) {
+  h /= 360; s /= 100; l /= 100;
+  let r, g, b;
+  if (s === 0) { r = g = b = l; }
+  else {
+    const hue2rgb = (p, q, t) => {
+      if (t < 0) t += 1; if (t > 1) t -= 1;
+      if (t < 1/6) return p + (q - p) * 6 * t;
+      if (t < 1/2) return q;
+      if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+      return p;
+    };
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    const p = 2 * l - q;
+    r = hue2rgb(p, q, h + 1/3);
+    g = hue2rgb(p, q, h);
+    b = hue2rgb(p, q, h - 1/3);
+  }
+  return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+}
+
+function linearize(c) { c /= 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+
+function relativeLuminance(r, g, b) {
+  return 0.2126 * linearize(r) + 0.7152 * linearize(g) + 0.0722 * linearize(b);
+}
+
+function contrastRatio(rgb1, rgb2) {
+  const l1 = relativeLuminance(...rgb1);
+  const l2 = relativeLuminance(...rgb2);
+  const lighter = Math.max(l1, l2);
+  const darker = Math.min(l1, l2);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+// RGB -> Linear RGB -> XYZ (D65) -> OKLab -> OKLCH
+function rgbToOklch(r, g, b) {
+  const lr = linearize(r), lg = linearize(g), lb = linearize(b);
+  const l_ = 0.4122214708 * lr + 0.5363325363 * lg + 0.0514459929 * lb;
+  const m_ = 0.2119034982 * lr + 0.6806995451 * lg + 0.1073969566 * lb;
+  const s_ = 0.0883024619 * lr + 0.2817188376 * lg + 0.6299787005 * lb;
+  const l_3 = Math.cbrt(l_), m_3 = Math.cbrt(m_), s_3 = Math.cbrt(s_);
+  const L = 0.2104542553 * l_3 + 0.7936177850 * m_3 - 0.0040720468 * s_3;
+  const a = 1.9779984951 * l_3 - 2.4285922050 * m_3 + 0.4505937099 * s_3;
+  const bOk = 0.0259040371 * l_3 + 0.7827717662 * m_3 - 0.8086757660 * s_3;
+  const C = Math.sqrt(a * a + bOk * bOk);
+  let H = Math.atan2(bOk, a) * 180 / Math.PI;
+  if (H < 0) H += 360;
+  return [parseFloat(L.toFixed(2)), parseFloat(C.toFixed(2)), Math.round(H)];
+}
+
+function formatColor(hex) {
+  const [r, g, b] = hexToRgb(hex);
+  const [h, s, l] = rgbToHsl(r, g, b);
+  const [L, C, H] = rgbToOklch(r, g, b);
+  return {
+    hex: hex.toUpperCase(),
+    rgb: `rgb(${r}, ${g}, ${b})`,
+    hsl: `hsl(${h}, ${s}%, ${l}%)`,
+    oklch: `oklch(${L} ${C} ${H})`
+  };
+}
+
+// Color harmony from HSL
+function generateHarmony(hex, scheme, count) {
+  const [r, g, b] = hexToRgb(hex);
+  const [h, s, l] = rgbToHsl(r, g, b);
+  let hues = [];
+  switch (scheme) {
+    case 'complementary':
+      hues = Array.from({length: count}, (_, i) => (h + (180 / (count - 1)) * i) % 360);
+      break;
+    case 'analogous':
+      const spread = 60;
+      hues = Array.from({length: count}, (_, i) => (h - spread/2 + (spread / (count - 1)) * i + 360) % 360);
+      break;
+    case 'triadic':
+      hues = Array.from({length: count}, (_, i) => (h + (360 / count) * i) % 360);
+      break;
+    case 'split-complementary':
+      hues = [h, (h + 150) % 360, (h + 210) % 360];
+      if (count > 3) {
+        const extra = count - 3;
+        for (let i = 1; i <= extra; i++) hues.push((h + 150 + (60 / (extra + 1)) * i) % 360);
+      }
+      hues = hues.slice(0, count);
+      break;
+    default:
+      hues = Array.from({length: count}, (_, i) => (h + (360 / count) * i) % 360);
+  }
+  return hues.map(hue => {
+    const [rr, gg, bb] = hslToRgb(Math.round(hue), s, l);
+    return rgbToHex(rr, gg, bb);
+  });
+}
+
+// Color blindness simulation matrices (Brettel/Viénot)
+const cbMatrices = {
+  protanopia:    [0.567,0.433,0, 0.558,0.442,0, 0,0.242,0.758],
+  deuteranopia:  [0.625,0.375,0, 0.7,0.3,0, 0,0.3,0.7],
+  tritanopia:    [0.95,0.05,0, 0,0.433,0.567, 0,0.475,0.525],
+  protanomaly:   [0.817,0.183,0, 0.333,0.667,0, 0,0.125,0.875],
+  deuteranomaly: [0.8,0.2,0, 0.258,0.742,0, 0,0.142,0.858],
+  tritanomaly:   [0.967,0.033,0, 0,0.733,0.267, 0,0.183,0.817],
+  achromatopsia: [0.299,0.587,0.114, 0.299,0.587,0.114, 0.299,0.587,0.114],
+  achromatomaly: [0.618,0.320,0.062, 0.163,0.775,0.062, 0.163,0.320,0.516],
+};
+
+function simulateColorBlindness(hex, type) {
+  const [r, g, b] = hexToRgb(hex);
+  const m = cbMatrices[type];
+  if (!m) return hex;
+  const sr = clamp(m[0]*r + m[1]*g + m[2]*b, 0, 255);
+  const sg = clamp(m[3]*r + m[4]*g + m[5]*b, 0, 255);
+  const sb = clamp(m[6]*r + m[7]*g + m[8]*b, 0, 255);
+  return rgbToHex(sr, sg, sb);
+}
+
+// ═══════════════════════════════════════════════
+// TOAST NOTIFICATION SYSTEM
+// ═══════════════════════════════════════════════
+
+const ToastContext = React.createContext();
+
+function ToastProvider({ children }) {
+  const [toasts, setToasts] = React.useState([]);
+  const addToast = React.useCallback((message) => {
+    const id = Date.now() + Math.random();
+    setToasts(prev => [...prev, { id, message, exiting: false }]);
+    setTimeout(() => {
+      setToasts(prev => prev.map(t => t.id === id ? {...t, exiting: true} : t));
+      setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 300);
+    }, 2000);
+  }, []);
+  return (
+    <ToastContext.Provider value={addToast}>
+      {children}
+      <div style={{position:'fixed',bottom:20,right:20,zIndex:9999,display:'flex',flexDirection:'column',gap:8}}>
+        {toasts.map(t => (
+          <div key={t.id} className={t.exiting ? 'toast-exit' : 'toast-enter'}
+            style={{background:'rgba(139,92,246,0.9)',backdropFilter:'blur(12px)',padding:'10px 20px',borderRadius:10,
+              fontSize:13,fontWeight:500,color:'#fff',boxShadow:'0 4px 20px rgba(139,92,246,0.4)'}}>
+            {t.message}
+          </div>
+        ))}
+      </div>
+    </ToastContext.Provider>
+  );
+}
+
+function useToast() { return React.useContext(ToastContext); }
+
+function copyToClipboard(text, toast, label) {
+  navigator.clipboard.writeText(text).then(() => toast(label || 'Copied!')).catch(() => {});
+}
+
+// ═══════════════════════════════════════════════
+// URL STATE PERSISTENCE
+// ═══════════════════════════════════════════════
+
+function encodeState(state) {
+  try { return btoa(JSON.stringify(state)); } catch { return ''; }
+}
+function decodeState() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const s = params.get('state');
+    if (s) return JSON.parse(atob(s));
+  } catch {}
+  return null;
+}
+
+// ═══════════════════════════════════════════════
+// HEADER
+// ═══════════════════════════════════════════════
+
+function Header({ onShare }) {
+  return (
+    <header className="flex items-center justify-between px-6 py-4">
+      <div className="flex items-center gap-3">
+        <div style={{width:36,height:36,borderRadius:10,background:'linear-gradient(135deg,#a78bfa,#ec4899)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18}}>
+          🎨
+        </div>
+        <h1 className="text-xl font-bold tracking-tight" style={{background:'linear-gradient(135deg,#c4b5fd,#f0abfc)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>
+          RGB Color Studio
+        </h1>
+      </div>
+      <button onClick={onShare}
+        className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl"
+        style={{background:'rgba(167,139,250,0.2)',border:'1px solid rgba(167,139,250,0.3)',color:'#c4b5fd',transition:'all 0.2s'}}
+        onMouseEnter={e => e.target.style.background='rgba(167,139,250,0.35)'}
+        onMouseLeave={e => e.target.style.background='rgba(167,139,250,0.2)'}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/>
+        </svg>
+        Share
+      </button>
+    </header>
+  );
+}
+
+// ═══════════════════════════════════════════════
+// PANEL WRAPPER
+// ═══════════════════════════════════════════════
+
+function Panel({ title, icon, children, className = '' }) {
+  return (
+    <div className={`glass p-5 flex flex-col gap-4 ${className}`}>
+      <h2 className="text-sm font-semibold uppercase tracking-wider flex items-center gap-2" style={{color:'#c4b5fd'}}>
+        <span style={{fontSize:16}}>{icon}</span> {title}
+      </h2>
+      {children}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════
+// COLOR FORMAT DISPLAY
+// ═══════════════════════════════════════════════
+
+function ColorFormats({ hex, compact = false }) {
+  const toast = useToast();
+  const f = formatColor(hex);
+  const items = [
+    { label: 'HEX', value: f.hex },
+    { label: 'RGB', value: f.rgb },
+    { label: 'HSL', value: f.hsl },
+    { label: 'OKLCH', value: f.oklch },
+  ];
+  if (compact) {
+    return (
+      <div className="flex flex-wrap gap-1">
+        {items.map(i => (
+          <button key={i.label} onClick={() => copyToClipboard(i.value, toast, `${i.label} copied!`)}
+            className="text-xs px-2 py-0.5 rounded-md"
+            style={{background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.08)',color:'#94a3b8',cursor:'pointer',transition:'all 0.15s'}}
+            onMouseEnter={e => e.target.style.color='#e2e8f0'}
+            onMouseLeave={e => e.target.style.color='#94a3b8'}
+            title={`Click to copy ${i.value}`}>
+            {i.label}: {i.value}
+          </button>
+        ))}
+      </div>
+    );
+  }
+  return (
+    <div className="grid grid-cols-2 gap-1.5">
+      {items.map(i => (
+        <button key={i.label} onClick={() => copyToClipboard(i.value, toast, `${i.label} copied!`)}
+          className="text-xs px-2 py-1.5 rounded-lg text-left"
+          style={{background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.06)',color:'#94a3b8',cursor:'pointer',transition:'all 0.15s'}}
+          onMouseEnter={e => {e.target.style.background='rgba(255,255,255,0.1)'; e.target.style.color='#e2e8f0';}}
+          onMouseLeave={e => {e.target.style.background='rgba(255,255,255,0.05)'; e.target.style.color='#94a3b8';}}>
+          <span style={{color:'#7c3aed',fontWeight:600}}>{i.label}</span> {i.value}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════
+// COLOR WHEEL (default mode)
+// ═══════════════════════════════════════════════
+
+function drawColorWheel(ctx, w, h) {
+  const cx = w / 2, cy = h / 2;
+  const radius = Math.min(cx, cy) - 8;
+  const imageData = ctx.createImageData(w, h);
+  const data = imageData.data;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const dx = x - cx, dy = y - cy;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const idx = (y * w + x) * 4;
+      if (dist <= radius) {
+        let angle = Math.atan2(dy, dx) * 180 / Math.PI;
+        if (angle < 0) angle += 360;
+        const sat = (dist / radius) * 100;
+        const [r, g, b] = hslToRgb(angle, sat, 50);
+        data[idx] = r;
+        data[idx + 1] = g;
+        data[idx + 2] = b;
+        data[idx + 3] = 255;
+        // smooth edge
+        if (dist > radius - 1.5) {
+          data[idx + 3] = Math.round(Math.max(0, (radius - dist) / 1.5) * 255);
+        }
+      } else {
+        data[idx + 3] = 0;
+      }
+    }
+  }
+  ctx.putImageData(imageData, 0, 0);
+}
+
+function ColorWheelCanvas({ setActiveColor, activeColor, size }) {
+  const canvasRef = React.useRef(null);
+  const offscreenRef = React.useRef(null);
+  const isDraggingRef = React.useRef(false);
+  const [marker, setMarker] = React.useState(null);
+  const sizeRef = React.useRef({ w: 0, h: 0 });
+
+  // Build the wheel once into an offscreen canvas, redraw on resize
+  const buildWheel = React.useCallback((w, h) => {
+    if (w === 0 || h === 0) return;
+    const off = document.createElement('canvas');
+    off.width = w; off.height = h;
+    drawColorWheel(off.getContext('2d'), w, h);
+    offscreenRef.current = off;
+    sizeRef.current = { w, h };
+    // Blit to visible canvas
+    const canvas = canvasRef.current;
+    if (canvas) {
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(off, 0, 0);
+    }
+  }, []);
+
+  // Blit offscreen wheel to visible canvas (called after React renders clear it)
+  const blitWheel = React.useCallback(() => {
+    const canvas = canvasRef.current;
+    const off = offscreenRef.current;
+    if (!canvas || !off) return;
+    if (canvas.width !== sizeRef.current.w || canvas.height !== sizeRef.current.h) {
+      canvas.width = sizeRef.current.w;
+      canvas.height = sizeRef.current.h;
+    }
+    canvas.getContext('2d').drawImage(off, 0, 0);
+  }, []);
+
+  React.useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const parent = canvas.parentElement;
+    const resize = () => {
+      const rect = parent.getBoundingClientRect();
+      buildWheel(Math.floor(rect.width), Math.floor(rect.height));
+    };
+    resize();
+    const ro = new ResizeObserver(resize);
+    ro.observe(parent);
+    // Periodically ensure the wheel is visible (guards against React clears)
+    const interval = setInterval(blitWheel, 200);
+    return () => { ro.disconnect(); clearInterval(interval); };
+  }, [buildWheel, blitWheel]);
+
+  const pickColor = React.useCallback((e) => {
+    const canvas = canvasRef.current;
+    const off = offscreenRef.current;
+    if (!canvas || !off) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = Math.floor((e.clientX - rect.left) * off.width / rect.width);
+    const y = Math.floor((e.clientY - rect.top) * off.height / rect.height);
+    const ctx = off.getContext('2d');
+    const pixel = ctx.getImageData(clamp(x, 0, off.width-1), clamp(y, 0, off.height-1), 1, 1).data;
+    if (pixel[3] < 10) return; // outside wheel
+    const hex = rgbToHex(pixel[0], pixel[1], pixel[2]);
+    setActiveColor(hex);
+    setMarker({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+  }, [setActiveColor]);
+
+  const handleDown = (e) => { isDraggingRef.current = true; pickColor(e); };
+  const handleMove = (e) => { if (isDraggingRef.current) pickColor(e); };
+
+  React.useEffect(() => {
+    const handleUp = () => { isDraggingRef.current = false; };
+    window.addEventListener('mouseup', handleUp);
+    return () => window.removeEventListener('mouseup', handleUp);
+  }, []);
+
+  return (
+    <div className="relative w-full h-full">
+      <canvas ref={canvasRef} onMouseDown={handleDown} onMouseMove={handleMove}
+        className="w-full h-full absolute inset-0" style={{cursor:'crosshair'}} />
+      {marker && (
+        <div style={{
+          position:'absolute', left: marker.x - 10, top: marker.y - 10,
+          width: 20, height: 20, borderRadius: '50%',
+          border: '2px solid white', boxShadow: `0 0 8px rgba(0,0,0,0.5), inset 0 0 0 2px ${activeColor}`,
+          pointerEvents: 'none',
+        }} />
+      )}
+    </div>
+  );
+}
+
+// Mini color wheel popup for inline color picking
+function MiniColorWheel({ onPick, onClose }) {
+  const popupRef = React.useRef(null);
+
+  React.useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (popupRef.current && !popupRef.current.contains(e.target)) onClose();
+    };
+    setTimeout(() => document.addEventListener('mousedown', handleClickOutside), 0);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [onClose]);
+
+  return (
+    <div ref={popupRef} className="glass" style={{
+      position:'absolute', zIndex:50, width:180, height:180, padding:6,
+      borderRadius:14, top:'100%', left:0, marginTop:4,
+    }}>
+      <div style={{width:'100%',height:'100%',borderRadius:10,overflow:'hidden',position:'relative',background:'rgba(10,5,25,1)'}}>
+        <ColorWheelCanvas setActiveColor={(hex) => { onPick(hex); }} activeColor="#fff" />
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════
+// BLOB ANIMATION (alternate mode)
+// ═══════════════════════════════════════════════
+
+function BlobCanvas({ setActiveColor }) {
+  const canvasRef = React.useRef(null);
+  const blobsRef = React.useRef([]);
+  const animRef = React.useRef(null);
+  const [paused, setPaused] = React.useState(false);
+  const [speed, setSpeed] = React.useState(50);
+  const [blobCount, setBlobCount] = React.useState(8);
+  const [frozen, setFrozen] = React.useState(false);
+  const pausedRef = React.useRef(false);
+  const speedRef = React.useRef(50);
+  const frozenRef = React.useRef(false);
+
+  React.useEffect(() => { pausedRef.current = paused; }, [paused]);
+  React.useEffect(() => { speedRef.current = speed; }, [speed]);
+  React.useEffect(() => { frozenRef.current = frozen; }, [frozen]);
+
+  const initBlobs = React.useCallback((count, w, h) => {
+    const blobs = [];
+    for (let i = 0; i < count; i++) {
+      const hue = Math.random() * 360;
+      blobs.push({
+        x: Math.random() * w, y: Math.random() * h,
+        vx: (Math.random() - 0.5) * 2, vy: (Math.random() - 0.5) * 2,
+        radius: 40 + Math.random() * 80,
+        hue, sat: 70 + Math.random() * 30, lit: 50 + Math.random() * 20,
+        hueSpeed: (Math.random() - 0.5) * 0.5,
+      });
+    }
+    return blobs;
+  }, []);
+
+  React.useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const resize = () => {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+    };
+    resize();
+    blobsRef.current = initBlobs(blobCount, canvas.width, canvas.height);
+
+    const animate = () => {
+      const w = canvas.width, h = canvas.height;
+      const spd = speedRef.current / 50;
+      ctx.clearRect(0, 0, w, h);
+      ctx.fillStyle = 'rgba(10, 5, 25, 1)';
+      ctx.fillRect(0, 0, w, h);
+
+      if (!pausedRef.current && !frozenRef.current) {
+        blobsRef.current.forEach(blob => {
+          blob.x += blob.vx * spd;
+          blob.y += blob.vy * spd;
+          blob.hue = (blob.hue + blob.hueSpeed * spd + 360) % 360;
+          if (blob.x < -blob.radius) blob.x = w + blob.radius;
+          if (blob.x > w + blob.radius) blob.x = -blob.radius;
+          if (blob.y < -blob.radius) blob.y = h + blob.radius;
+          if (blob.y > h + blob.radius) blob.y = -blob.radius;
+        });
+      }
+
+      ctx.globalCompositeOperation = 'screen';
+      blobsRef.current.forEach(blob => {
+        const grad = ctx.createRadialGradient(blob.x, blob.y, 0, blob.x, blob.y, blob.radius);
+        grad.addColorStop(0, `hsla(${blob.hue}, ${blob.sat}%, ${blob.lit}%, 0.8)`);
+        grad.addColorStop(0.5, `hsla(${blob.hue}, ${blob.sat}%, ${blob.lit}%, 0.3)`);
+        grad.addColorStop(1, `hsla(${blob.hue}, ${blob.sat}%, ${blob.lit}%, 0)`);
+        ctx.beginPath();
+        ctx.arc(blob.x, blob.y, blob.radius, 0, Math.PI * 2);
+        ctx.fillStyle = grad;
+        ctx.fill();
+      });
+      ctx.globalCompositeOperation = 'source-over';
+
+      // Extract center color
+      const cx = Math.floor(w / 2), cy = Math.floor(h / 2);
+      const pixel = ctx.getImageData(cx, cy, 1, 1).data;
+      const hexVal = rgbToHex(pixel[0], pixel[1], pixel[2]);
+      if (!frozenRef.current) {
+        setActiveColor(hexVal);
+      }
+
+      animRef.current = requestAnimationFrame(animate);
+    };
+    animate();
+    const ro = new ResizeObserver(resize);
+    ro.observe(canvas.parentElement);
+    return () => { cancelAnimationFrame(animRef.current); ro.disconnect(); };
+  }, [blobCount]);
+
+  const handleCanvasClick = (e) => {
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left, y = e.clientY - rect.top;
+    if (frozen) {
+      const ctx = canvas.getContext('2d');
+      const pixel = ctx.getImageData(Math.floor(x * canvas.width / rect.width), Math.floor(y * canvas.height / rect.height), 1, 1).data;
+      setActiveColor(rgbToHex(pixel[0], pixel[1], pixel[2]));
+      return;
+    }
+    const hue = Math.random() * 360;
+    blobsRef.current.push({
+      x: x * canvas.width / rect.width, y: y * canvas.height / rect.height,
+      vx: (Math.random() - 0.5) * 2, vy: (Math.random() - 0.5) * 2,
+      radius: 50 + Math.random() * 60,
+      hue, sat: 80, lit: 55, hueSpeed: (Math.random() - 0.5) * 0.5,
+    });
+    while (blobsRef.current.length > 25) blobsRef.current.shift();
+  };
+
+  const toggleFreeze = () => {
+    setFrozen(!frozen);
+    if (!frozen) setPaused(true);
+    else setPaused(false);
+  };
+
+  return (
+    <>
+      <div className="flex-1 relative rounded-xl overflow-hidden" style={{minHeight:280}}>
+        <canvas ref={canvasRef} onClick={handleCanvasClick} className="w-full h-full absolute inset-0" style={{cursor: frozen ? 'crosshair' : 'pointer'}} />
+      </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <button onClick={() => setPaused(!paused)} className="px-3 py-1.5 rounded-lg text-xs font-medium"
+          style={{background: paused ? 'rgba(244,63,94,0.2)' : 'rgba(167,139,250,0.2)', border:'1px solid rgba(255,255,255,0.1)', color:'#e2e8f0'}}>
+          {paused ? '▶ Resume' : '⏸ Pause'}
+        </button>
+        <button onClick={toggleFreeze} className="px-3 py-1.5 rounded-lg text-xs font-medium"
+          style={{background: frozen ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.1)', color:'#e2e8f0'}}>
+          {frozen ? '🔓 Unfreeze' : '❄ Freeze & Pick'}
+        </button>
+        <label className="flex items-center gap-2 text-xs text-gray-400">
+          Speed <input type="range" min="10" max="150" value={speed} onChange={e => setSpeed(+e.target.value)} className="w-20" />
+        </label>
+        <label className="flex items-center gap-2 text-xs text-gray-400">
+          Blobs <input type="range" min="3" max="20" value={blobCount} onChange={e => setBlobCount(+e.target.value)} className="w-20" />
+        </label>
+      </div>
+    </>
+  );
+}
+
+// ═══════════════════════════════════════════════
+// GRAYSCALE PICKER
+// ═══════════════════════════════════════════════
+
+function GrayscaleCanvas({ setActiveColor, activeColor }) {
+  const canvasRef = React.useRef(null);
+  const offscreenRef = React.useRef(null);
+  const isDraggingRef = React.useRef(false);
+  const [marker, setMarker] = React.useState(null);
+  const sizeRef = React.useRef({ w: 0, h: 0 });
+
+  const buildGradient = React.useCallback((w, h) => {
+    if (w === 0 || h === 0) return;
+    const off = document.createElement('canvas');
+    off.width = w; off.height = h;
+    const ctx = off.getContext('2d');
+    // Main horizontal gradient: white to black
+    const grad = ctx.createLinearGradient(0, 0, w, 0);
+    grad.addColorStop(0, '#FFFFFF');
+    grad.addColorStop(1, '#000000');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
+    // Labeled swatches along the bottom for quick reference
+    offscreenRef.current = off;
+    sizeRef.current = { w, h };
+    const canvas = canvasRef.current;
+    if (canvas) {
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(off, 0, 0);
+    }
+  }, []);
+
+  const blitGradient = React.useCallback(() => {
+    const canvas = canvasRef.current;
+    const off = offscreenRef.current;
+    if (!canvas || !off) return;
+    if (canvas.width !== sizeRef.current.w || canvas.height !== sizeRef.current.h) {
+      canvas.width = sizeRef.current.w;
+      canvas.height = sizeRef.current.h;
+    }
+    canvas.getContext('2d').drawImage(off, 0, 0);
+  }, []);
+
+  React.useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const parent = canvas.parentElement;
+    const resize = () => {
+      const rect = parent.getBoundingClientRect();
+      buildGradient(Math.floor(rect.width), Math.floor(rect.height));
+    };
+    resize();
+    const ro = new ResizeObserver(resize);
+    ro.observe(parent);
+    const interval = setInterval(blitGradient, 200);
+    return () => { ro.disconnect(); clearInterval(interval); };
+  }, [buildGradient, blitGradient]);
+
+  const pickColor = React.useCallback((e) => {
+    const canvas = canvasRef.current;
+    const off = offscreenRef.current;
+    if (!canvas || !off) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = Math.floor((e.clientX - rect.left) * off.width / rect.width);
+    const y = Math.floor((e.clientY - rect.top) * off.height / rect.height);
+    const ctx = off.getContext('2d');
+    const pixel = ctx.getImageData(clamp(x, 0, off.width - 1), clamp(y, 0, off.height - 1), 1, 1).data;
+    const hex = rgbToHex(pixel[0], pixel[1], pixel[2]);
+    setActiveColor(hex);
+    setMarker({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+  }, [setActiveColor]);
+
+  const handleDown = (e) => { isDraggingRef.current = true; pickColor(e); };
+  const handleMove = (e) => { if (isDraggingRef.current) pickColor(e); };
+
+  React.useEffect(() => {
+    const handleUp = () => { isDraggingRef.current = false; };
+    window.addEventListener('mouseup', handleUp);
+    return () => window.removeEventListener('mouseup', handleUp);
+  }, []);
+
+  // Generate 11 even gray steps for quick-pick buttons
+  const graySteps = React.useMemo(() =>
+    Array.from({ length: 11 }, (_, i) => {
+      const v = Math.round(255 - (i * 255 / 10));
+      return rgbToHex(v, v, v);
+    }), []);
+
+  return (
+    <>
+      <div className="flex-1 relative rounded-xl overflow-hidden" style={{ minHeight: 120 }}>
+        <canvas ref={canvasRef} onMouseDown={handleDown} onMouseMove={handleMove}
+          className="w-full h-full absolute inset-0" style={{ cursor: 'crosshair' }} />
+        {marker && (
+          <div style={{
+            position: 'absolute', left: marker.x - 10, top: marker.y - 10,
+            width: 20, height: 20, borderRadius: '50%',
+            border: '2px solid', borderColor: activeColor < '#808080' ? '#fff' : '#000',
+            boxShadow: `0 0 8px rgba(0,0,0,0.5), inset 0 0 0 2px ${activeColor}`,
+            pointerEvents: 'none',
+          }} />
+        )}
+      </div>
+      <div className="flex gap-1 flex-wrap">
+        {graySteps.map(hex => (
+          <div key={hex} onClick={() => setActiveColor(hex)}
+            className="swatch-hover rounded-lg"
+            style={{
+              width: 32, height: 32, background: hex, flex: '1 1 0',
+              border: activeColor === hex ? '2px solid #a78bfa' : '1px solid rgba(255,255,255,0.1)',
+              cursor: 'pointer', minWidth: 24,
+            }}
+            title={hex} />
+        ))}
+      </div>
+    </>
+  );
+}
+
+// ═══════════════════════════════════════════════
+// COLOR EXPLORER PANEL (combines all modes)
+// ═══════════════════════════════════════════════
+
+function ColorExplorerPanel({ activeColor, setActiveColor }) {
+  const [mode, setMode] = React.useState('wheel');
+
+  const modes = [
+    { key: 'wheel', label: 'Color Wheel' },
+    { key: 'grayscale', label: 'Grayscale' },
+    { key: 'blobs', label: 'Blob Animation' },
+  ];
+
+  return (
+    <Panel title="Color Explorer" icon="✦" className="col-span-full lg:col-span-2 row-span-2">
+      <div className="flex items-center gap-1 self-start" style={{background:'rgba(255,255,255,0.06)',borderRadius:10,padding:3,border:'1px solid rgba(255,255,255,0.08)'}}>
+        {modes.map(m => (
+          <button key={m.key} onClick={() => setMode(m.key)} className="px-3 py-1.5 rounded-lg text-xs font-medium"
+            style={{background: mode === m.key ? 'rgba(167,139,250,0.35)' : 'transparent',
+              color: mode === m.key ? '#e2e8f0' : '#94a3b8', transition:'all 0.2s',
+              border: mode === m.key ? '1px solid rgba(167,139,250,0.4)' : '1px solid transparent'}}>
+            {m.label}
+          </button>
+        ))}
+      </div>
+
+      {mode === 'wheel' && (
+        <div className="flex-1 relative rounded-xl overflow-hidden" style={{minHeight:280, background:'rgba(10,5,25,1)'}}>
+          <ColorWheelCanvas setActiveColor={setActiveColor} activeColor={activeColor} />
+        </div>
+      )}
+      {mode === 'grayscale' && (
+        <GrayscaleCanvas setActiveColor={setActiveColor} activeColor={activeColor} />
+      )}
+      {mode === 'blobs' && (
+        <BlobCanvas setActiveColor={setActiveColor} />
+      )}
+
+      <div className="flex items-center gap-4">
+        <div className="w-12 h-12 rounded-xl swatch-hover" style={{background: activeColor, boxShadow: `0 0 20px ${activeColor}40`}} />
+        <ColorFormats hex={activeColor} />
+      </div>
+    </Panel>
+  );
+}
+
+// ═══════════════════════════════════════════════
+// PALETTE GENERATOR
+// ═══════════════════════════════════════════════
+
+function PaletteGeneratorPanel({ activeColor, palette, setPalette, scheme, setScheme, paletteSize, setPaletteSize, seedColor, setSeedColor, accessibleMode, setAccessibleMode }) {
+  const toast = useToast();
+
+  React.useEffect(() => {
+    const colors = generateHarmony(seedColor, scheme, paletteSize);
+    setPalette(colors);
+  }, [seedColor, scheme, paletteSize]);
+
+  const useCurrent = () => setSeedColor(activeColor);
+
+  const exportCSS = () => {
+    const css = `:root {\n${palette.map((c, i) => `  --color-${i + 1}: ${c};`).join('\n')}\n}`;
+    copyToClipboard(css, toast, 'CSS variables copied!');
+  };
+
+  const exportPNG = () => {
+    const sw = 80, sh = 120, pad = 10;
+    const w = palette.length * (sw + pad) + pad;
+    const h = sh + pad * 2 + 20;
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#1a0533';
+    ctx.fillRect(0, 0, w, h);
+    palette.forEach((color, i) => {
+      const x = pad + i * (sw + pad);
+      ctx.fillStyle = color;
+      ctx.roundRect(x, pad, sw, sh, 8);
+      ctx.fill();
+      ctx.fillStyle = '#e2e8f0';
+      ctx.font = '10px Inter, system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText(color, x + sw/2, pad + sh + 14);
+    });
+    const link = document.createElement('a');
+    link.download = 'palette.png';
+    link.href = c.toDataURL();
+    link.click();
+    toast('PNG downloaded!');
+  };
+
+  const checkAccessibility = (hex) => {
+    const rgb = hexToRgb(hex);
+    const onWhite = contrastRatio(rgb, [255,255,255]);
+    const onBlack = contrastRatio(rgb, [0,0,0]);
+    const passWhite = onWhite >= 4.5;
+    const passBlack = onBlack >= 4.5;
+    return { passWhite, passBlack, onWhite, onBlack, pass: passWhite || passBlack };
+  };
+
+  return (
+    <Panel title="Palette Generator" icon="◈">
+      <div className="flex flex-wrap gap-2 items-end">
+        <label className="flex flex-col gap-1 text-xs text-gray-400">
+          Seed Color
+          <div className="flex items-center gap-1">
+            <input type="text" value={seedColor} onChange={e => { if (/^#[0-9a-f]{0,6}$/i.test(e.target.value)) setSeedColor(e.target.value); }}
+              className="w-24" style={{fontFamily:'monospace'}} />
+            <div className="w-7 h-7 rounded-lg" style={{background: seedColor, border:'1px solid rgba(255,255,255,0.15)'}} />
+          </div>
+        </label>
+        <button onClick={useCurrent} className="px-2 py-1.5 rounded-lg text-xs"
+          style={{background:'rgba(167,139,250,0.15)',border:'1px solid rgba(167,139,250,0.2)',color:'#c4b5fd',whiteSpace:'nowrap'}}>
+          Use Explorer Color
+        </button>
+        <label className="flex flex-col gap-1 text-xs text-gray-400">
+          Harmony
+          <select value={scheme} onChange={e => setScheme(e.target.value)} className="w-36">
+            <option value="complementary">Complementary</option>
+            <option value="analogous">Analogous</option>
+            <option value="triadic">Triadic</option>
+            <option value="split-complementary">Split-Comp</option>
+          </select>
+        </label>
+        <label className="flex flex-col gap-1 text-xs text-gray-400">
+          Count
+          <input type="number" min="2" max="12" value={paletteSize} onChange={e => setPaletteSize(clamp(+e.target.value, 2, 12))} className="w-16" />
+        </label>
+      </div>
+      <div className="flex items-center gap-2 mb-1">
+        <label className="flex items-center gap-2 text-xs cursor-pointer" style={{color: accessibleMode ? '#a78bfa' : '#94a3b8'}}>
+          <div onClick={() => setAccessibleMode(!accessibleMode)} className="w-9 h-5 rounded-full relative cursor-pointer"
+            style={{background: accessibleMode ? 'rgba(167,139,250,0.5)' : 'rgba(255,255,255,0.1)', transition:'background 0.2s'}}>
+            <div className="absolute top-0.5 w-4 h-4 rounded-full" style={{background:'#fff',left: accessibleMode ? 18 : 2, transition:'left 0.2s'}} />
+          </div>
+          Accessible Mode
+        </label>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {palette.map((color, i) => {
+          const acc = accessibleMode ? checkAccessibility(color) : null;
+          return (
+            <div key={i} className="flex flex-col items-center gap-1">
+              <div className="relative">
+                <div onClick={() => setSeedColor(color)} className="w-14 h-14 rounded-xl swatch-hover"
+                  style={{background: color, boxShadow: `0 0 12px ${color}30`,
+                    outline: acc && !acc.pass ? '2px solid rgba(244,63,94,0.6)' : 'none'}} />
+                {accessibleMode && (
+                  <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-xs"
+                    style={{background: acc.pass ? 'rgba(34,197,94,0.8)' : 'rgba(244,63,94,0.8)', fontSize:9}}>
+                    {acc.pass ? '✓' : '⚠'}
+                  </div>
+                )}
+              </div>
+              <button onClick={() => copyToClipboard(color, toast, `${color} copied!`)}
+                className="text-xs" style={{color:'#94a3b8',fontFamily:'monospace',cursor:'pointer',background:'none',border:'none'}}>
+                {color}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+      <div className="flex gap-2 flex-wrap">
+        <button onClick={exportCSS} className="px-3 py-1.5 rounded-lg text-xs"
+          style={{background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.1)',color:'#94a3b8'}}>
+          Copy CSS Vars
+        </button>
+        <button onClick={exportPNG} className="px-3 py-1.5 rounded-lg text-xs"
+          style={{background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.1)',color:'#94a3b8'}}>
+          Download PNG
+        </button>
+      </div>
+    </Panel>
+  );
+}
+
+// ═══════════════════════════════════════════════
+// CONTRAST CHECKER (WCAG)
+// ═══════════════════════════════════════════════
+
+function ContrastCheckerPanel({ fgColor, setFgColor, bgColor, setBgColor, activeColor }) {
+  const toast = useToast();
+  const fgRgb = hexToRgb(fgColor);
+  const bgRgb = hexToRgb(bgColor);
+  const ratio = contrastRatio(fgRgb, bgRgb);
+  const rStr = ratio.toFixed(2) + ':1';
+  const [fgWheelOpen, setFgWheelOpen] = React.useState(false);
+  const [bgWheelOpen, setBgWheelOpen] = React.useState(false);
+
+  const Badge = ({ pass, label }) => (
+    <span className="px-2 py-0.5 rounded-md text-xs font-semibold"
+      style={{background: pass ? 'rgba(34,197,94,0.2)' : 'rgba(244,63,94,0.2)',
+        color: pass ? '#4ade80' : '#f87171',
+        border: `1px solid ${pass ? 'rgba(34,197,94,0.3)' : 'rgba(244,63,94,0.3)'}`}}>
+      {label} {pass ? 'Pass' : 'Fail'}
+    </span>
+  );
+
+  const SmallBtn = ({ onClick, children }) => (
+    <button onClick={onClick} className="px-1.5 py-1 rounded-md text-xs"
+      style={{background:'rgba(167,139,250,0.12)',border:'1px solid rgba(167,139,250,0.2)',color:'#c4b5fd',whiteSpace:'nowrap',lineHeight:1}}>
+      {children}
+    </button>
+  );
+
+  return (
+    <Panel title="Contrast Checker" icon="◑">
+      <div className="flex flex-wrap gap-3">
+        <div className="flex flex-col gap-1 text-xs text-gray-400">
+          <span>Foreground</span>
+          <div className="flex items-center gap-1">
+            <input type="text" value={fgColor} onChange={e => { if (/^#[0-9a-f]{0,6}$/i.test(e.target.value)) setFgColor(e.target.value); }} className="w-24" style={{fontFamily:'monospace'}} />
+            <div className="w-7 h-7 rounded-lg" style={{background: fgColor, border:'1px solid rgba(255,255,255,0.15)'}} />
+          </div>
+          <div className="flex gap-1 relative">
+            <SmallBtn onClick={() => setFgColor(activeColor)}>Explorer</SmallBtn>
+            <SmallBtn onClick={() => { setFgWheelOpen(!fgWheelOpen); setBgWheelOpen(false); }}>Wheel</SmallBtn>
+            {fgWheelOpen && <MiniColorWheel onPick={(hex) => setFgColor(hex)} onClose={() => setFgWheelOpen(false)} />}
+          </div>
+        </div>
+        <div className="flex flex-col gap-1 text-xs text-gray-400">
+          <span>Background</span>
+          <div className="flex items-center gap-1">
+            <input type="text" value={bgColor} onChange={e => { if (/^#[0-9a-f]{0,6}$/i.test(e.target.value)) setBgColor(e.target.value); }} className="w-24" style={{fontFamily:'monospace'}} />
+            <div className="w-7 h-7 rounded-lg" style={{background: bgColor, border:'1px solid rgba(255,255,255,0.15)'}} />
+          </div>
+          <div className="flex gap-1 relative">
+            <SmallBtn onClick={() => setBgColor(activeColor)}>Explorer</SmallBtn>
+            <SmallBtn onClick={() => { setBgWheelOpen(!bgWheelOpen); setFgWheelOpen(false); }}>Wheel</SmallBtn>
+            {bgWheelOpen && <MiniColorWheel onPick={(hex) => setBgColor(hex)} onClose={() => setBgWheelOpen(false)} />}
+          </div>
+        </div>
+        <button onClick={() => { setFgColor(bgColor); setBgColor(fgColor); }} className="self-end px-2 py-1.5 rounded-lg text-xs"
+          style={{background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.1)',color:'#94a3b8'}}>
+          ⇄ Swap
+        </button>
+      </div>
+      <div className="flex items-center gap-3">
+        <span className="text-2xl font-bold" style={{color: ratio >= 4.5 ? '#4ade80' : ratio >= 3 ? '#facc15' : '#f87171'}}>{rStr}</span>
+        <div className="flex flex-wrap gap-1.5">
+          <Badge pass={ratio >= 4.5} label="AA" />
+          <Badge pass={ratio >= 3} label="AA Large" />
+          <Badge pass={ratio >= 7} label="AAA" />
+          <Badge pass={ratio >= 4.5} label="AAA Large" />
+        </div>
+      </div>
+      <div className="rounded-xl p-4" style={{background: bgColor, border:'1px solid rgba(255,255,255,0.1)'}}>
+        <p style={{color: fgColor, fontSize: 16, marginBottom: 4}}>Normal text sample — The quick brown fox jumps over the lazy dog.</p>
+        <p style={{color: fgColor, fontSize: 24, fontWeight: 700}}>Large text sample</p>
+      </div>
+    </Panel>
+  );
+}
+
+// ═══════════════════════════════════════════════
+// COLOR BLINDNESS SIMULATOR
+// ═══════════════════════════════════════════════
+
+const cbTypes = [
+  { key: 'protanopia', label: 'Protanopia', desc: 'No red cones' },
+  { key: 'deuteranopia', label: 'Deuteranopia', desc: 'No green cones' },
+  { key: 'tritanopia', label: 'Tritanopia', desc: 'No blue cones' },
+  { key: 'protanomaly', label: 'Protanomaly', desc: 'Weak red' },
+  { key: 'deuteranomaly', label: 'Deuteranomaly', desc: 'Weak green' },
+  { key: 'tritanomaly', label: 'Tritanomaly', desc: 'Weak blue' },
+  { key: 'achromatopsia', label: 'Achromatopsia', desc: 'Monochromacy' },
+  { key: 'achromatomaly', label: 'Achromatomaly', desc: 'Partial mono' },
+];
+
+function ColorBlindnessPanel({ palette, cbType, setCbType }) {
+  const [compareAll, setCompareAll] = React.useState(false);
+
+  return (
+    <Panel title="Color Blindness Sim" icon="👁">
+      <div className="flex flex-wrap gap-2 items-center">
+        <select value={cbType} onChange={e => setCbType(e.target.value)} className="w-44">
+          {cbTypes.map(t => <option key={t.key} value={t.key}>{t.label} — {t.desc}</option>)}
+        </select>
+        <label className="flex items-center gap-2 text-xs cursor-pointer" style={{color: compareAll ? '#a78bfa' : '#94a3b8'}}>
+          <div onClick={() => setCompareAll(!compareAll)} className="w-9 h-5 rounded-full relative cursor-pointer"
+            style={{background: compareAll ? 'rgba(167,139,250,0.5)' : 'rgba(255,255,255,0.1)', transition:'background 0.2s'}}>
+            <div className="absolute top-0.5 w-4 h-4 rounded-full" style={{background:'#fff',left: compareAll ? 18 : 2, transition:'left 0.2s'}} />
+          </div>
+          Compare All
+        </label>
+      </div>
+      {!compareAll ? (
+        <div className="flex flex-col gap-2">
+          <div className="flex gap-1 items-center">
+            <span className="text-xs text-gray-500 w-16">Original</span>
+            <div className="flex gap-1 flex-1">
+              {palette.map((c, i) => <div key={i} className="h-8 flex-1 rounded-lg" style={{background: c}} />)}
+            </div>
+          </div>
+          <div className="flex gap-1 items-center">
+            <span className="text-xs text-gray-500 w-16 truncate">{cbTypes.find(t=>t.key===cbType)?.label}</span>
+            <div className="flex gap-1 flex-1">
+              {palette.map((c, i) => <div key={i} className="h-8 flex-1 rounded-lg" style={{background: simulateColorBlindness(c, cbType)}} />)}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-1.5 max-h-64 overflow-y-auto pr-1">
+          <div className="flex gap-1 items-center">
+            <span className="text-xs text-gray-500 w-24">Original</span>
+            <div className="flex gap-1 flex-1">
+              {palette.map((c, i) => <div key={i} className="h-5 flex-1 rounded" style={{background: c}} />)}
+            </div>
+          </div>
+          {cbTypes.map(t => (
+            <div key={t.key} className="flex gap-1 items-center">
+              <span className="text-xs text-gray-500 w-24 truncate" title={t.desc}>{t.label}</span>
+              <div className="flex gap-1 flex-1">
+                {palette.map((c, i) => <div key={i} className="h-5 flex-1 rounded" style={{background: simulateColorBlindness(c, t.key)}} />)}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Panel>
+  );
+}
+
+// ═══════════════════════════════════════════════
+// APP
+// ═══════════════════════════════════════════════
+
+function App() {
+  const saved = React.useMemo(() => decodeState(), []);
+  const [activeColor, setActiveColor] = React.useState(saved?.activeColor || '#A259FF');
+  const [seedColor, setSeedColor] = React.useState(saved?.seedColor || '#A259FF');
+  const [scheme, setScheme] = React.useState(saved?.scheme || 'triadic');
+  const [paletteSize, setPaletteSize] = React.useState(saved?.paletteSize || 5);
+  const [palette, setPalette] = React.useState(saved?.palette || []);
+  const [fgColor, setFgColor] = React.useState(saved?.fgColor || '#FFFFFF');
+  const [bgColor, setBgColor] = React.useState(saved?.bgColor || '#1A0533');
+  const [cbType, setCbType] = React.useState(saved?.cbType || 'deuteranopia');
+  const [accessibleMode, setAccessibleMode] = React.useState(saved?.accessibleMode || false);
+  const toast = useToast();
+
+  const handleShare = () => {
+    const state = encodeState({ activeColor, seedColor, scheme, paletteSize, palette, fgColor, bgColor, cbType, accessibleMode });
+    const url = window.location.origin + window.location.pathname + '?state=' + state;
+    window.history.replaceState(null, '', url);
+    copyToClipboard(url, toast, 'Share URL copied!');
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      <Header onShare={handleShare} />
+      <main className="flex-1 px-4 pb-6 grid gap-4" style={{gridTemplateColumns:'repeat(auto-fit, minmax(340px, 1fr))'}}>
+        <ColorExplorerPanel activeColor={activeColor} setActiveColor={setActiveColor} />
+        <PaletteGeneratorPanel
+          activeColor={activeColor} palette={palette} setPalette={setPalette}
+          scheme={scheme} setScheme={setScheme} paletteSize={paletteSize} setPaletteSize={setPaletteSize}
+          seedColor={seedColor} setSeedColor={setSeedColor}
+          accessibleMode={accessibleMode} setAccessibleMode={setAccessibleMode}
+        />
+        <ContrastCheckerPanel fgColor={fgColor} setFgColor={setFgColor} bgColor={bgColor} setBgColor={setBgColor} activeColor={activeColor} />
+        <ColorBlindnessPanel palette={palette} cbType={cbType} setCbType={setCbType} />
+      </main>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <ToastProvider><App /></ToastProvider>
+);
+</script>
+</body>
+</html>

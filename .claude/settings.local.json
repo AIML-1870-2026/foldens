@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nSection 4: Core Mechanics - Enhanced movement system\n\n- Added movement history tracking for smooth animation\n- Implemented speed multiplier system for terrain effects\n- Added momentum physics for ice terrain sliding\n- Created turn angle tracking for smooth visual rotation\n- Added collision box helper for advanced collision detection\n- Implemented wouldCollideAt\\(\\) for collision prediction\n- Added getDirectionAngle\\(\\) for visual rotation calculations\n- Created applyTerrainEffect\\(\\) for terrain-specific physics\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nSection 5: Power-up System - Enhanced visual effects\n\n- Added rotation animation for spinning power-ups\n- Implemented floating effect with sinusoidal offset\n- Added dynamic glow intensity that pulses over time\n- Created orbiting particle system around power-ups\n- Added spawn time tracking for potential pickup delays\n- Implemented getOrbitPositions\\(\\) for particle rendering\n- Added getWarningText\\(\\) for contextual power-up messages\n- Enhanced visual polish for all five power-up types\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nSection 6: Hazard System - Enhanced hazard behaviors\n\n- Added visual position interpolation for smooth movement\n- Implemented bomb shake effect that intensifies near explosion\n- Created dynamic flash state for bomb countdown visuals\n- Added rolling animation for moving obstacles\n- Implemented bubble phase animation for poison food\n- Created danger level tracking based on proximity to player\n- Added getVisualPosition\\(\\) for shake-affected rendering\n- Implemented getWarningColor\\(\\) for proximity-based warnings\n- Enhanced beep timing that accelerates as bomb nears explosion\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nFix: UI scaling and responsive layout improvements\n\n- Game container now scales to viewport with aspect-ratio\n- Menu panels use calc\\(\\) for max dimensions with proper overflow\n- Added clamp\\(\\) for fluid typography scaling\n- Screens now have overflow-y auto to prevent cutoff\n- Improved responsive breakpoints for tablets and mobile\n- Added max-height media query for short viewports\n- Grids use auto-fit with minmax for better responsiveness\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git commit:*)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:roughjs.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:cdn.jsdelivr.net)",
+      "Bash(powershell -Command:*)",
+      "Bash(dir:*)",
+      "WebFetch(domain:localhost)",
+      "Bash(curl:*)",
+      "Bash(python -m http.server:*)",
+      "WebFetch(domain:learn.adafruit.com)"
+    ]
+  }
+}
