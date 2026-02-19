@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Readable — Color &amp; Readability Explorer</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f8f8f8;
+      color: #444;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      padding: 20px 32px 16px;
+      border-bottom: 1px solid #e0e0e0;
+      background: #fff;
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+    }
+    header h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: #222;
+    }
+    header p {
+      font-size: 0.9rem;
+      color: #888;
+    }
+
+    /* ── Main two-column layout ── */
+    main {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 0;
+      min-height: calc(100vh - 65px);
+    }
+
+    /* ── Controls (left) ── */
+    #controls {
+      background: #fff;
+      border-right: 1px solid #e0e0e0;
+      padding: 24px 24px 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+
+    .section-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #888;
+      margin-bottom: 10px;
+    }
+
+    /* Preset dropdown */
+    .preset-row {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .preset-row label {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #444;
+    }
+    #preset-select {
+      width: 100%;
+      padding: 7px 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 0.88rem;
+      background: #fff;
+      color: #333;
+      cursor: pointer;
+    }
+    #preset-select:focus { outline: 2px solid #3b82f6; outline-offset: 1px; }
+
+    /* Color section */
+    .color-section {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .color-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .color-swatch {
+      width: 48px;
+      height: 48px;
+      border-radius: 4px;
+      border: 1px solid #ddd;
+      flex-shrink: 0;
+    }
+    .color-section-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #333;
+    }
+
+    /* RGB row */
+    .rgb-row {
+      display: grid;
+      grid-template-columns: 14px 1fr 52px;
+      align-items: center;
+      gap: 8px;
+    }
+    .channel-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #666;
+    }
+    input[type="range"] {
+      width: 100%;
+      height: 4px;
+      cursor: pointer;
+      accent-color: #3b82f6;
+    }
+    input[type="number"] {
+      width: 100%;
+      padding: 4px 6px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 0.82rem;
+      text-align: center;
+      color: #333;
+    }
+    input[type="number"]:focus { outline: 2px solid #3b82f6; outline-offset: 1px; }
+
+    /* Font size */
+    .font-section {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .font-row {
+      display: grid;
+      grid-template-columns: 1fr 52px 24px;
+      align-items: center;
+      gap: 8px;
+    }
+    .unit-label {
+      font-size: 0.8rem;
+      color: #888;
+    }
+
+    /* ── Preview (right) ── */
+    #preview {
+      padding: 24px 28px 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* Text preview panels */
+    .preview-panel {
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .preview-panel-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #888;
+      background: #f8f8f8;
+      border-bottom: 1px solid #e0e0e0;
+      padding: 6px 14px;
+    }
+    .preview-text {
+      padding: 20px 24px;
+      min-height: 140px;
+      line-height: 1.65;
+    }
+    .preview-text p + p { margin-top: 0.8em; }
+    .preview-text em { font-style: italic; }
+
+    /* Vision buttons */
+    .vision-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .vision-btn {
+      padding: 6px 14px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      background: #fff;
+      font-size: 0.82rem;
+      color: #444;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.12s, color 0.12s, border-color 0.12s;
+    }
+    .vision-btn:hover { background: #f0f6ff; border-color: #93c5fd; }
+    .vision-btn.active {
+      background: #3b82f6;
+      color: #fff;
+      border-color: #3b82f6;
+    }
+
+    /* Stats */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px 24px;
+    }
+    .stat-block {
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      padding: 12px 16px;
+    }
+    .stat-title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: #888;
+      margin-bottom: 6px;
+    }
+    .stat-value {
+      font-size: 1.45rem;
+      font-weight: 700;
+      color: #222;
+      letter-spacing: -0.5px;
+    }
+    .stat-sub {
+      font-size: 0.75rem;
+      color: #aaa;
+      margin-top: 2px;
+    }
+
+    /* WCAG badges */
+    .wcag-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .wcag-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      padding: 10px 16px;
+    }
+    .wcag-desc {
+      font-size: 0.84rem;
+      color: #555;
+    }
+    .wcag-desc span {
+      font-size: 0.75rem;
+      color: #aaa;
+      display: block;
+    }
+    .wcag-badge {
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 4px 12px;
+      border-radius: 4px;
+      letter-spacing: 0.04em;
+    }
+    .badge-pass { background: #dcfce7; color: #15803d; }
+    .badge-fail { background: #fee2e2; color: #b91c1c; }
+
+    /* SVG filters (hidden) */
+    svg.filters { position: absolute; width: 0; height: 0; overflow: hidden; }
+  </style>
+</head>
+<body>
+
+<!-- Hidden SVG colour-vision filters -->
+<svg class="filters" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="protanopia">
+      <feColorMatrix type="matrix" values="
+        0.567 0.433 0     0 0
+        0.558 0.442 0     0 0
+        0     0.242 0.758 0 0
+        0     0     0     1 0"/>
+    </filter>
+    <filter id="deuteranopia">
+      <feColorMatrix type="matrix" values="
+        0.625 0.375 0   0 0
+        0.7   0.3   0   0 0
+        0     0.3   0.7 0 0
+        0     0     0   1 0"/>
+    </filter>
+    <filter id="tritanopia">
+      <feColorMatrix type="matrix" values="
+        0.95  0.05  0     0 0
+        0     0.433 0.567 0 0
+        0     0.475 0.525 0 0
+        0     0     0     1 0"/>
+    </filter>
+    <filter id="monochromacy">
+      <feColorMatrix type="matrix" values="
+        0.299 0.587 0.114 0 0
+        0.299 0.587 0.114 0 0
+        0.299 0.587 0.114 0 0
+        0     0     0     1 0"/>
+    </filter>
+  </defs>
+</svg>
+
+<header>
+  <h1>Readable</h1>
+  <p>Explore how color &amp; font size affect readability</p>
+</header>
+
+<main>
+  <!-- ── CONTROLS ── -->
+  <aside id="controls">
+
+    <!-- Presets -->
+    <div class="preset-row">
+      <label for="preset-select">Load Preset</label>
+      <select id="preset-select">
+        <option value="">— (none) —</option>
+        <option value="high-contrast">High Contrast</option>
+        <option value="low-contrast">Low Contrast</option>
+        <option value="classic-web">Classic Web</option>
+        <option value="night-mode">Night Mode</option>
+        <option value="solarized-light">Solarized Light</option>
+        <option value="ocean-blue">Ocean Blue</option>
+      </select>
+    </div>
+
+    <!-- Background Color -->
+    <div class="color-section">
+      <div class="section-label">Background Color</div>
+      <div class="color-header">
+        <div class="color-swatch" id="bg-swatch" aria-label="Current background color"></div>
+        <span class="color-section-title" aria-hidden="true">Background</span>
+      </div>
+      <div class="rgb-row">
+        <span class="channel-label">R</span>
+        <input type="range" id="bg-r" min="0" max="255" value="255" aria-label="Background red">
+        <input type="number" id="bg-r-num" min="0" max="255" value="255" aria-label="Background red value">
+      </div>
+      <div class="rgb-row">
+        <span class="channel-label">G</span>
+        <input type="range" id="bg-g" min="0" max="255" value="255" aria-label="Background green">
+        <input type="number" id="bg-g-num" min="0" max="255" value="255" aria-label="Background green value">
+      </div>
+      <div class="rgb-row">
+        <span class="channel-label">B</span>
+        <input type="range" id="bg-b" min="0" max="255" value="255" aria-label="Background blue">
+        <input type="number" id="bg-b-num" min="0" max="255" value="255" aria-label="Background blue value">
+      </div>
+    </div>
+
+    <!-- Text Color -->
+    <div class="color-section">
+      <div class="section-label">Text Color</div>
+      <div class="color-header">
+        <div class="color-swatch" id="text-swatch" aria-label="Current text color"></div>
+        <span class="color-section-title" aria-hidden="true">Text</span>
+      </div>
+      <div class="rgb-row">
+        <span class="channel-label">R</span>
+        <input type="range" id="text-r" min="0" max="255" value="51" aria-label="Text red">
+        <input type="number" id="text-r-num" min="0" max="255" value="51" aria-label="Text red value">
+      </div>
+      <div class="rgb-row">
+        <span class="channel-label">G</span>
+        <input type="range" id="text-g" min="0" max="255" value="51" aria-label="Text green">
+        <input type="number" id="text-g-num" min="0" max="255" value="51" aria-label="Text green value">
+      </div>
+      <div class="rgb-row">
+        <span class="channel-label">B</span>
+        <input type="range" id="text-b" min="0" max="255" value="51" aria-label="Text blue">
+        <input type="number" id="text-b-num" min="0" max="255" value="51" aria-label="Text blue value">
+      </div>
+    </div>
+
+    <!-- Font Size -->
+    <div class="font-section">
+      <div class="section-label">Font Size</div>
+      <div class="font-row">
+        <input type="range" id="font-size" min="10" max="72" value="16" step="1" aria-label="Font size">
+        <input type="number" id="font-size-num" min="10" max="72" value="16" aria-label="Font size value">
+        <span class="unit-label">px</span>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- ── PREVIEW ── -->
+  <section id="preview">
+
+    <!-- Original panel -->
+    <div class="preview-panel">
+      <div class="preview-panel-label">Original</div>
+      <div class="preview-text" id="preview-original">
+        <p><em>"The ships hung in the sky in much the same way that bricks don't."</em></p>
+        <p>Far out in the uncharted backwaters of the unfashionable end of the western spiral arm of the Galaxy lies a small unregarded yellow sun. Orbiting this at a distance of roughly ninety-two million miles is an utterly insignificant little blue-green planet whose ape-descended life forms are so amazingly primitive that they still think digital watches are a pretty neat idea.</p>
+      </div>
+    </div>
+
+    <!-- Simulated panel -->
+    <div class="preview-panel">
+      <div class="preview-panel-label">Simulated</div>
+      <div class="preview-text" id="preview-simulated">
+        <p><em>"The ships hung in the sky in much the same way that bricks don't."</em></p>
+        <p>Far out in the uncharted backwaters of the unfashionable end of the western spiral arm of the Galaxy lies a small unregarded yellow sun. Orbiting this at a distance of roughly ninety-two million miles is an utterly insignificant little blue-green planet whose ape-descended life forms are so amazingly primitive that they still think digital watches are a pretty neat idea.</p>
+      </div>
+    </div>
+
+    <!-- Vision simulation buttons -->
+    <div class="vision-row" role="group" aria-label="Vision simulation">
+      <button class="vision-btn active" data-filter="none">Normal</button>
+      <button class="vision-btn" data-filter="protanopia">Protanopia</button>
+      <button class="vision-btn" data-filter="deuteranopia">Deuteranopia</button>
+      <button class="vision-btn" data-filter="tritanopia">Tritanopia</button>
+      <button class="vision-btn" data-filter="monochromacy">Monochromacy</button>
+    </div>
+
+    <!-- Contrast / luminance stats -->
+    <div class="stats-grid">
+      <div class="stat-block">
+        <div class="stat-title">Contrast Ratio</div>
+        <div class="stat-value" id="contrast-ratio">—</div>
+        <div class="stat-sub">: 1</div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-title">BG Luminance</div>
+        <div class="stat-value" id="bg-lum">—</div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-title">Text Luminance</div>
+        <div class="stat-value" id="text-lum">—</div>
+      </div>
+    </div>
+
+    <!-- WCAG compliance -->
+    <div class="wcag-grid">
+      <div class="wcag-row">
+        <div class="wcag-desc">
+          Normal Text
+          <span>requires ≥ 4.5 : 1</span>
+        </div>
+        <div class="wcag-badge" id="wcag-normal" role="status">—</div>
+      </div>
+      <div class="wcag-row">
+        <div class="wcag-desc">
+          Large Text
+          <span id="large-text-note">requires ≥ 3 : 1  (applies when font ≥ 24 px)</span>
+        </div>
+        <div class="wcag-badge" id="wcag-large" role="status">—</div>
+      </div>
+    </div>
+
+  </section>
+</main>
+
+<script>
+  /* ── State ── */
+  const state = {
+    bg:   { r: 255, g: 255, b: 255 },
+    text: { r:  51, g:  51, b:  51 },
+    fontSize: 16,
+    filter: 'none'
+  };
+
+  /* ── Preset data ── */
+  const PRESETS = {
+    'high-contrast':   { bg: [255,255,255], text: [0,0,0] },
+    'low-contrast':    { bg: [204,204,204], text: [153,153,153] },
+    'classic-web':     { bg: [255,255,255], text: [51,51,51] },
+    'night-mode':      { bg: [26,26,46],   text: [224,224,224] },
+    'solarized-light': { bg: [253,246,227], text: [101,123,131] },
+    'ocean-blue':      { bg: [0,119,182],  text: [255,255,255] }
+  };
+
+  /* ── Helpers ── */
+  function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, Math.round(v))); }
+
+  function toLinear(c) {
+    const s = c / 255;
+    return s <= 0.04045 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  }
+
+  function luminance({ r, g, b }) {
+    return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+  }
+
+  function contrastRatio(l1, l2) {
+    const [lo, hi] = l1 < l2 ? [l1, l2] : [l2, l1];
+    return (hi + 0.05) / (lo + 0.05);
+  }
+
+  function toHex({ r, g, b }) {
+    return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
+  }
+
+  /* ── DOM refs ── */
+  function q(sel) { return document.querySelector(sel); }
+
+  const bgSliders  = { r: q('#bg-r'),   g: q('#bg-g'),   b: q('#bg-b') };
+  const bgNums     = { r: q('#bg-r-num'), g: q('#bg-g-num'), b: q('#bg-b-num') };
+  const txSliders  = { r: q('#text-r'), g: q('#text-g'), b: q('#text-b') };
+  const txNums     = { r: q('#text-r-num'), g: q('#text-g-num'), b: q('#text-b-num') };
+  const fontSlider = q('#font-size');
+  const fontNum    = q('#font-size-num');
+  const presetSel  = q('#preset-select');
+  const bgSwatch   = q('#bg-swatch');
+  const txSwatch   = q('#text-swatch');
+  const origPanel  = q('#preview-original');
+  const simPanel   = q('#preview-simulated');
+  const visionBtns = document.querySelectorAll('.vision-btn');
+
+  /* ── Render ── */
+  function render() {
+    const bgHex  = toHex(state.bg);
+    const txHex  = toHex(state.text);
+    const fs     = state.fontSize;
+
+    // swatches
+    bgSwatch.style.background = bgHex;
+    bgSwatch.setAttribute('aria-label', `Background color: ${bgHex}`);
+    txSwatch.style.background = txHex;
+    txSwatch.setAttribute('aria-label', `Text color: ${txHex}`);
+
+    // preview panels
+    [origPanel, simPanel].forEach(p => {
+      p.style.backgroundColor = bgHex;
+      p.style.color = txHex;
+      p.style.fontSize = fs + 'px';
+    });
+
+    // filter on simulated panel
+    simPanel.style.filter = state.filter === 'none' ? '' : `url(#${state.filter})`;
+
+    // stats
+    const bgL  = luminance(state.bg);
+    const txL  = luminance(state.text);
+    const cr   = contrastRatio(bgL, txL);
+
+    q('#contrast-ratio').textContent = cr.toFixed(2);
+    q('#bg-lum').textContent         = bgL.toFixed(3);
+    q('#text-lum').textContent       = txL.toFixed(3);
+
+    // WCAG
+    const passNormal = cr >= 4.5;
+    const passLarge  = cr >= 3.0;
+    const isLarge    = fs >= 24;
+
+    setWcag('#wcag-normal', passNormal);
+    setWcag('#wcag-large',  passLarge);
+
+    q('#large-text-note').textContent = isLarge
+      ? 'requires ≥ 3 : 1  (current font qualifies as large)'
+      : 'requires ≥ 3 : 1  (applies when font ≥ 24 px)';
+  }
+
+  function setWcag(sel, pass) {
+    const el = q(sel);
+    el.textContent = pass ? 'PASS' : 'FAIL';
+    el.className = 'wcag-badge ' + (pass ? 'badge-pass' : 'badge-fail');
+  }
+
+  /* ── Sync sliders ↔ number inputs ── */
+  function wireChannel(slider, numInput, colorKey, channel) {
+    slider.addEventListener('input', () => {
+      const v = clamp(+slider.value, 0, 255);
+      state[colorKey][channel] = v;
+      numInput.value = v;
+      presetSel.value = '';
+      render();
+    });
+    numInput.addEventListener('input', () => {
+      const v = clamp(+numInput.value, 0, 255);
+      state[colorKey][channel] = v;
+      slider.value = v;
+      presetSel.value = '';
+      render();
+    });
+  }
+
+  wireChannel(bgSliders.r, bgNums.r, 'bg', 'r');
+  wireChannel(bgSliders.g, bgNums.g, 'bg', 'g');
+  wireChannel(bgSliders.b, bgNums.b, 'bg', 'b');
+  wireChannel(txSliders.r, txNums.r, 'text', 'r');
+  wireChannel(txSliders.g, txNums.g, 'text', 'g');
+  wireChannel(txSliders.b, txNums.b, 'text', 'b');
+
+  /* ── Font size ── */
+  function setFontSize(v) {
+    v = clamp(v, 10, 72);
+    state.fontSize = v;
+    fontSlider.value = v;
+    fontNum.value = v;
+    render();
+  }
+  fontSlider.addEventListener('input', () => setFontSize(+fontSlider.value));
+  fontNum.addEventListener('input',    () => setFontSize(+fontNum.value));
+
+  /* ── Presets ── */
+  presetSel.addEventListener('change', () => {
+    const p = PRESETS[presetSel.value];
+    if (!p) return;
+    const [br, bg, bb] = p.bg;
+    const [tr, tg, tb] = p.text;
+
+    state.bg   = { r: br, g: bg, b: bb };
+    state.text = { r: tr, g: tg, b: tb };
+
+    bgSliders.r.value = bgNums.r.value = br;
+    bgSliders.g.value = bgNums.g.value = bg;
+    bgSliders.b.value = bgNums.b.value = bb;
+    txSliders.r.value = txNums.r.value = tr;
+    txSliders.g.value = txNums.g.value = tg;
+    txSliders.b.value = txNums.b.value = tb;
+
+    render();
+  });
+
+  /* ── Vision simulation buttons ── */
+  visionBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      visionBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.filter = btn.dataset.filter;
+      render();
+    });
+  });
+
+  /* ── Init ── */
+  render();
+</script>
+</body>
+</html>
