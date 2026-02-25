@@ -14,7 +14,7 @@ const RANK_NAMES = {
 };
 
 export function getCardImagePath(card) {
-  return `/cards/${RANK_NAMES[card.rank]}_of_${SUIT_NAMES[card.suit]}.svg`;
+  return `${import.meta.env.BASE_URL}cards/${RANK_NAMES[card.rank]}_of_${SUIT_NAMES[card.suit]}.svg`;
 }
 
 let _idCounter = 0;
