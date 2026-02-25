@@ -1,0 +1,52 @@
+.chip {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  border: 4px dashed rgba(255,255,255,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  outline: none;
+  position: relative;
+}
+
+.chip::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.2);
+}
+
+.chip:hover:not(.disabled) {
+  transform: translateY(-3px) scale(1.06);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.5);
+}
+
+.chip:active:not(.disabled) {
+  transform: translateY(0) scale(0.96);
+}
+
+.chip.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.label {
+  font-family: 'EB Garamond', serif;
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+  position: relative;
+  z-index: 1;
+}
+
+/* Colors */
+.red    { background: var(--chip-red);    box-shadow: 0 3px 10px rgba(192,57,43,0.5); }
+.green  { background: var(--chip-green);  box-shadow: 0 3px 10px rgba(30,132,73,0.5); }
+.blue   { background: var(--chip-blue);   box-shadow: 0 3px 10px rgba(36,113,163,0.5); }
+.black  { background: var(--chip-black);  box-shadow: 0 3px 10px rgba(0,0,0,0.6); border-color: rgba(255,255,255,0.3); }
+.purple { background: var(--chip-purple); box-shadow: 0 3px 10px rgba(108,52,131,0.5); }

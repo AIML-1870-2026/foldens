@@ -1,0 +1,57 @@
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 20px;
+  border-bottom: 2px solid var(--gold-dark);
+  background: linear-gradient(180deg, rgba(0,0,0,0.4) 0%, transparent 100%);
+  position: relative;
+  gap: 16px;
+}
+
+.title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--gold);
+  text-shadow: 0 2px 8px rgba(0,0,0,0.6), 0 0 20px rgba(201,168,76,0.3);
+  letter-spacing: 0.04em;
+}
+
+.ornamentLeft,
+.ornamentRight {
+  flex: 1;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--gold-dark));
+  position: relative;
+}
+
+.ornamentRight {
+  background: linear-gradient(90deg, var(--gold-dark), transparent);
+}
+
+.controls {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.iconBtn {
+  background: none;
+  border: 1px solid rgba(201,168,76,0.3);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  color: var(--text-primary);
+}
+
+.iconBtn:hover {
+  border-color: var(--gold);
+  background: rgba(201,168,76,0.1);
+}

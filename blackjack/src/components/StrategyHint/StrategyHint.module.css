@@ -1,0 +1,19 @@
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0,0,0,0.4);
+  border: 1px solid rgba(201,168,76,0.3);
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.icon {
+  font-size: 1rem;
+}
+
+.text {
+  font-style: italic;
+}

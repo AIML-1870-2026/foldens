@@ -1,0 +1,69 @@
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+  pointer-events: all;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.box {
+  padding: 20px 40px;
+  border-radius: 10px;
+  border: 2px solid;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(4px);
+  text-align: center;
+}
+
+.text {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.6rem;
+  font-weight: 700;
+  display: block;
+}
+
+.win {
+  border-color: var(--win-green);
+  box-shadow: 0 0 30px rgba(46,204,113,0.4);
+}
+.win .text { color: var(--win-green); }
+
+.blackjack {
+  border-color: var(--gold);
+  box-shadow: 0 0 40px rgba(201,168,76,0.5);
+}
+.blackjack .text {
+  color: var(--gold);
+  font-size: 2rem;
+}
+
+.loss {
+  border-color: var(--loss-red);
+  box-shadow: 0 0 20px rgba(231,76,60,0.3);
+}
+.loss .text { color: var(--loss-red); }
+
+.push {
+  border-color: var(--push-gray);
+  box-shadow: 0 0 16px rgba(149,165,166,0.2);
+}
+.push .text { color: var(--push-gray); }
+
+/* Sparkle animation for blackjack */
+.sparkle {
+  animation: sparkleAnim 0.5s ease-out;
+}
+
+@keyframes sparkleAnim {
+  0%   { transform: scale(0.8); opacity: 0; }
+  60%  { transform: scale(1.08); }
+  100% { transform: scale(1); opacity: 1; }
+}

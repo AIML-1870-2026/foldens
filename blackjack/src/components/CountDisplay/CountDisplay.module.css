@@ -1,0 +1,85 @@
+.wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  position: relative;
+}
+
+.label {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.count {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+  min-width: 36px;
+  text-align: center;
+}
+
+.positive { color: var(--win-green); }
+.negative { color: var(--loss-red); }
+.neutral  { color: var(--text-muted); }
+
+.info {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0;
+  line-height: 1;
+}
+
+.tooltip {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1a2a1e;
+  border: 1px solid var(--gold-dark);
+  border-radius: 6px;
+  padding: 10px 14px;
+  width: 200px;
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  z-index: 50;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+}
+
+.tooltip strong {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--gold);
+  font-size: 0.85rem;
+}
+
+.tooltip p {
+  margin: 3px 0;
+  color: var(--text-muted);
+}
+
+.flash .count {
+  animation: flashAnim 0.4s ease-out;
+}
+
+.shuffleMsg {
+  position: absolute;
+  top: -28px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--gold-dark);
+  color: var(--cream);
+  font-size: 0.75rem;
+  padding: 3px 10px;
+  border-radius: 10px;
+  white-space: nowrap;
+  animation: fadeOut 1.5s ease-out forwards;
+}
+
+@keyframes fadeOut {
+  0%   { opacity: 1; }
+  70%  { opacity: 1; }
+  100% { opacity: 0; }
+}

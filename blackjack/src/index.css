@@ -1,0 +1,43 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --felt-dark:   #1a3d2b;
+  --felt-mid:    #1e4d35;
+  --felt-light:  #225c3f;
+  --gold:        #c9a84c;
+  --gold-light:  #e2c97e;
+  --gold-dark:   #8f6e28;
+  --cream:       #fdf6e3;
+  --card-shadow: rgba(0,0,0,0.55);
+  --chip-red:    #c0392b;
+  --chip-blue:   #2471a3;
+  --chip-green:  #1e8449;
+  --chip-black:  #1c1c1c;
+  --chip-purple: #6c3483;
+  --text-primary:#fdf6e3;
+  --text-muted:  #a8c4a0;
+  --win-green:   #2ecc71;
+  --loss-red:    #e74c3c;
+  --push-gray:   #95a5a6;
+}
+
+body {
+  font-family: 'EB Garamond', serif;
+  background: var(--felt-dark);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+h1, h2, h3, .display {
+  font-family: 'Playfair Display', serif;
+}
+
+button {
+  font-family: 'EB Garamond', serif;
+  cursor: pointer;
+}

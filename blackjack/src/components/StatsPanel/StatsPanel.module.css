@@ -1,0 +1,102 @@
+.panel {
+  background: rgba(0,0,0,0.25);
+  border: 1px solid rgba(201,168,76,0.2);
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.1rem;
+  color: var(--gold);
+  text-align: center;
+}
+
+.divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold-dark), transparent);
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.88rem;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
+.row:nth-child(odd) {
+  background: rgba(255,255,255,0.03);
+}
+
+.rowLabel {
+  color: #c8dac0;
+}
+
+.rowValue {
+  font-family: 'Playfair Display', serif;
+  font-weight: 700;
+  color: #fdf6e3;
+  font-size: 0.92rem;
+}
+
+.rowValue.win  { color: var(--win-green); }
+.rowValue.loss { color: var(--loss-red); }
+
+.btn {
+  font-family: 'EB Garamond', serif;
+  font-size: 0.9rem;
+  padding: 7px 14px;
+  border-radius: 5px;
+  border: 1px solid var(--gold-dark);
+  background: rgba(0,0,0,0.3);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn:hover {
+  border-color: var(--gold);
+  color: var(--text-primary);
+}
+
+.resetBtn {
+  align-self: center;
+}
+
+.confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+
+.confirmText {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.confirmBtns {
+  display: flex;
+  gap: 8px;
+}
+
+.danger {
+  border-color: var(--loss-red);
+  color: var(--loss-red);
+}
+
+.danger:hover {
+  background: rgba(231,76,60,0.15);
+  border-color: var(--loss-red);
+}

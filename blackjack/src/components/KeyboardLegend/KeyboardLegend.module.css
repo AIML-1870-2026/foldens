@@ -1,0 +1,35 @@
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  padding: 8px 16px;
+  border-top: 1px solid rgba(201,168,76,0.15);
+  font-size: 0.78rem;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: opacity 0.2s;
+}
+
+.item.dim {
+  opacity: 0.35;
+}
+
+.kbd {
+  background: rgba(0,0,0,0.35);
+  border: 1px solid rgba(201,168,76,0.3);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-family: monospace;
+  font-size: 0.78rem;
+  color: var(--gold);
+  box-shadow: 0 2px 0 rgba(201,168,76,0.2);
+}
+
+.label {
+  color: var(--text-muted);
+}
