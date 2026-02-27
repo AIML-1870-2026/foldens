@@ -22,6 +22,10 @@ const GOOD_MS    = 250;
 // Score thresholds for speed boosts
 const SPEED_MILESTONES = [300, 600, 1000, 1500, 2000, 2500];
 
+// BPM and music intensity at each milestone (100 BPM baseline → up to 124)
+const BPM_STEPS       = [104, 108, 112, 116, 120, 124];
+const INTENSITY_STEPS = [0,   1,   1,   2,   2,   2  ];
+
 // ─── State ────────────────────────────────────────────────────────────────────
 let gameState  = 'start';
 let score      = 0;
@@ -420,17 +424,18 @@ function schedulePattern(pattern) {
     // Travel distance from spawn (x=CANVAS_WIDTH) to player reaction zone (x=220):
     //   travelSec  = 814px / (gameSpeed px/frame * 60 fps)
     // Round to nearest whole-beat travel so arrival is on-beat.
+    const bs         = audio.beatSec;
     const travelSec  = 814 / (gameSpeed * 60);
-    const travelBeat = travelSec / BEAT_SEC;
+    const travelBeat = travelSec / bs;
     // ceil: always round UP so syncDelay is never negative.
-    // Guarantees obstacle arrives exactly leadBeats * BEAT_SEC after pattern trigger.
+    // Guarantees obstacle arrives exactly leadBeats * beatSec after pattern trigger.
     const leadBeats  = Math.ceil(travelBeat);
-    const syncDelay  = Math.max(0.01, leadBeats * BEAT_SEC - travelSec);
+    const syncDelay  = Math.max(0.01, leadBeats * bs - travelSec);
 
     const baseTime = audio.ctx.currentTime + syncDelay;
     for (const ob of pattern.obs) {
         scheduledSpawns.push({
-            time:   baseTime + ob.beatOffset * BEAT_SEC,
+            time:   baseTime + ob.beatOffset * bs,
             width:  randomInt(ob.wMin, ob.wMax),
             height: randomInt(ob.hMin, ob.hMax),
             type:   ob.type
@@ -473,6 +478,8 @@ function checkSpeedMilestones() {
     if (nextMilestoneIdx >= SPEED_MILESTONES.length) return;
     if (score >= SPEED_MILESTONES[nextMilestoneIdx]) {
         gameSpeed = Math.min(gameSpeed + 0.55, MAX_SPEED);
+        audio.setBPM(BPM_STEPS[nextMilestoneIdx]);
+        audio.setIntensity(INTENSITY_STEPS[nextMilestoneIdx]);
         const cx = player.x + player.width / 2;
         addFloatingText('FASTER!', '#ffaa44', cx, player.y - 30, 22);
         triggerShake(0.8, 12);
