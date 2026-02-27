@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Overgrown Ruins Runner</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="gameWrapper">
+        <div id="gameContainer">
+            <canvas id="gameCanvas" width="1024" height="576"></canvas>
+            <div id="hud">
+                <div id="score">Score: 0</div>
+                <div id="multiplier">x1.0</div>
+            </div>
+            <div id="startScreen">
+                <h1>OVERGROWN RUINS RUNNER</h1>
+                <p class="subtitle">Jump over obstacles. Stay on the beat.</p>
+                <p class="controls">SPACE / TAP to jump</p>
+                <div id="startBest" class="hidden">Best: <span id="startHighScore">0</span></div>
+                <button id="startBtn">START</button>
+            </div>
+            <div id="gameOverScreen" class="hidden">
+                <h1>GAME OVER</h1>
+                <div id="newBestMsg" class="hidden">NEW BEST!</div>
+                <div class="stats">
+                    <p>Score: <span id="finalScore">0</span></p>
+                    <p>Best: <span id="highScoreDisplay">0</span></p>
+                    <p>Distance: <span id="finalDistance">0</span> m</p>
+                    <p>Peak Multiplier: <span id="peakMultiplier">1.0</span>x</p>
+                    <p>Obstacles Cleared: <span id="obstaclesCleared">0</span></p>
+                </div>
+                <div class="buttons">
+                    <button onclick="location.reload()">Try Again</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="js/utils.js"></script>
+    <script src="js/audio.js"></script>
+    <script src="js/patterns.js"></script>
+    <script src="js/player.js"></script>
+    <script src="js/obstacle.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
