@@ -47,7 +47,7 @@ resize();
 const PLAYER_X    = 72;          // fixed screen x
 const PW = 12, PH = 20;          // player pixel size
 const STREET_Y    = 162;         // ground surface y (street)
-const ROOF_Y      = 82;          // ground surface y (rooftop)
+const ROOF_Y      = 112;         // ground surface y (rooftop)
 const SPEED_BASE  = 2.5;         // px/frame initial
 const SPEED_MAX   = 5.5;         // px/frame cap
 const SPEED_GROW  = 0.00015;     // added per frame (log growth approx)
@@ -60,7 +60,7 @@ const GRAV_FALL       = 1.35;
 const APEX_THR        = 2.2;
 const COYOTE_F        = 6;       // frames
 const JUMP_BUF_F      = 6;
-const SHIFT_CD_F      = 24;      // 400ms @ 60fps
+const SHIFT_CD_F      = 14;      // ~233ms @ 60fps
 const NEAR_MISS_PX    = 5;       // px distance = near miss
 
 // ── ZONES ────────────────────────────────────────────────────────────
@@ -828,8 +828,8 @@ function updatePlayer() {
   // Apply velocity
   player.y += player.vy;
 
-  // Hard ceiling — prevents flying off top of screen
-  if (player.y < 4) { player.y = 4; if (player.vy < 0) player.vy = 0; }
+  // Soft ceiling — clamp position only, preserve velocity so jump arc stays intact
+  if (player.y < -PH) player.y = -PH;
 
   // Ground check
   const gY  = groundY();
