@@ -140,7 +140,6 @@ let musicNodes = null;
 function initAudio() {
   if (audioCtx) return;
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  startMusic();
 }
 
 function playTone(freq, type, dur, vol=0.3, detune=0) {
@@ -183,75 +182,26 @@ const SFX = {
   empOff()  { playTone(440,'sine',0.2,0.25); playTone(550,'sine',0.2,0.2); },
 };
 
-// ── MUSIC — chord-based per zone ─────────────────────────────────────
-// Each zone: [bassRoot, [chord tones for arpeggio], [melody scale], beatMs]
-const ZONE_MUSIC = [
-  // 0 Neon: D minor 7 — dark, hypnotic
-  { bass:[73.4,110,87.3,98],  chord:[146.8,184.9,220,261.6,329.6], scale:[146.8,164.8,184.9,220,246.9,261.6,293.7,329.6], ms:115 },
-  // 1 Industrial: A minor — driving, heavy
-  { bass:[55,82.4,73.4,55],   chord:[220,261.6,329.6,392,440],     scale:[220,246.9,261.6,293.7,329.6,349.2,392,440],     ms:105 },
-  // 2 Corporate: C minor — cold, precise
-  { bass:[65.4,98,87.3,65.4], chord:[130.8,155.6,196,261.6,311.1], scale:[130.8,155.6,174.6,196,220,261.6,311.1,349.2],   ms:118 },
-  // 3 Underground: G minor — low, ominous
-  { bass:[49,73.4,55,61.7],   chord:[98,116.5,146.8,174.6,196],    scale:[98,110,130.8,146.8,164.8,174.6,196,220],        ms:125 },
-  // 4 Rooftops: E minor — open, triumphant
-  { bass:[82.4,110,98,82.4],  chord:[164.8,196,246.9,329.6,392],   scale:[164.8,184.9,196,220,246.9,261.6,293.7,329.6],   ms:100 },
-  // 5 Glitch: dissonant, unstable tempo
-  { bass:[60,80,100,70],      chord:[120,170,213,285,340],          scale:[120,135,160,180,213,240,270,320],               ms:95  },
-];
+// ── MUSIC — MP3 with speed-linked playback rate ───────────────────────
+const bgMusic = new Audio('Pixelated_Pursuit.mp3');
+bgMusic.loop   = true;
+bgMusic.volume = 0.75;
 
-let musicTick = 0, musicInterval = null, lastMusicZone = -1;
-let musicChordIdx = 0;
-const MELODY_PATTERN = [1,0,1,0,0,1,0,1,  1,0,0,1,0,1,1,0];  // 16-step gate
-
-function startMusic() {
-  if (musicInterval) clearInterval(musicInterval);
-  musicTick = 0; lastMusicZone = -1; musicChordIdx = 0;
-  // Start at zone 0 tempo, re-schedule when zone changes
-  scheduleMusic(0);
+function musicStart() {
+  bgMusic.currentTime = 0;
+  bgMusic.playbackRate = 1.0;
+  bgMusic.play().catch(() => {});   // silently ignored before first gesture
 }
 
-function scheduleMusic(zi) {
-  if (musicInterval) clearInterval(musicInterval);
-  lastMusicZone = zi;
-  const zm = ZONE_MUSIC[zi] || ZONE_MUSIC[0];
-  musicInterval = setInterval(() => {
-    if (gameState !== 'playing') return;
-    const curZi = getZoneIndex(dist);
-    if (curZi !== lastMusicZone) { scheduleMusic(curZi); return; }
+function musicStop() {
+  bgMusic.pause();
+}
 
-    const zm2 = ZONE_MUSIC[curZi];
-    const beat = musicTick % 16;
-    musicTick++;
-
-    // Kick on beats 0 and 8
-    if (beat === 0 || beat === 8) {
-      playNoise(0.06, 0.18, 60);
-    }
-    // Bass — follows chord progression (4 chords, 4 beats each)
-    if (beat % 4 === 0) {
-      musicChordIdx = (beat / 4) | 0;
-      playTone(zm2.bass[musicChordIdx % zm2.bass.length], 'square', 0.28, 0.14);
-    }
-    // Snare on beats 4 and 12
-    if (beat === 4 || beat === 12) {
-      playNoise(0.08, 0.12, 800);
-    }
-    // Hi-hat every odd beat
-    if (beat % 2 === 1) {
-      playNoise(0.03, 0.05, 5000);
-    }
-    // Arpeggio chord — plays on specific beat gates
-    if (MELODY_PATTERN[beat]) {
-      const chordNote = zm2.chord[beat % zm2.chord.length];
-      playTone(chordNote, 'square', zm2.ms * 0.0009, 0.07);
-    }
-    // Melody — plays on off-beats, scale tones
-    if (beat % 3 === 2 && Math.random() < 0.55) {
-      const step = (musicChordIdx * 2 + (beat & 3)) % zm2.scale.length;
-      playTone(zm2.scale[step] * 2, 'sine', zm2.ms * 0.0012, 0.05);
-    }
-  }, zm.ms);
+// Call each frame during gameplay to sync rate with speed
+function musicUpdate() {
+  // 1.0× at SPEED_BASE, 1.35× at SPEED_MAX — noticeable urgency, not ear-grating
+  const t = (speed - SPEED_BASE) / (SPEED_MAX - SPEED_BASE);
+  bgMusic.playbackRate = 1.0 + Math.max(0, Math.min(1, t)) * 0.35;
 }
 
 // ── INPUT ─────────────────────────────────────────────────────────────
@@ -764,6 +714,7 @@ function startGame() {
   document.getElementById('gameover-screen').classList.add('hidden');
   document.getElementById('zone-banner').classList.add('hidden');
   hudEl.classList.remove('hidden');
+  musicStart();
 }
 
 function showGameOver() {
@@ -779,6 +730,7 @@ function showGameOver() {
 
   document.getElementById('gameover-screen').classList.remove('hidden');
   hudEl.classList.add('hidden');
+  musicStop();
   gameState = 'dead';
 }
 
@@ -1343,6 +1295,7 @@ function loop(timestamp) {
   if (gameState === 'playing') {
     // Speed ramp
     speed = Math.min(SPEED_MAX, speed + SPEED_GROW * speed);
+    musicUpdate();
     // Scroll camera
     cameraX += speed;
     // Distance in meters (5px per meter)
