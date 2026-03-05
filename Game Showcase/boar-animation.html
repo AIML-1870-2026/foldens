@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sprite Animation</title>
+  <style>
+    body {
+      background: #1a1a2e;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      font-family: monospace;
+      color: #eee;
+      gap: 20px;
+    }
+    canvas {
+      image-rendering: pixelated;
+      border: 2px solid #444;
+    }
+    .controls { display: flex; gap: 12px; }
+    button {
+      padding: 10px 24px;
+      font-size: 14px;
+      font-family: monospace;
+      cursor: pointer;
+      background: #333;
+      color: #eee;
+      border: 2px solid #555;
+      border-radius: 4px;
+      transition: all 0.1s;
+    }
+    button.active { background: #a0522d; border-color: #cd853f; color: #fff; }
+    button:hover:not(.active) { background: #444; }
+    #state-label { font-size: 13px; color: #aaa; letter-spacing: 1px; }
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      color: #aaa;
+    }
+    input[type=range] {
+      accent-color: #a0522d;
+      width: 160px;
+      cursor: pointer;
+    }
+    .section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      padding: 24px;
+      border: 1px solid #333;
+      border-radius: 8px;
+    }
+    .section-title {
+      font-size: 11px;
+      letter-spacing: 2px;
+      color: #666;
+      text-transform: uppercase;
+    }
+    /* STT canvas: drawn at native resolution, scaled down via CSS */
+    #stt {
+      transform-origin: top left;
+    }
+    .stt-wrapper {
+      overflow: hidden;  /* clips to scaled size */
+    }
+    hr.divider {
+      width: 100%;
+      border: none;
+      border-top: 1px solid #2a2a3e;
+      margin: 4px 0;
+    }
+  </style>
+</head>
+<body>
+
+<div class="section">
+<div class="section-title">Boar</div>
+<canvas id="c"></canvas>
+<div class="controls">
+  <button id="btn-idle"   class="active" onclick="setAnim('idle')">Idle</button>
+  <button id="btn-walk"   onclick="setAnim('walk')">Walk</button>
+  <button id="btn-attack" onclick="setAnim('attack')">Attack</button>
+</div>
+<div id="state-label">STATE: IDLE</div>
+<div class="slider-row">
+  <span>Scale</span>
+  <input type="range" id="scale-slider" min="1" max="12" value="4" step="1">
+  <span id="scale-label">4×</span>
+</div>
+</div>
+
+<!-- ── Mammoth ──────────────────────────────────────────────── -->
+<div class="section">
+  <div class="section-title">Mammoth</div>
+  <div class="stt-wrapper" id="mam-wrapper">
+    <canvas id="mam"></canvas>
+  </div>
+  <div class="controls">
+    <button id="mam-btn-walk"   class="active" onclick="setMamAnim('walk')">Walk</button>
+    <button id="mam-btn-attack" onclick="setMamAnim('attack')">Attack</button>
+  </div>
+  <div id="mam-state-label" style="font-size:13px;color:#aaa;letter-spacing:1px">STATE: WALK</div>
+  <div class="slider-row">
+    <span>Scale</span>
+    <input type="range" id="mam-scale-slider" min="25" max="200" value="50" step="25">
+    <span id="mam-scale-label">50%</span>
+  </div>
+</div>
+
+<!-- ── Saber Tooth Tiger ─────────────────────────────────────── -->
+<div class="section">
+  <div class="section-title">Saber Tooth Tiger</div>
+  <div class="stt-wrapper" id="stt-wrapper">
+    <canvas id="stt"></canvas>
+  </div>
+  <div class="controls">
+    <button id="stt-btn-walk"   class="active" onclick="setSttAnim('walk')">Walk</button>
+    <button id="stt-btn-attack" onclick="setSttAnim('attack')">Attack</button>
+  </div>
+  <div id="stt-state-label">STATE: WALK</div>
+  <div class="slider-row">
+    <span>Scale</span>
+    <input type="range" id="stt-scale-slider" min="10" max="100" value="25" step="5">
+    <span id="stt-scale-label">25%</span>
+  </div>
+</div>
+
+<script>
+  // ── Sprite sheet config ────────────────────────────────────────────────
+  // Each sheet: 32×32 px per frame, 4 direction rows (0=down,1=left,2=right,3=up)
+  const FRAME_W   = 32;
+  const FRAME_H   = 32;
+  const DIRECTION = 3;    // row 3 = facing right
+  let   scale     = 4;
+
+  const ANIMS = {
+    idle:   { src: 'Boar/Boar_Idle_with_shadow.png',   frames: 4, fps: 6  },
+    walk:   { src: 'Boar/Boar_Walk_with_shadow.png',   frames: 6, fps: 10 },
+    attack: { src: 'Boar/Boar_Attack_with_shadow.png', frames: 5, fps: 12 },
+  };
+
+  // ── Preload all sheets ─────────────────────────────────────────────────
+  const sheets = {};
+  let loaded = 0;
+  const total = Object.keys(ANIMS).length;
+
+  Object.entries(ANIMS).forEach(([name, anim]) => {
+    const img = new Image();
+    img.src = anim.src;
+    img.onload = () => { if (++loaded === total) requestAnimationFrame(loop); };
+    sheets[name] = img;
+  });
+
+  // ── Canvas ────────────────────────────────────────────────────────────
+  const canvas = document.getElementById('c');
+  const ctx    = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+
+  function applyScale(s) {
+    scale          = s;
+    canvas.width   = FRAME_W * scale;
+    canvas.height  = FRAME_H * scale;
+    ctx.imageSmoothingEnabled = false; // reset after resize
+    document.getElementById('scale-label').textContent = s + '×';
+  }
+  applyScale(scale);
+
+  document.getElementById('scale-slider').addEventListener('input', e => {
+    applyScale(Number(e.target.value));
+  });
+
+  // ── State ─────────────────────────────────────────────────────────────
+  let currentAnim = 'idle';
+  let frame       = 0;
+  let lastTime    = 0;
+  let elapsed     = 0;
+
+  // ── Loop ──────────────────────────────────────────────────────────────
+  function loop(ts) {
+    requestAnimationFrame(loop);
+
+    const dt   = ts - lastTime;
+    lastTime   = ts;
+    elapsed   += dt;
+
+    const anim = ANIMS[currentAnim];
+    const frameDuration = 1000 / anim.fps;
+    if (elapsed >= frameDuration) {
+      frame   = (frame + 1) % anim.frames;
+      elapsed -= frameDuration;
+    }
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    ctx.drawImage(
+      sheets[currentAnim],
+      frame * FRAME_W,       // source x: step through columns
+      DIRECTION * FRAME_H,   // source y: pick the "right-facing" row
+      FRAME_W, FRAME_H,      // one clean 32×32 frame
+      0, 0,
+      FRAME_W * scale, FRAME_H * scale
+    );
+  }
+
+  // ── Controls ──────────────────────────────────────────────────────────
+  function setAnim(name) {
+    if (name === currentAnim) return;
+    currentAnim = name;
+    frame       = 0;
+    elapsed     = 0;
+    document.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+    document.getElementById('btn-' + name).classList.add('active');
+    document.getElementById('state-label').textContent = 'STATE: ' + name.toUpperCase();
+  }
+</script>
+
+<script>
+  // ── Saber Tooth Tiger ──────────────────────────────────────────────────
+  const STT_FW  = 1280;
+  const STT_FH  = 720;
+  const STT_FPS = 24;
+
+  const sttCanvas = document.getElementById('stt');
+  sttCanvas.width  = STT_FW;
+  sttCanvas.height = STT_FH;
+  const sttCtx = sttCanvas.getContext('2d');
+  sttCtx.imageSmoothingEnabled = true;
+
+  let sttCurrentAnim = 'walk';
+  let sttFrame   = 0;
+  let sttElapsed = 0;
+  let sttLast    = 0;
+  const sttSets  = {};
+
+  function loadSttSet(folder, count, start = 1) {
+    return new Promise(resolve => {
+      const imgs = [];
+      let done = 0;
+      for (let i = start; i < start + count; i++) {
+        const img = new Image();
+        img.src = `Saber Tooth Tiger/${folder}/${String(i).padStart(4,'0')}.jpg`;
+        img.onload = () => { if (++done === count) resolve(imgs); };
+        imgs.push(img);
+      }
+    });
+  }
+
+  Promise.all([
+    loadSttSet('saber-tooth-tiger-walking',  148, 1),
+    loadSttSet('saber-tooth-tiger-attacking', 175, 1),
+  ]).then(([walkImgs, attackImgs]) => {
+    sttSets.walk   = walkImgs;
+    sttSets.attack = attackImgs;
+    requestAnimationFrame(sttLoop);
+  });
+
+  function applySttScale(pct) {
+    const s = pct / 100;
+    sttCanvas.style.transform = `scale(${s})`;
+    sttCanvas.style.transformOrigin = 'top left';
+    const wrapper = document.getElementById('stt-wrapper');
+    wrapper.style.width  = Math.round(STT_FW * s) + 'px';
+    wrapper.style.height = Math.round(STT_FH * s) + 'px';
+    document.getElementById('stt-scale-label').textContent = pct + '%';
+  }
+  applySttScale(25);
+
+  function setSttAnim(name) {
+    if (name === sttCurrentAnim) return;
+    sttCurrentAnim = name;
+    sttFrame   = 0;
+    sttElapsed = 0;
+    document.querySelectorAll('[id^="stt-btn-"]').forEach(b => b.classList.remove('active'));
+    document.getElementById('stt-btn-' + name).classList.add('active');
+    document.getElementById('stt-state-label').textContent = 'STATE: ' + name.toUpperCase();
+  }
+
+  document.getElementById('stt-scale-slider').addEventListener('input', e => {
+    applySttScale(Number(e.target.value));
+  });
+
+  function sttLoop(ts) {
+    requestAnimationFrame(sttLoop);
+    sttElapsed += ts - sttLast;
+    sttLast     = ts;
+
+    const imgs = sttSets[sttCurrentAnim];
+    if (!imgs) return;
+
+    if (sttElapsed >= 1000 / STT_FPS) {
+      sttFrame    = (sttFrame + 1) % imgs.length;
+      sttElapsed -= 1000 / STT_FPS;
+    }
+
+    if (imgs[sttFrame]?.complete)
+      sttCtx.drawImage(imgs[sttFrame], 0, 0, STT_FW, STT_FH);
+  }
+</script>
+
+<!-- ── Club Man ──────────────────────────────────────────────── -->
+<div class="section">
+  <div class="section-title">Club Man</div>
+  <div class="stt-wrapper" id="cm-wrapper">
+    <canvas id="cm"></canvas>
+  </div>
+  <div id="cm-state-label" style="font-size:13px;color:#aaa;letter-spacing:1px">STATE: ATTACK</div>
+  <div class="slider-row">
+    <span>Scale</span>
+    <input type="range" id="cm-scale-slider" min="10" max="100" value="25" step="5">
+    <span id="cm-scale-label">25%</span>
+  </div>
+</div>
+
+<script>
+  // ── Club Man ───────────────────────────────────────────────────────────
+  const CM_FW  = 1280;
+  const CM_FH  = 720;
+  const CM_FPS = 24;
+  const CM_TOTAL = 145;
+
+  const cmCanvas = document.getElementById('cm');
+  cmCanvas.width  = CM_FW;
+  cmCanvas.height = CM_FH;
+  const cmCtx = cmCanvas.getContext('2d');
+  cmCtx.imageSmoothingEnabled = true;
+
+  const cmImgs = [];
+  let cmReady  = 0;
+  for (let i = 1; i <= CM_TOTAL; i++) {
+    const img = new Image();
+    img.src = `Club Man/club-man-attacking/${String(i).padStart(4,'0')}.jpg`;
+    img.onload = () => { if (++cmReady === CM_TOTAL) requestAnimationFrame(cmLoop); };
+    cmImgs.push(img);
+  }
+
+  let cmFrame   = 0;
+  let cmElapsed = 0;
+  let cmLast    = 0;
+
+  function applyCmScale(pct) {
+    const s = pct / 100;
+    cmCanvas.style.transform = `scale(${s})`;
+    cmCanvas.style.transformOrigin = 'top left';
+    const wrapper = document.getElementById('cm-wrapper');
+    wrapper.style.width  = Math.round(CM_FW * s) + 'px';
+    wrapper.style.height = Math.round(CM_FH * s) + 'px';
+    document.getElementById('cm-scale-label').textContent = pct + '%';
+  }
+  applyCmScale(25);
+
+  document.getElementById('cm-scale-slider').addEventListener('input', e => {
+    applyCmScale(Number(e.target.value));
+  });
+
+  function cmLoop(ts) {
+    requestAnimationFrame(cmLoop);
+    cmElapsed += ts - cmLast;
+    cmLast     = ts;
+
+    if (cmElapsed >= 1000 / CM_FPS) {
+      cmFrame    = (cmFrame + 1) % CM_TOTAL;
+      cmElapsed -= 1000 / CM_FPS;
+    }
+
+    if (cmImgs[cmFrame]?.complete)
+      cmCtx.drawImage(cmImgs[cmFrame], 0, 0, CM_FW, CM_FH);
+  }
+</script>
+
+<!-- ── Stone Man ─────────────────────────────────────────────── -->
+<div class="section">
+  <div class="section-title">Stone Man</div>
+  <div class="stt-wrapper" id="sm-wrapper">
+    <canvas id="sm"></canvas>
+  </div>
+  <div id="sm-state-label" style="font-size:13px;color:#aaa;letter-spacing:1px">STATE: ATTACK</div>
+  <div class="slider-row">
+    <span>Scale</span>
+    <input type="range" id="sm-scale-slider" min="10" max="100" value="25" step="5">
+    <span id="sm-scale-label">25%</span>
+  </div>
+</div>
+
+<script>
+  // ── Stone Man ──────────────────────────────────────────────────────────
+  const SM_FW  = 1280;
+  const SM_FH  = 720;
+  const SM_FPS = 24;
+  const SM_TOTAL = 124;
+
+  const smCanvas = document.getElementById('sm');
+  smCanvas.width  = SM_FW;
+  smCanvas.height = SM_FH;
+  const smCtx = smCanvas.getContext('2d');
+  smCtx.imageSmoothingEnabled = true;
+
+  const smImgs = [];
+  let smReady  = 0;
+  for (let i = 1; i <= SM_TOTAL; i++) {
+    const img = new Image();
+    img.src = `Stone Man/stone-man-attacking/${String(i).padStart(4,'0')}.jpg`;
+    img.onload = () => { if (++smReady === SM_TOTAL) requestAnimationFrame(smLoop); };
+    smImgs.push(img);
+  }
+
+  let smFrame   = 0;
+  let smElapsed = 0;
+  let smLast    = 0;
+
+  function applySmScale(pct) {
+    const s = pct / 100;
+    smCanvas.style.transform = `scale(${s})`;
+    smCanvas.style.transformOrigin = 'top left';
+    const wrapper = document.getElementById('sm-wrapper');
+    wrapper.style.width  = Math.round(SM_FW * s) + 'px';
+    wrapper.style.height = Math.round(SM_FH * s) + 'px';
+    document.getElementById('sm-scale-label').textContent = pct + '%';
+  }
+  applySmScale(25);
+
+  document.getElementById('sm-scale-slider').addEventListener('input', e => {
+    applySmScale(Number(e.target.value));
+  });
+
+  function smLoop(ts) {
+    requestAnimationFrame(smLoop);
+    smElapsed += ts - smLast;
+    smLast     = ts;
+
+    if (smElapsed >= 1000 / SM_FPS) {
+      smFrame    = (smFrame + 1) % SM_TOTAL;
+      smElapsed -= 1000 / SM_FPS;
+    }
+
+    if (smImgs[smFrame]?.complete)
+      smCtx.drawImage(smImgs[smFrame], 0, 0, SM_FW, SM_FH);
+  }
+</script>
+
+<!-- ── Spear Man ─────────────────────────────────────────────── -->
+<div class="section">
+  <div class="section-title">Spear Man</div>
+  <div class="stt-wrapper" id="spm-wrapper">
+    <canvas id="spm"></canvas>
+  </div>
+  <div id="spm-state-label" style="font-size:13px;color:#aaa;letter-spacing:1px">STATE: ATTACK</div>
+  <div class="slider-row">
+    <span>Scale</span>
+    <input type="range" id="spm-scale-slider" min="10" max="100" value="25" step="5">
+    <span id="spm-scale-label">25%</span>
+  </div>
+</div>
+
+<script>
+  // ── Spear Man ──────────────────────────────────────────────────────────
+  const SPM_FW  = 1280;
+  const SPM_FH  = 720;
+  const SPM_FPS = 24;
+  const SPM_TOTAL = 100;
+
+  const spmCanvas = document.getElementById('spm');
+  spmCanvas.width  = SPM_FW;
+  spmCanvas.height = SPM_FH;
+  const spmCtx = spmCanvas.getContext('2d');
+  spmCtx.imageSmoothingEnabled = true;
+
+  const spmImgs = [];
+  let spmReady  = 0;
+  for (let i = 1; i <= SPM_TOTAL; i++) {
+    const img = new Image();
+    img.src = `Spear Man/spear-man-attacking/${String(i).padStart(4,'0')}.jpg`;
+    img.onload = () => { if (++spmReady === SPM_TOTAL) requestAnimationFrame(spmLoop); };
+    spmImgs.push(img);
+  }
+
+  let spmFrame   = 0;
+  let spmElapsed = 0;
+  let spmLast    = 0;
+
+  function applySpmScale(pct) {
+    const s = pct / 100;
+    spmCanvas.style.transform = `scale(${s})`;
+    spmCanvas.style.transformOrigin = 'top left';
+    const wrapper = document.getElementById('spm-wrapper');
+    wrapper.style.width  = Math.round(SPM_FW * s) + 'px';
+    wrapper.style.height = Math.round(SPM_FH * s) + 'px';
+    document.getElementById('spm-scale-label').textContent = pct + '%';
+  }
+  applySpmScale(25);
+
+  document.getElementById('spm-scale-slider').addEventListener('input', e => {
+    applySpmScale(Number(e.target.value));
+  });
+
+  function spmLoop(ts) {
+    requestAnimationFrame(spmLoop);
+    spmElapsed += ts - spmLast;
+    spmLast     = ts;
+
+    if (spmElapsed >= 1000 / SPM_FPS) {
+      spmFrame    = (spmFrame + 1) % SPM_TOTAL;
+      spmElapsed -= 1000 / SPM_FPS;
+    }
+
+    if (spmImgs[spmFrame]?.complete)
+      spmCtx.drawImage(spmImgs[spmFrame], 0, 0, SPM_FW, SPM_FH);
+  }
+</script>
+
+<!-- ── Sword Man ─────────────────────────────────────────────── -->
+<div class="section">
+  <div class="section-title">Sword Man</div>
+  <div class="stt-wrapper" id="swm-wrapper">
+    <canvas id="swm"></canvas>
+  </div>
+  <div id="swm-state-label" style="font-size:13px;color:#aaa;letter-spacing:1px">STATE: ATTACK</div>
+  <div class="slider-row">
+    <span>Scale</span>
+    <input type="range" id="swm-scale-slider" min="10" max="100" value="25" step="5">
+    <span id="swm-scale-label">25%</span>
+  </div>
+</div>
+
+<script>
+  // ── Sword Man ──────────────────────────────────────────────────────────
+  const SWM_FW  = 1280;
+  const SWM_FH  = 720;
+  const SWM_FPS = 24;
+  const SWM_TOTAL = 123;
+
+  const swmCanvas = document.getElementById('swm');
+  swmCanvas.width  = SWM_FW;
+  swmCanvas.height = SWM_FH;
+  const swmCtx = swmCanvas.getContext('2d');
+  swmCtx.imageSmoothingEnabled = true;
+
+  const swmImgs = [];
+  let swmReady  = 0;
+  for (let i = 1; i <= SWM_TOTAL; i++) {
+    const img = new Image();
+    img.src = `Sword Man/sword-man-attacking/${String(i).padStart(4,'0')}.jpg`;
+    img.onload = () => { if (++swmReady === SWM_TOTAL) requestAnimationFrame(swmLoop); };
+    swmImgs.push(img);
+  }
+
+  let swmFrame   = 0;
+  let swmElapsed = 0;
+  let swmLast    = 0;
+
+  function applySwmScale(pct) {
+    const s = pct / 100;
+    swmCanvas.style.transform = `scale(${s})`;
+    swmCanvas.style.transformOrigin = 'top left';
+    const wrapper = document.getElementById('swm-wrapper');
+    wrapper.style.width  = Math.round(SWM_FW * s) + 'px';
+    wrapper.style.height = Math.round(SWM_FH * s) + 'px';
+    document.getElementById('swm-scale-label').textContent = pct + '%';
+  }
+  applySwmScale(25);
+
+  document.getElementById('swm-scale-slider').addEventListener('input', e => {
+    applySwmScale(Number(e.target.value));
+  });
+
+  function swmLoop(ts) {
+    requestAnimationFrame(swmLoop);
+    swmElapsed += ts - swmLast;
+    swmLast     = ts;
+
+    if (swmElapsed >= 1000 / SWM_FPS) {
+      swmFrame    = (swmFrame + 1) % SWM_TOTAL;
+      swmElapsed -= 1000 / SWM_FPS;
+    }
+
+    if (swmImgs[swmFrame]?.complete)
+      swmCtx.drawImage(swmImgs[swmFrame], 0, 0, SWM_FW, SWM_FH);
+  }
+</script>
+
+<script>
+  // ── Mammoth ────────────────────────────────────────────────────────────
+  const MAM_FW  = 768;
+  const MAM_FH  = 448;
+  const MAM_FPS = 12;
+
+  const mamCanvas = document.getElementById('mam');
+  mamCanvas.width  = MAM_FW;
+  mamCanvas.height = MAM_FH;
+  const mamCtx = mamCanvas.getContext('2d');
+  mamCtx.imageSmoothingEnabled = true;
+
+  function loadMamSet(folder, count) {
+    return new Promise(resolve => {
+      const imgs = [];
+      let done = 0;
+      for (let i = 1; i <= count; i++) {
+        const img = new Image();
+        img.src = `Mammoth/${folder}/ezgif-frame-${String(i).padStart(3,'0')}.png`;
+        img.onload = () => { if (++done === count) resolve(imgs); };
+        imgs.push(img);
+      }
+    });
+  }
+
+  const mamSets = {};
+  let mamCurrentAnim = 'walk';
+  let mamFrame   = 0;
+  let mamElapsed = 0;
+  let mamLast    = 0;
+
+  Promise.all([
+    loadMamSet('mammoth_walking',   21),
+    loadMamSet('mammoth_attacking', 22),
+  ]).then(([walkImgs, attackImgs]) => {
+    mamSets.walk   = walkImgs;
+    mamSets.attack = attackImgs;
+    requestAnimationFrame(mamLoop);
+  });
+
+  function setMamAnim(name) {
+    if (name === mamCurrentAnim) return;
+    mamCurrentAnim = name;
+    mamFrame   = 0;
+    mamElapsed = 0;
+    document.querySelectorAll('[id^="mam-btn-"]').forEach(b => b.classList.remove('active'));
+    document.getElementById('mam-btn-' + name).classList.add('active');
+    document.getElementById('mam-state-label').textContent = 'STATE: ' + name.toUpperCase();
+  }
+
+  function applyMamScale(pct) {
+    const s = pct / 100;
+    mamCanvas.style.transform = `scale(${s})`;
+    mamCanvas.style.transformOrigin = 'top left';
+    const wrapper = document.getElementById('mam-wrapper');
+    wrapper.style.width  = Math.round(MAM_FW * s) + 'px';
+    wrapper.style.height = Math.round(MAM_FH * s) + 'px';
+    document.getElementById('mam-scale-label').textContent = pct + '%';
+  }
+  applyMamScale(50);
+
+  document.getElementById('mam-scale-slider').addEventListener('input', e => {
+    applyMamScale(Number(e.target.value));
+  });
+
+  function mamLoop(ts) {
+    requestAnimationFrame(mamLoop);
+    mamElapsed += ts - mamLast;
+    mamLast     = ts;
+
+    const imgs = mamSets[mamCurrentAnim];
+    if (!imgs) return;
+
+    if (mamElapsed >= 1000 / MAM_FPS) {
+      mamFrame    = (mamFrame + 1) % imgs.length;
+      mamElapsed -= 1000 / MAM_FPS;
+    }
+
+    if (imgs[mamFrame]?.complete)
+      mamCtx.drawImage(imgs[mamFrame], 0, 0, MAM_FW, MAM_FH);
+  }
+</script>
+</body>
+</html>
