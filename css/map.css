@@ -1,0 +1,28 @@
+/* ============================================================
+   map.css — Zone and wall visual styles
+   (Canvas drawing is handled by renderer.js; this file covers
+   any HTML overlays or fallback styling tied to the map.)
+   ============================================================ */
+
+/* Zone labels / debug overlays (toggled by JS in later steps) */
+.zone-label {
+  position: absolute;
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 0.6rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  pointer-events: none;
+  opacity: 0.25;
+}
+
+.zone-label--defense {
+  left: 20px;
+  top: 12px;
+  color: #4a8a30;
+}
+
+.zone-label--settlement {
+  left: 980px;
+  top: 12px;
+  color: #c47b22;
+}

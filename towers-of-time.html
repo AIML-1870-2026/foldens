@@ -1,0 +1,1431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Towers of Time</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@400;600&family=Orbitron:wght@400;700;900&display=swap');
+
+    :root {
+      --era1: #8B4513;
+      --era2: #2C3E7A;
+      --era3: #C47B22;
+      --era4: #2D5A1B;
+      --era5: #0D1B4B;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #000;
+      color: #fff;
+      font-family: 'Cinzel', serif;
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    /* ── CANVAS BACKGROUND ── */
+    #bgCanvas {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+    }
+
+    /* ── PARTICLE LAYER ── */
+    #particles {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    /* ── SCANLINE OVERLAY ── */
+    .scanlines {
+      position: fixed;
+      inset: 0;
+      z-index: 2;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.08) 2px,
+        rgba(0,0,0,0.08) 4px
+      );
+      pointer-events: none;
+    }
+
+    /* ── MAIN CONTAINER ── */
+    #app {
+      position: relative;
+      z-index: 10;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ── TITLE BLOCK ── */
+    .title-block {
+      text-align: center;
+      margin-bottom: 18px;
+      animation: fadeDown 1.2s ease forwards;
+    }
+
+    .subtitle {
+      font-family: 'Cinzel', serif;
+      font-size: clamp(0.7rem, 1.4vw, 1rem);
+      letter-spacing: 0.55em;
+      color: rgba(255,220,100,0.75);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .main-title {
+      font-family: 'Cinzel Decorative', serif;
+      font-size: clamp(2.8rem, 7vw, 5.8rem);
+      font-weight: 900;
+      line-height: 1;
+      background: linear-gradient(135deg, #FFD700 0%, #FFA500 40%, #FF6B00 70%, #FFD700 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      filter: drop-shadow(0 0 30px rgba(255,165,0,0.6));
+      animation: pulse-glow 3s ease-in-out infinite;
+    }
+
+    .tagline {
+      font-size: clamp(0.6rem, 1.2vw, 0.85rem);
+      letter-spacing: 0.35em;
+      color: rgba(255,255,255,0.5);
+      text-transform: uppercase;
+      margin-top: 8px;
+    }
+
+    @keyframes pulse-glow {
+      0%, 100% { filter: drop-shadow(0 0 25px rgba(255,165,0,0.5)); }
+      50%       { filter: drop-shadow(0 0 55px rgba(255,165,0,0.95)); }
+    }
+
+    @keyframes fadeDown {
+      from { opacity: 0; transform: translateY(-40px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── ERA STRIP ── */
+    .era-strip {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 22px;
+      animation: fadeIn 1.4s 0.4s ease both;
+    }
+
+    .era-card {
+      width: clamp(90px, 10vw, 120px);
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px;
+      padding: 8px 6px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .era-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .era-card:nth-child(1)::before { background: radial-gradient(circle at 50% 50%, rgba(139,69,19,0.5), transparent 70%); }
+    .era-card:nth-child(2)::before { background: radial-gradient(circle at 50% 50%, rgba(44,62,122,0.5), transparent 70%); }
+    .era-card:nth-child(3)::before { background: radial-gradient(circle at 50% 50%, rgba(196,123,34,0.5), transparent 70%); }
+    .era-card:nth-child(4)::before { background: radial-gradient(circle at 50% 50%, rgba(45,90,27,0.5), transparent 70%); }
+    .era-card:nth-child(5)::before { background: radial-gradient(circle at 50% 50%, rgba(13,27,75,0.5), transparent 70%); }
+
+    .era-card:hover::before { opacity: 1; }
+    .era-card:hover {
+      border-color: rgba(255,215,0,0.6);
+      transform: translateY(-4px) scale(1.04);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    }
+
+    .era-icon { font-size: 1.8rem; margin-bottom: 4px; display: block; }
+    .era-num  { font-size: 0.55rem; letter-spacing: 0.2em; color: rgba(255,215,0,0.7); text-transform: uppercase; }
+    .era-name { font-size: 0.65rem; color: rgba(255,255,255,0.85); margin-top: 2px; line-height: 1.2; }
+
+    /* ── CHARACTER SOUND BUTTONS ── */
+    .char-btns {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      margin-top: 7px;
+      opacity: 0;
+      transform: translateY(5px);
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      pointer-events: none;
+    }
+    .era-card:hover .char-btns {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+    .char-btn {
+      background: rgba(0,0,0,0.35);
+      border: 1px solid rgba(255,100,0,0.2);
+      color: rgba(255,200,150,0.75);
+      font-size: 0.5rem;
+      padding: 3px 6px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-family: 'Cinzel', serif;
+      letter-spacing: 0.08em;
+      text-align: left;
+      transition: all 0.15s ease;
+      width: 100%;
+    }
+    .char-btn:hover {
+      background: rgba(180,20,0,0.25);
+      border-color: rgba(255,80,0,0.55);
+      color: #FF8C00;
+      transform: translateX(2px);
+    }
+    .char-btn:active {
+      background: rgba(200,30,0,0.4);
+      transform: translateX(3px) scale(0.97);
+    }
+    .char-btn .cb-icon { margin-right: 3px; }
+
+    /* ── ENEMY SOUND BUTTONS ── */
+    .btn-divider {
+      height: 1px;
+      background: rgba(255,80,80,0.18);
+      margin: 4px 0 1px;
+    }
+    .enemy-btns {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      opacity: 0;
+      transform: translateY(5px);
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      pointer-events: none;
+    }
+    .era-card:hover .enemy-btns {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+    .enemy-btn {
+      background: rgba(60,0,0,0.35);
+      border: 1px solid rgba(200,0,0,0.2);
+      color: rgba(255,140,140,0.75);
+      font-size: 0.5rem;
+      padding: 3px 6px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-family: 'Cinzel', serif;
+      letter-spacing: 0.08em;
+      text-align: left;
+      transition: all 0.15s ease;
+      width: 100%;
+    }
+    .enemy-btn:hover {
+      background: rgba(180,0,0,0.3);
+      border-color: rgba(255,60,60,0.55);
+      color: #FF5555;
+      transform: translateX(2px);
+    }
+    .enemy-btn:active {
+      background: rgba(200,0,0,0.45);
+      transform: translateX(3px) scale(0.97);
+    }
+    .enemy-btn .cb-icon { margin-right: 3px; }
+
+    /* ── RESOURCE BAR ── */
+    .resource-bar {
+      display: flex;
+      gap: 22px;
+      margin-bottom: 26px;
+      animation: fadeIn 1.4s 0.6s ease both;
+    }
+
+    .resource {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      background: rgba(0,0,0,0.45);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 0.7rem;
+      letter-spacing: 0.12em;
+      color: rgba(255,255,255,0.75);
+    }
+
+    .resource-icon { font-size: 1rem; }
+    .resource-fill {
+      width: 70px;
+      height: 5px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .resource-fill-inner {
+      height: 100%;
+      border-radius: 3px;
+      animation: fillUp 2s 1s ease forwards;
+      width: 0%;
+    }
+    .ammo-fill   { background: linear-gradient(90deg, #FFD700, #FF8C00); }
+    .health-fill { background: linear-gradient(90deg, #00FF88, #00CC55); }
+    .morale-fill { background: linear-gradient(90deg, #00BFFF, #0080FF); }
+
+    @keyframes fillUp {
+      to { width: var(--target-w); }
+    }
+
+    /* ── MENU BUTTONS ── */
+    .menu-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      align-items: center;
+      animation: fadeIn 1.4s 0.8s ease both;
+    }
+
+    .btn {
+      font-family: 'Cinzel', serif;
+      font-size: clamp(0.75rem, 1.4vw, 0.95rem);
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      border: none;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.25s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0.12);
+      transform: translateX(-100%);
+      transition: transform 0.3s ease;
+    }
+    .btn:hover::after { transform: translateX(0); }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #8B2500, #CC3300, #FF5500);
+      color: #FFD700;
+      padding: 14px 60px;
+      font-size: clamp(0.9rem, 1.8vw, 1.15rem);
+      font-weight: 700;
+      box-shadow: 0 0 20px rgba(255,80,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15);
+    }
+    .btn-primary:hover {
+      box-shadow: 0 0 40px rgba(255,100,0,0.7), inset 0 1px 0 rgba(255,255,255,0.2);
+      transform: scale(1.03);
+    }
+
+    .btn-secondary {
+      background: rgba(255,255,255,0.06);
+      color: rgba(255,255,255,0.75);
+      padding: 10px 40px;
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    .btn-secondary:hover {
+      border-color: rgba(255,215,0,0.5);
+      color: #FFD700;
+    }
+
+    .secondary-row { display: flex; gap: 12px; }
+
+    /* ── VERSION ── */
+    .version {
+      position: fixed;
+      bottom: 14px;
+      right: 18px;
+      font-size: 0.6rem;
+      color: rgba(255,255,255,0.25);
+      letter-spacing: 0.15em;
+      z-index: 20;
+    }
+
+    /* ── ERA TOOLTIP ── */
+    #eraTooltip {
+      position: fixed;
+      bottom: 0;
+      left: 0; right: 0;
+      padding: 10px 20px;
+      background: rgba(0,0,0,0.8);
+      border-top: 1px solid rgba(255,215,0,0.25);
+      display: flex;
+      gap: 40px;
+      justify-content: center;
+      font-size: 0.7rem;
+      color: rgba(255,255,255,0.65);
+      z-index: 20;
+      opacity: 0;
+      transform: translateY(100%);
+      transition: all 0.3s ease;
+    }
+    #eraTooltip.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .tip-group { display: flex; flex-direction: column; gap: 3px; }
+    .tip-label {
+      font-size: 0.55rem;
+      letter-spacing: 0.2em;
+      color: rgba(255,215,0,0.7);
+      text-transform: uppercase;
+    }
+    .tip-val { font-size: 0.68rem; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="bgCanvas"></canvas>
+<canvas id="particles"></canvas>
+<div class="scanlines"></div>
+
+<div id="app">
+  <!-- Title -->
+  <div class="title-block">
+    <div class="subtitle">A Tower Defense Epic</div>
+    <div class="main-title">Towers of Time</div>
+    <div class="tagline">Five Eras &nbsp;·&nbsp; Infinite Battles &nbsp;·&nbsp; One Destiny</div>
+  </div>
+
+  <!-- Era Strip -->
+  <div class="era-strip">
+    <div class="era-card" data-era="1"
+         data-chars="Club · Rock Thrower · Spear"
+         data-enemies="Boar · Sabre-Tooth Tiger · Mastodon"
+         data-cooldown="Fire Rain"
+         data-obstacle="Boulder">
+      <span class="era-icon">🦣</span>
+      <div class="era-num">Era I</div>
+      <div class="era-name">Prehistoric</div>
+      <div class="char-btns">
+        <button class="char-btn" data-sfx="club"><span class="cb-icon">🪨</span>Club</button>
+        <button class="char-btn" data-sfx="rockThrower"><span class="cb-icon">🗿</span>Rock Thrower</button>
+        <button class="char-btn" data-sfx="spear"><span class="cb-icon">🏹</span>Spear</button>
+      </div>
+      <div class="btn-divider"></div>
+      <div class="enemy-btns">
+        <button class="enemy-btn" data-sfx="boar"><span class="cb-icon">🐗</span>Boar</button>
+        <button class="enemy-btn" data-sfx="saberToothTiger"><span class="cb-icon">🐯</span>Saber-Tooth</button>
+        <button class="enemy-btn" data-sfx="mammoth"><span class="cb-icon">🦣</span>Mammoth</button>
+      </div>
+    </div>
+    <div class="era-card" data-era="2"
+         data-chars="Swordsman · Archer · Cavalry"
+         data-enemies="Witch · Vampire · Ghost"
+         data-cooldown="Trebuchet"
+         data-obstacle="Wooden Wall">
+      <span class="era-icon">⚔️</span>
+      <div class="era-num">Era II</div>
+      <div class="era-name">Medieval</div>
+      <div class="char-btns">
+        <button class="char-btn" data-sfx="swordsman"><span class="cb-icon">⚔️</span>Swordsman</button>
+        <button class="char-btn" data-sfx="archer"><span class="cb-icon">🏹</span>Archer</button>
+        <button class="char-btn" data-sfx="cavalry"><span class="cb-icon">🐴</span>Cavalry</button>
+      </div>
+    </div>
+    <div class="era-card" data-era="3"
+         data-chars="Cutlass · Blunderbuss · Crossbowman"
+         data-enemies="Pirates"
+         data-cooldown="Cannon"
+         data-obstacle="Stone Wall">
+      <span class="era-icon">🏴‍☠️</span>
+      <div class="era-num">Era III</div>
+      <div class="era-name">Age of Pirates</div>
+      <div class="char-btns">
+        <button class="char-btn" data-sfx="cutlass"><span class="cb-icon">🗡️</span>Cutlass</button>
+        <button class="char-btn" data-sfx="blunderbuss"><span class="cb-icon">💥</span>Blunderbuss</button>
+        <button class="char-btn" data-sfx="crossbowman"><span class="cb-icon">🎯</span>Crossbowman</button>
+      </div>
+    </div>
+    <div class="era-card" data-era="4"
+         data-chars="Ghillie Suit · Machine Gunner · Turret"
+         data-enemies="Grunt Zombie · Vombie · Necro Zombie"
+         data-cooldown="Fighter Jets"
+         data-obstacle="Barbed Wire">
+      <span class="era-icon">🧟</span>
+      <div class="era-num">Era IV</div>
+      <div class="era-name">Modern</div>
+      <div class="char-btns">
+        <button class="char-btn" data-sfx="ghillieKnife"><span class="cb-icon">🔪</span>Ghillie Knife</button>
+        <button class="char-btn" data-sfx="machineGunner"><span class="cb-icon">🔫</span>Machine Gunner</button>
+        <button class="char-btn" data-sfx="turret"><span class="cb-icon">⚙️</span>Turret</button>
+      </div>
+    </div>
+    <div class="era-card" data-era="5"
+         data-chars="Lightsaber · Railgun · Orbital Laser"
+         data-enemies="Laser Alien · Fortnite Bart Simpson · Flying Saucer"
+         data-cooldown="Nuclear Bombs"
+         data-obstacle="Force Field">
+      <span class="era-icon">🚀</span>
+      <div class="era-num">Era V</div>
+      <div class="era-name">Future Wars</div>
+      <div class="char-btns">
+        <button class="char-btn" data-sfx="lightsaber"><span class="cb-icon">⚡</span>Lightsaber</button>
+        <button class="char-btn" data-sfx="railgun"><span class="cb-icon">🔋</span>Railgun</button>
+        <button class="char-btn" data-sfx="orbitalLaser"><span class="cb-icon">🛸</span>Orbital Laser</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Resources -->
+  <div class="resource-bar">
+    <div class="resource">
+      <span class="resource-icon">🎯</span>
+      <span>Ammo</span>
+      <div class="resource-fill"><div class="resource-fill-inner ammo-fill" style="--target-w:82%"></div></div>
+    </div>
+    <div class="resource">
+      <span class="resource-icon">🏰</span>
+      <span>Tower HP</span>
+      <div class="resource-fill"><div class="resource-fill-inner health-fill" style="--target-w:90%"></div></div>
+    </div>
+    <div class="resource">
+      <span class="resource-icon">⚡</span>
+      <span>Morale</span>
+      <div class="resource-fill"><div class="resource-fill-inner morale-fill" style="--target-w:68%"></div></div>
+    </div>
+  </div>
+
+  <!-- Menu -->
+  <div class="menu-buttons">
+    <button class="btn btn-primary" onclick="startGame()">⚔ &nbsp; Begin Campaign</button>
+    <div class="secondary-row">
+      <button class="btn btn-secondary" onclick="alert('Era Select — Coming Soon')">Select Era</button>
+      <button class="btn btn-secondary" onclick="alert('Settings — Coming Soon')">Settings</button>
+      <button class="btn btn-secondary" onclick="alert('Credits — Coming Soon')">Credits</button>
+    </div>
+  </div>
+</div>
+
+<!-- Era Tooltip -->
+<div id="eraTooltip">
+  <div class="tip-group"><div class="tip-label">Characters</div><div class="tip-val" id="tipChars">—</div></div>
+  <div class="tip-group"><div class="tip-label">Enemies</div><div class="tip-val" id="tipEnemies">—</div></div>
+  <div class="tip-group"><div class="tip-label">Cooldown</div><div class="tip-val" id="tipCooldown">—</div></div>
+  <div class="tip-group"><div class="tip-label">Obstacle</div><div class="tip-val" id="tipObstacle">—</div></div>
+</div>
+
+<div class="version">TOWERS OF TIME · v0.1.0 · PRE-ALPHA</div>
+
+<script>
+/* ══════════════════════════════════════════════
+   BACKGROUND CANVAS — cycling era landscapes
+══════════════════════════════════════════════ */
+const bgCanvas = document.getElementById('bgCanvas');
+const bgCtx    = bgCanvas.getContext('2d');
+
+const ERAS = [
+  { sky: ['#1a0a00','#5C3317','#8B4513','#D2691E'], ground: '#3B2507', accent: '#FF6B00', label: 'Prehistoric' },
+  { sky: ['#0a0a1a','#1a1a3a','#2C3E7A','#4B6CB7'], ground: '#1a1a2a', accent: '#7B68EE', label: 'Medieval'    },
+  { sky: ['#0a0505','#3B1515','#6B2D2D','#C4762B'], ground: '#0D0808', accent: '#FF9933', label: 'Pirates'     },
+  { sky: ['#050a05','#0F1F0F','#1A3A1A','#2D5A1B'], ground: '#050805', accent: '#39FF14', label: 'Modern War'  },
+  { sky: ['#000005','#05050F','#0D0D2B','#1A1A4B'], ground: '#000010', accent: '#00BFFF', label: 'Future'      },
+];
+
+let currentEra = 0;
+let eraT = 0;       // 0→1 per era
+let eraDuration = 5; // seconds per era
+let lastTime = 0;
+
+function resizeBg() {
+  bgCanvas.width  = window.innerWidth;
+  bgCanvas.height = window.innerHeight;
+}
+resizeBg();
+window.addEventListener('resize', resizeBg);
+
+function lerp(a, b, t) { return a + (b - a) * t; }
+
+function hexToRgb(hex) {
+  const r = parseInt(hex.slice(1,3),16);
+  const g = parseInt(hex.slice(3,5),16);
+  const b = parseInt(hex.slice(5,7),16);
+  return {r,g,b};
+}
+
+function lerpColor(hex1, hex2, t) {
+  const a = hexToRgb(hex1), b = hexToRgb(hex2);
+  const r = Math.round(lerp(a.r, b.r, t));
+  const g = Math.round(lerp(a.g, b.g, t));
+  const bv= Math.round(lerp(a.b, b.b, t));
+  return `rgb(${r},${g},${bv})`;
+}
+
+// Pre-generate silhouette shapes for each era
+const silhouettes = {
+  0: drawPrehistoric,
+  1: drawMedieval,
+  2: drawPirate,
+  3: drawModern,
+  4: drawFuture,
+};
+
+function drawPrehistoric(ctx, w, h, t) {
+  ctx.fillStyle = '#2A1B08';
+  // rolling hills
+  ctx.beginPath();
+  ctx.moveTo(0, h);
+  for (let x = 0; x <= w; x += 10) {
+    const y = h * 0.6 + Math.sin(x * 0.008 + t * 0.3) * h * 0.07
+                      + Math.cos(x * 0.015 + t * 0.2) * h * 0.04;
+    ctx.lineTo(x, y);
+  }
+  ctx.lineTo(w, h); ctx.closePath(); ctx.fill();
+
+  // boulders
+  ctx.fillStyle = '#1A0F05';
+  [[0.1,0.65,40],[0.4,0.7,25],[0.7,0.62,55],[0.9,0.68,30]].forEach(([rx,ry,r]) => {
+    ctx.beginPath();
+    ctx.arc(w*rx, h*ry, r, 0, Math.PI*2);
+    ctx.fill();
+  });
+
+  // trees (primitive)
+  ctx.fillStyle = '#1C3A0A';
+  [[0.2,0.55,15,30],[0.55,0.58,18,35],[0.82,0.52,12,25]].forEach(([rx,ry,rw,rh]) => {
+    ctx.beginPath();
+    ctx.moveTo(w*rx, h*ry);
+    ctx.lineTo(w*rx - rw, h*ry + rh);
+    ctx.lineTo(w*rx + rw, h*ry + rh);
+    ctx.closePath(); ctx.fill();
+  });
+}
+
+function drawMedieval(ctx, w, h, t) {
+  ctx.fillStyle = '#0D1020';
+  // ground
+  ctx.fillRect(0, h*0.65, w, h);
+
+  // castle towers
+  const towers = [[0.15,0.25],[0.35,0.35],[0.65,0.3],[0.85,0.2]];
+  towers.forEach(([rx, topY]) => {
+    const x = w*rx, tw = w*0.05, th = h*(0.65-topY);
+    ctx.fillStyle = '#0D1020';
+    ctx.fillRect(x - tw/2, h*topY, tw, th);
+    // merlons
+    ctx.fillStyle = '#0A0D1A';
+    for (let i = 0; i < 3; i++) {
+      ctx.fillRect(x - tw/2 + i*(tw/3), h*topY - 10, tw/4, 10);
+    }
+  });
+
+  // moon
+  ctx.fillStyle = 'rgba(200,200,255,0.15)';
+  ctx.beginPath();
+  ctx.arc(w*0.75, h*0.2, 35, 0, Math.PI*2);
+  ctx.fill();
+}
+
+function drawPirate(ctx, w, h, t) {
+  // ocean waves
+  const waveOff = t * 0.5;
+  ctx.fillStyle = '#0A1520';
+  ctx.fillRect(0, h*0.55, w, h);
+
+  ctx.strokeStyle = 'rgba(100,160,200,0.3)';
+  ctx.lineWidth = 2;
+  for (let wy = 0; wy < 5; wy++) {
+    ctx.beginPath();
+    for (let x = 0; x <= w; x += 8) {
+      const y = h*(0.58 + wy*0.04) + Math.sin(x*0.02 + waveOff + wy) * 6;
+      x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+
+  // ship silhouette
+  ctx.fillStyle = '#0A0A0A';
+  const sx = w*0.5, sy = h*0.52;
+  ctx.beginPath();
+  ctx.moveTo(sx - 80, sy + 30);
+  ctx.lineTo(sx + 80, sy + 30);
+  ctx.lineTo(sx + 60, sy + 50);
+  ctx.lineTo(sx - 60, sy + 50);
+  ctx.closePath(); ctx.fill();
+  // mast
+  ctx.fillRect(sx - 3, sy - 40, 6, 70);
+  // sail
+  ctx.beginPath();
+  ctx.moveTo(sx, sy - 35);
+  ctx.lineTo(sx + 40, sy);
+  ctx.lineTo(sx, sy + 5);
+  ctx.closePath(); ctx.fill();
+
+  // island far right
+  ctx.fillStyle = '#0F1505';
+  ctx.beginPath();
+  ctx.arc(w*0.88, h*0.58, 45, Math.PI, Math.PI*2);
+  ctx.fill();
+}
+
+function drawModern(ctx, w, h, t) {
+  // ground
+  ctx.fillStyle = '#050A05';
+  ctx.fillRect(0, h*0.6, w, h);
+
+  // ruined buildings
+  const buildings = [[0.1,0.3,60,h*0.3],[0.3,0.4,45,h*0.2],[0.6,0.25,70,h*0.35],[0.8,0.35,50,h*0.25]];
+  buildings.forEach(([rx,topFrac,bw,bh]) => {
+    ctx.fillStyle = '#0A150A';
+    const bx = w*rx - bw/2;
+    const by = h*topFrac;
+    ctx.fillRect(bx, by, bw, bh);
+    // broken top
+    ctx.fillStyle = '#050A05';
+    ctx.beginPath();
+    ctx.moveTo(bx, by);
+    ctx.lineTo(bx + bw*0.3, by - 12);
+    ctx.lineTo(bx + bw*0.5, by);
+    ctx.lineTo(bx + bw*0.7, by - 8);
+    ctx.lineTo(bx + bw, by);
+    ctx.closePath(); ctx.fill();
+  });
+
+  // searchlight sweep
+  const angle = Math.sin(t * 0.6) * 0.4 - 0.2;
+  const grd = ctx.createRadialGradient(w*0.5, h, 0, w*0.5, h, h*0.7);
+  grd.addColorStop(0, 'rgba(57,255,20,0.07)');
+  grd.addColorStop(1, 'transparent');
+  ctx.save();
+  ctx.translate(w*0.5, h);
+  ctx.rotate(angle);
+  ctx.fillStyle = grd;
+  ctx.beginPath();
+  ctx.moveTo(0,0);
+  ctx.lineTo(-h*0.4, -h*0.9);
+  ctx.lineTo(h*0.4, -h*0.9);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawFuture(ctx, w, h, t) {
+  // planet surface
+  ctx.fillStyle = '#050510';
+  ctx.fillRect(0, h*0.65, w, h);
+
+  // grid lines
+  ctx.strokeStyle = 'rgba(0,100,200,0.12)';
+  ctx.lineWidth = 1;
+  const vp = {x: w/2, y: h*0.65};
+  for (let i = -10; i <= 10; i++) {
+    ctx.beginPath();
+    ctx.moveTo(vp.x + i*60, vp.y);
+    ctx.lineTo(vp.x + i*300, h);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, vp.y + i*20 + t*5 % 20);
+    ctx.lineTo(w, vp.y + i*20 + t*5 % 20);
+    ctx.stroke();
+  }
+
+  // distant planet
+  const grd = ctx.createRadialGradient(w*0.2, h*0.25, 5, w*0.2, h*0.25, 70);
+  grd.addColorStop(0, 'rgba(80,0,120,0.6)');
+  grd.addColorStop(0.5, 'rgba(40,0,80,0.3)');
+  grd.addColorStop(1, 'transparent');
+  ctx.fillStyle = grd;
+  ctx.beginPath();
+  ctx.arc(w*0.2, h*0.25, 70, 0, Math.PI*2);
+  ctx.fill();
+
+  // rings
+  ctx.strokeStyle = 'rgba(120,80,200,0.3)';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.ellipse(w*0.2, h*0.28, 100, 18, 0.2, 0, Math.PI*2);
+  ctx.stroke();
+}
+
+function drawStars(ctx, w, h, density=1) {
+  ctx.fillStyle = 'rgba(255,255,255,0.8)';
+  for (let i=0; i<120*density; i++) {
+    // deterministic star positions using index as seed
+    const sx = ((i * 7919) % w);
+    const sy = ((i * 6271) % (h * 0.65));
+    const r  = (i % 3 === 0) ? 1.5 : 0.8;
+    ctx.beginPath();
+    ctx.arc(sx, sy, r, 0, Math.PI*2);
+    ctx.fill();
+  }
+}
+
+function bgLoop(timestamp) {
+  const dt = Math.min((timestamp - lastTime) / 1000, 0.05);
+  lastTime = timestamp;
+
+  eraT += dt / eraDuration;
+  if (eraT >= 1) { eraT = 0; currentEra = (currentEra + 1) % ERAS.length; }
+
+  const era = ERAS[currentEra];
+  const next = ERAS[(currentEra + 1) % ERAS.length];
+  const blend = Math.pow(eraT, 2); // ease-in blend for transitions
+
+  const w = bgCanvas.width, h = bgCanvas.height;
+  bgCtx.clearRect(0, 0, w, h);
+
+  // sky gradient
+  const sky = bgCtx.createLinearGradient(0, 0, 0, h*0.65);
+  era.sky.forEach((c, i) => {
+    const nc = next.sky[i];
+    sky.addColorStop(i / (era.sky.length - 1), lerpColor(c, nc, blend));
+  });
+  bgCtx.fillStyle = sky;
+  bgCtx.fillRect(0, 0, w, h*0.65);
+
+  // stars (for dark eras)
+  drawStars(bgCtx, w, h, 0.6);
+
+  // silhouette
+  const fn = silhouettes[currentEra];
+  if (fn) fn(bgCtx, w, h, timestamp / 1000);
+
+  // vignette
+  const vig = bgCtx.createRadialGradient(w/2, h/2, h*0.2, w/2, h/2, h*0.85);
+  vig.addColorStop(0, 'transparent');
+  vig.addColorStop(1, 'rgba(0,0,0,0.75)');
+  bgCtx.fillStyle = vig;
+  bgCtx.fillRect(0, 0, w, h);
+
+  requestAnimationFrame(bgLoop);
+}
+requestAnimationFrame(ts => { lastTime = ts; bgLoop(ts); });
+
+/* ══════════════════════════════════════════════
+   PARTICLE CANVAS
+══════════════════════════════════════════════ */
+const pCanvas = document.getElementById('particles');
+const pCtx    = pCanvas.getContext('2d');
+
+function resizeP() { pCanvas.width = window.innerWidth; pCanvas.height = window.innerHeight; }
+resizeP();
+window.addEventListener('resize', resizeP);
+
+const particles = Array.from({length: 60}, () => ({
+  x: Math.random() * window.innerWidth,
+  y: Math.random() * window.innerHeight,
+  r: Math.random() * 2 + 0.5,
+  vx: (Math.random() - 0.5) * 0.4,
+  vy: -Math.random() * 0.6 - 0.1,
+  life: Math.random(),
+  maxLife: 0.5 + Math.random() * 1.5,
+  hue: 30 + Math.random() * 30,
+}));
+
+function pLoop() {
+  pCtx.clearRect(0, 0, pCanvas.width, pCanvas.height);
+  particles.forEach(p => {
+    p.x += p.vx; p.y += p.vy; p.life -= 0.003;
+    if (p.life <= 0) {
+      p.x = Math.random() * pCanvas.width;
+      p.y = pCanvas.height * 0.5 + Math.random() * pCanvas.height * 0.5;
+      p.life = p.maxLife;
+    }
+    const alpha = Math.min(p.life / 0.3, 1) * 0.5;
+    pCtx.fillStyle = `hsla(${p.hue},80%,65%,${alpha})`;
+    pCtx.beginPath();
+    pCtx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+    pCtx.fill();
+  });
+  requestAnimationFrame(pLoop);
+}
+pLoop();
+
+/* ══════════════════════════════════════════════
+   ERA CARD TOOLTIPS
+══════════════════════════════════════════════ */
+const tooltip  = document.getElementById('eraTooltip');
+const tipChars   = document.getElementById('tipChars');
+const tipEnemies = document.getElementById('tipEnemies');
+const tipCooldown= document.getElementById('tipCooldown');
+const tipObstacle= document.getElementById('tipObstacle');
+
+document.querySelectorAll('.era-card').forEach(card => {
+  card.addEventListener('mouseenter', () => {
+    tipChars.textContent    = card.dataset.chars;
+    tipEnemies.textContent  = card.dataset.enemies;
+    tipCooldown.textContent = card.dataset.cooldown;
+    tipObstacle.textContent = card.dataset.obstacle;
+    tooltip.classList.add('visible');
+  });
+  card.addEventListener('mouseleave', () => {
+    tooltip.classList.remove('visible');
+  });
+});
+
+/* ══════════════════════════════════════════════
+   DEVIOUS CHARACTER SOUND LIBRARY — Web Audio API
+══════════════════════════════════════════════ */
+const SFX = {
+  _ctx: null,
+  get ctx() {
+    if (!this._ctx || this._ctx.state === 'closed')
+      this._ctx = new (window.AudioContext || window.webkitAudioContext)();
+    return this._ctx;
+  },
+
+  // ── Helpers ──────────────────────────────────
+  out(vol = 0.7) {
+    const g = this.ctx.createGain(); g.gain.value = vol;
+    g.connect(this.ctx.destination); return g;
+  },
+  reverb(secs = 1.6) {
+    const c = this.ctx, cv = c.createConvolver();
+    const len = c.sampleRate * secs, buf = c.createBuffer(2, len, c.sampleRate);
+    for (let ch = 0; ch < 2; ch++) {
+      const d = buf.getChannelData(ch);
+      for (let i = 0; i < len; i++) d[i] = (Math.random()*2-1) * Math.pow(1-i/len, 2.4);
+    }
+    cv.buffer = buf; return cv;
+  },
+  dist(k = 100) {
+    const ws = this.ctx.createWaveShaper(), n = 512, curve = new Float32Array(n);
+    for (let i = 0; i < n; i++) { const x=(i*2)/n-1; curve[i]=((Math.PI+k)*x)/(Math.PI+k*Math.abs(x)); }
+    ws.curve = curve; return ws;
+  },
+  noise(dur) {
+    const c = this.ctx, buf = c.createBuffer(1, c.sampleRate*dur, c.sampleRate);
+    const d = buf.getChannelData(0); for (let i=0;i<d.length;i++) d[i]=Math.random()*2-1;
+    const src = c.createBufferSource(); src.buffer = buf; return src;
+  },
+  env(node, now, atk, sus, rel, vol=1) {
+    node.gain.setValueAtTime(0, now);
+    node.gain.linearRampToValueAtTime(vol, now+atk);
+    node.gain.setValueAtTime(vol, now+atk+sus);
+    node.gain.exponentialRampToValueAtTime(0.0001, now+atk+sus+rel);
+  },
+
+  // ── ERA I — PREHISTORIC ──────────────────────
+
+  // Club: slow windup rumble → bone-shattering wet THUD
+  club() {
+    const c=this.ctx, now=c.currentTime, o=this.out(0.82);
+    // Windup — low grind, like dragging the club on stone
+    const wind=this.noise(0.22), wlp=c.createBiquadFilter(), wg=c.createGain();
+    wlp.type='lowpass'; wlp.frequency.value=200; wlp.Q.value=6;
+    this.env(wg, now, 0.05, 0.12, 0.04, 0.35);
+    wind.connect(wlp); wlp.connect(wg); wg.connect(o); wind.start(now); wind.stop(now+0.24);
+    // Impact — wet bone crunch, sub boom, skull resonance
+    const ns=this.noise(0.28), d=this.dist(250), lp=c.createBiquadFilter(), eg=c.createGain();
+    lp.type='lowpass'; lp.frequency.value=180; lp.Q.value=8;
+    this.env(eg, now+0.22, 0.001, 0.03, 0.28, 1.3);
+    ns.connect(d); d.connect(lp); lp.connect(eg); eg.connect(o); ns.start(now+0.22); ns.stop(now+0.55);
+    const boom=c.createOscillator(), bg=c.createGain(); boom.type='sine';
+    boom.frequency.setValueAtTime(85,now+0.22); boom.frequency.exponentialRampToValueAtTime(22,now+0.52);
+    this.env(bg, now+0.22, 0.001, 0.04, 0.32, 1.1);
+    boom.connect(bg); bg.connect(o); boom.start(now+0.22); boom.stop(now+0.58);
+    // Post-impact menacing sub-growl (like gloating)
+    const gr=c.createOscillator(), gg=c.createGain(); gr.type='sawtooth'; gr.frequency.value=42;
+    this.env(gg, now+0.4, 0.08, 0.2, 0.4, 0.22);
+    gr.connect(gg); gg.connect(o); gr.start(now+0.4); gr.stop(now+1.1);
+  },
+
+  // Rock Thrower: guttural grunt of effort → spinning rock whistle → skull crack
+  rockThrower() {
+    const c=this.ctx, now=c.currentTime, o=this.out(0.75);
+    // Grunt (formant-shaped noise burst — primitive effort)
+    const gns=this.noise(0.09), gbp=c.createBiquadFilter(), gbp2=c.createBiquadFilter(), gg=c.createGain();
+    gbp.type='bandpass'; gbp.frequency.value=350; gbp.Q.value=5;
+    gbp2.type='bandpass'; gbp2.frequency.value=900; gbp2.Q.value=3;
+    this.env(gg, now, 0.005, 0.04, 0.04, 0.6);
+    gns.connect(gbp); gns.connect(gbp2); gbp.connect(gg); gbp2.connect(gg); gg.connect(o);
+    gns.start(now); gns.stop(now+0.12);
+    // Spinning rock in flight — amplitude modulated whoosh (spin effect)
+    const ns=this.noise(0.38), bp=c.createBiquadFilter(), wg=c.createGain();
+    const spinLfo=c.createOscillator(), spinG=c.createGain();
+    spinLfo.frequency.value=14; spinG.gain.value=0.25;
+    bp.type='bandpass'; bp.frequency.setValueAtTime(2800,now+0.1); bp.frequency.exponentialRampToValueAtTime(150,now+0.42); bp.Q.value=3;
+    wg.gain.value=0.6;
+    spinLfo.connect(spinG); spinG.connect(wg.gain);
+    ns.connect(bp); bp.connect(wg); wg.connect(o);
+    ns.start(now+0.1); ns.stop(now+0.5); spinLfo.start(now+0.1); spinLfo.stop(now+0.5);
+    // Skull crack — sharp transient + resonant ring
+    const cr=c.createOscillator(), crg=c.createGain(); cr.type='sawtooth';
+    cr.frequency.setValueAtTime(320,now+0.42); cr.frequency.exponentialRampToValueAtTime(40,now+0.56);
+    this.env(crg, now+0.41, 0.002, 0.015, 0.18, 1.1);
+    cr.connect(crg); crg.connect(o); cr.start(now+0.41); cr.stop(now+0.62);
+  },
+
+  // Spear: a beat of silence, then aerodynamic hiss, then piercing impalement
+  spear() {
+    const c=this.ctx, now=c.currentTime, o=this.out(0.72);
+    // Near-silence — the hunter's pause (barely perceptible low hum)
+    const pause=c.createOscillator(), pg=c.createGain(); pause.type='sine'; pause.frequency.value=38;
+    this.env(pg, now, 0.05, 0.12, 0.05, 0.06);
+    pause.connect(pg); pg.connect(o); pause.start(now); pause.stop(now+0.22);
+    // Release — aerodynamic shaft spin (higher than rock, more precise)
+    const ns=this.noise(0.26), hp=c.createBiquadFilter(), bp=c.createBiquadFilter(), ag=c.createGain();
+    hp.type='highpass'; hp.frequency.value=3500;
+    bp.type='bandpass'; bp.frequency.setValueAtTime(5500,now+0.22); bp.frequency.exponentialRampToValueAtTime(1200,now+0.46); bp.Q.value=4;
+    this.env(ag, now+0.22, 0.008, 0.12, 0.08, 0.9);
+    ns.connect(hp); hp.connect(bp); bp.connect(ag); ag.connect(o); ns.start(now+0.22); ns.stop(now+0.5);
+    // Impalement — deep wet thud with a sharp high overtone
+    const imp=c.createOscillator(), ig=c.createGain(); imp.type='sine'; imp.frequency.value=180;
+    imp.frequency.setValueAtTime(280,now+0.46); imp.frequency.exponentialRampToValueAtTime(55,now+0.58);
+    this.env(ig, now+0.45, 0.001, 0.01, 0.22, 0.85);
+    imp.connect(ig); ig.connect(o); imp.start(now+0.45); imp.stop(now+0.72);
+    const ping=c.createOscillator(), pigg=c.createGain(); ping.type='sine'; ping.frequency.value=3200;
+    this.env(pigg, now+0.46, 0.001, 0.005, 0.5, 0.15);
+    ping.connect(pigg); pigg.connect(o); ping.start(now+0.46); ping.stop(now+1.0);
+  },
+
+  // ── ERA I ENEMIES ────────────────────────────
+
+  // Boar: furious snort of rage → thunderous charge → brutal tusk gore + victory squeal
+  boar() {
+    const c=this.ctx, now=c.currentTime, o=this.out(0.80);
+    // Furious double snort — two blasts of hot prehistoric air
+    [0, 0.13].forEach((t,i)=>{
+      const sn=this.noise(0.08), bp=c.createBiquadFilter(), sg=c.createGain();
+      bp.type='bandpass'; bp.frequency.value=380+i*60; bp.Q.value=3;
+      this.env(sg, now+t, 0.003, 0.04, 0.04, 0.7+i*0.15);
+      sn.connect(bp); bp.connect(sg); sg.connect(o); sn.start(now+t); sn.stop(now+t+0.1);
+      const nr=c.createOscillator(), ng=c.createGain(); nr.type='triangle'; nr.frequency.value=155+i*20;
+      this.env(ng, now+t, 0.004, 0.03, 0.03, 0.18);
+      nr.connect(ng); ng.connect(o); nr.start(now+t); nr.stop(now+t+0.08);
+    });
+    // Thunderous charge — rapid heavy hoof beats, accelerating (doom closing in)
+    [0.25,0.33,0.39,0.44,0.48,0.52,0.55].forEach((t,i)=>{
+      const ns=this.noise(0.07), lp=c.createBiquadFilter(), eg=c.createGain();
+      lp.type='lowpass'; lp.frequency.value=280+i*10;
+      this.env(eg, now+t, 0.002, 0.012, 0.055, 0.5+i*0.08);
+      ns.connect(lp); lp.connect(eg); eg.connect(o); ns.start(now+t); ns.stop(now+t+0.09);
+    });
+    // Tusk gore — bone crunch + sub-boom
+    const cr=c.createOscillator(), cd=this.dist(200), cg=c.createGain(); cr.type='sawtooth';
+    cr.frequency.setValueAtTime(180,now+0.58); cr.frequency.exponentialRampToValueAtTime(35,now+0.73);
+    this.env(cg, now+0.57, 0.001, 0.012, 0.26, 1.0);
+    cr.connect(cd); cd.connect(cg); cg.connect(o); cr.start(now+0.57); cr.stop(now+0.86);
+    const bm=c.createOscillator(), bg=c.createGain(); bm.type='sine';
+    bm.frequency.setValueAtTime(70,now+0.58); bm.frequency.exponentialRampToValueAtTime(20,now+0.78);
+    this.env(bg, now+0.57, 0.001, 0.02, 0.22, 0.9);
+    bm.connect(bg); bg.connect(o); bm.start(now+0.57); bm.stop(now+0.85);
+    // Victory squeal — the boar gloating
+    const sq=c.createOscillator(), sqd=this.dist(60), sqg=c.createGain(); sq.type='sawtooth';
+    sq.frequency.setValueAtTime(440,now+0.66); sq.frequency.exponentialRampToValueAtTime(210,now+0.88);
+    this.env(sqg, now+0.65, 0.01, 0.1, 0.16, 0.28);
+    sq.connect(sqd); sqd.connect(sqg); sqg.connect(o); sq.start(now+0.65); sq.stop(now+0.96);
+  },
+
+  // Saber-Tooth Tiger: low stalking growl → building hiss → explosive pounce → killing roar + bone-crushing bite
+  saberToothTiger() {
+    const c=this.ctx, now=c.currentTime, o=this.out(0.78);
+    const rv=this.reverb(1.2), rvg=c.createGain(); rvg.gain.value=0.25; rv.connect(rvg); rvg.connect(o);
+    // Deep stalking growl — massive prehistoric cat, throat vibrato
+    const gr=c.createOscillator(), grd=this.dist(55), gg=c.createGain(); gr.type='sawtooth'; gr.frequency.value=62;
+    const vlfo=c.createOscillator(), vg=c.createGain(); vlfo.frequency.value=8; vg.gain.value=8;
+    vlfo.connect(vg); vg.connect(gr.frequency);
+    this.env(gg, now, 0.06, 0.28, 0.08, 0.55);
+    gr.connect(grd); grd.connect(gg); gg.connect(o); gg.connect(rv);
+    gr.start(now); gr.stop(now+0.42); vlfo.start(now); vlfo.stop(now+0.42);
+    // Hiss — air forced through huge prehistoric fangs
+    const hs=this.noise(0.18), hbp=c.createBiquadFilter(), hg=c.createGain();
+    hbp.type='bandpass'; hbp.frequency.value=7200; hbp.Q.value=2;
+    this.env(hg, now+0.36, 0.04, 0.1, 0.04, 0.33);
+    hs.connect(hbp); hbp.connect(hg); hg.connect(o); hs.start(now+0.36); hs.stop(now+0.56);
+    // Pounce whoosh — large body flying through air, weight of doom
+    const pns=this.noise(0.22), pbp=c.createBiquadFilter(), pg=c.createGain();
+    pbp.type='bandpass'; pbp.frequency.setValueAtTime(820,now+0.56); pbp.frequency.exponentialRampToValueAtTime(190,now+0.79); pbp.Q.value=1.5;
+    this.env(pg, now+0.56, 0.02, 0.12, 0.06, 0.52);
+    pns.connect(pbp); pbp.connect(pg); pg.connect(o); pns.start(now+0.56); pns.stop(now+0.83);
+    // Killing roar — eardrum-splitting, ancient and terrible
+    const roar=c.createOscillator(), rd=this.dist(85), rg=c.createGain(); roar.type='sawtooth';
+    roar.frequency.setValueAtTime(320,now+0.77); roar.frequency.setValueAtTime(255,now+0.83); roar.frequency.exponentialRampToValueAtTime(82,now+1.12);
+    this.env(rg, now+0.76, 0.01, 0.22, 0.32, 0.66);
+    roar.connect(rd); rd.connect(rg); rg.connect(o); rg.connect(rv); roar.start(now+0.76); roar.stop(now+1.22);
+    // Bone-crushing bite — saber fangs slamming shut
+    const bt=c.createOscillator(), btd=this.dist(180), btg=c.createGain(); bt.type='square';
+    bt.frequency.setValueAtTime(95,now+0.79); bt.frequency.exponentialRampToValueAtTime(26,now+0.92);
+    this.env(btg, now+0.78, 0.001, 0.016, 0.18, 0.82);
+    bt.connect(btd); btd.connect(btg); btg.connect(o); bt.start(now+0.78); bt.stop(now+1.02);
+  },
+
+  // Mammoth: earth trembles → ground-shattering stomps with sub-booms → deafening prehistoric trumpet → tusk sweep
+  mammoth() {
+    const c=this.ctx, now=c.currentTime, o=this.out(0.85);
+    const rv=this.reverb(2.0), rvg=c.createGain(); rvg.gain.value=0.45; rv.connect(rvg); rvg.connect(o);
+    // Earth tremor — monstrous mass approaching, sub-bass shudder
+    const trm=c.createOscillator(), tg=c.createGain(); trm.type='sine'; trm.frequency.value=22;
+    this.env(tg, now, 0.15, 0.35, 0.1, 0.6);
+    trm.connect(tg); tg.connect(o); trm.start(now); trm.stop(now+0.65);
+    // Ground-shattering stomps — each one shakes the landscape
+    [0.1,0.28,0.42,0.54,0.63].forEach((t,i)=>{
+      const sn=this.noise(0.14), lp=c.createBiquadFilter(), eg=c.createGain();
+      lp.type='lowpass'; lp.frequency.value=150+i*8;
+      this.env(eg, now+t, 0.002, 0.02, 0.14, 0.7+i*0.08);
+      sn.connect(lp); lp.connect(eg); eg.connect(o); eg.connect(rv); sn.start(now+t); sn.stop(now+t+0.18);
+      const bm=c.createOscillator(), bg=c.createGain(); bm.type='sine';
+      bm.frequency.setValueAtTime(55+i*3,now+t); bm.frequency.exponentialRampToValueAtTime(18,now+t+0.22);
+      this.env(bg, now+t, 0.001, 0.025, 0.18, 0.82);
+      bm.connect(bg); bg.connect(o); bg.connect(rv); bm.start(now+t); bm.stop(now+t+0.3);
+    });
+    // Prehistoric trumpet — fills the whole valley and reverbs into the mountain walls
+    const tr=c.createOscillator(), trd=this.dist(35), trg=c.createGain(); tr.type='sawtooth';
+    tr.frequency.setValueAtTime(110,now+0.7); tr.frequency.setValueAtTime(168,now+0.78); tr.frequency.exponentialRampToValueAtTime(58,now+1.22);
+    const trhp=c.createBiquadFilter(); trhp.type='peaking'; trhp.frequency.value=400; trhp.gain.value=8;
+    this.env(trg, now+0.7, 0.02, 0.38, 0.48, 0.85);
+    tr.connect(trd); trd.connect(trhp); trhp.connect(trg); trg.connect(o); trg.connect(rv);
+    tr.start(now+0.7); tr.stop(now+1.45);
+    // Tusk sweep — massive arc of bone through air
+    const swns=this.noise(0.3), swbp=c.createBiquadFilter(), swg=c.createGain();
+    swbp.type='bandpass'; swbp.frequency.setValueAtTime(620,now+0.72); swbp.frequency.exponentialRampToValueAtTime(95,now+1.02); swbp.Q.value=1.2;
+    this.env(swg, now+0.72, 0.04, 0.2, 0.1, 0.44);
+    swns.connect(swbp); swbp.connect(swg); swg.connect(o); swns.start(now+0.72); swns.stop(now+1.06);
+  },
+
+  // ── ERA II — MEDIEVAL ────────────────────────
+
+  // Swordsman: slow sinister blade draw → deliberate deadly slash → dark minor chord rings out
+  swordsman() {
+    const c=this.ctx, now=c.currentTime, o=this.out(0.78);
+    // Blade draw — slow, threatening scrape
+    const sn=this.noise(0.28), shp=c.createBiquadFilter(), sbp=c.createBiquadFilter(), sdg=c.createGain();
+    shp.type='highpass'; shp.frequency.value=3000;
+    sbp.type='bandpass'; sbp.frequency.value=6000; sbp.Q.value=2;
+    this.env(sdg, now, 0.04, 0.18, 0.04, 0.38);
+    sn.connect(shp); shp.connect(sbp); sbp.connect(sdg); sdg.connect(o); sn.start(now); sn.stop(now+0.3);
+    // Slash — controlled, deliberate
+    const ns=this.noise(0.1), bp=c.createBiquadFilter(), slg=c.createGain();
+    bp.type='bandpass'; bp.frequency.value=3200; bp.Q.value=2.5;
+    this.env(slg, now+0.3, 0.002, 0.025, 0.07, 0.95);
+    ns.connect(bp); bp.connect(slg); slg.connect(o); ns.start(now+0.3); ns.stop(now+0.42);
+    // Dark minor chord — Dm (D-F-A), decaying slowly like a death knell
+    [[293,1.0],[349,0.65],[440,0.45],[220,0.3]].forEach(([f,v],i)=>{
+      const r=c.createOscillator(), rg=c.createGain(); r.type='sine'; r.frequency.value=f;
+      this.env(rg, now+0.32+i*0.012, 0.006, 0.04, 0.7+i*0.12, v*0.26);
+      r.connect(rg); rg.connect(o); r.start(now+0.32); r.stop(now+1.2);
+    });
+  },
+
+  // Archer: slow creaking bowstring draw (building dread) → whip release → haunting long-distance whistle
+  archer() {
+    const c=this.ctx, now=c.currentTime, o=this.out(0.72);
+    // Bow creak — wood under tension, building dread
+    const cr=c.createOscillator(), crg=c.createGain(); cr.type='sawtooth';
+    cr.frequency.setValueAtTime(220,now); cr.frequency.linearRampToValueAtTime(180,now+0.35);
+    const crdist=this.dist(30);
+    const crfilt=c.createBiquadFilter(); crfilt.type='bandpass'; crfilt.frequency.value=600; crfilt.Q.value=8;
+    this.env(crg, now, 0.05, 0.25, 0.04, 0.22);
+    cr.connect(crdist); crdist.connect(crfilt); crfilt.connect(crg); crg.connect(o);
+    cr.start(now); cr.stop(now+0.4);
+    // String snap — percussive twang
+    const tw=c.createOscillator(), twg=c.createGain(); tw.type='triangle';
+    tw.frequency.setValueAtTime(195,now+0.36); tw.frequency.exponentialRampToValueAtTime(48,now+0.48);
+    this.env(twg, now+0.36, 0.001, 0.015, 0.12, 1.0);
+    tw.connect(twg); twg.connect(o); tw.start(now+0.36); tw.stop(now+0.52);
+    // Arrow whistle — long, haunting, doppler fade (death approaching someone far away)
+    const ns=this.noise(0.55), bp=c.createBiquadFilter(), aw=c.createGain();
+    bp.type='bandpass'; bp.frequency.setValueAtTime(4500,now+0.38); bp.frequency.exponentialRampToValueAtTime(800,now+0.9); bp.Q.value=5;
+    this.env(aw, now+0.38, 0.02, 0.32, 0.18, 0.48);
+    ns.connect(bp); bp.connect(aw); aw.connect(o); ns.start(now+0.38); ns.stop(now+0.95);
+  },
+
+  // Cavalry: distant thunder of hooves (doom approaching) → ground-shaking charge → war horn screech
+  cavalry() {
+    const c=this.ctx, now=c.currentTime, o=this.out(0.78);
+    const rv=this.reverb(1.4), rvg=c.createGain(); rvg.gain.value=0.3; rv.connect(rvg); rvg.connect(o);
+    // Distant thunder — low rumble that gets louder
+    const rum=this.noise(0.55), rlp=c.createBiquadFilter(), rg=c.createGain();
+    rlp.type='lowpass'; rlp.frequency.value=120;
+    this.env(rg, now, 0.12, 0.3, 0.14, 0.5);
+    rum.connect(rlp); rlp.connect(rg); rg.connect(o); rg.connect(rv); rum.start(now); rum.stop(now+0.6);
+    // Hoofbeats — accelerating, each louder (doom closing in)
+    [0.12,0.22,0.30,0.38,0.44,0.50,0.54,0.58].forEach((t,i)=>{
+      const ns=this.noise(0.1), lp=c.createBiquadFilter(), eg=c.createGain();
+      lp.type='lowpass'; lp.frequency.value=350+i*15;
+      this.env(eg, now+t, 0.002, 0.018, 0.07, 0.38+i*0.07);
+      ns.connect(lp); lp.connect(eg); eg.connect(o); ns.start(now+t); ns.stop(now+t+0.12);
+    });
+    // War horn — menacing, high-pitched animal scream
+    const wh=c.createOscillator(), wd=this.dist(70), wg=c.createGain();
+    wh.type='sawtooth';
+    wh.frequency.setValueAtTime(480,now+0.6); wh.frequency.setValueAtTime(580,now+0.68); wh.frequency.exponentialRampToValueAtTime(260,now+0.88);
+    this.env(wg, now+0.6, 0.02, 0.15, 0.2, 0.38);
+    wh.connect(wd); wd.connect(wg); wg.connect(o); wg.connect(rv); wh.start(now+0.6); wh.stop(now+0.95);
+  },
+
+  // ── ERA III — PIRATES ────────────────────────
+
+  // Cutlass: flourishing double-slash (showing off before the kill) → triumphant sinister ring
+  cutlass() {
+    const c=this.ctx, now=c.currentTime, o=this.out(0.75);
+    // Double slash — two rapid cuts, deliberate show of skill
+    [0, 0.12].forEach((t,i)=>{
+      const ns=this.noise(0.08), hp=c.createBiquadFilter(), sg=c.createGain();
+      hp.type='highpass'; hp.frequency.value=3500+i*800;
+      this.env(sg, now+t, 0.001, 0.02, 0.06, 0.85+i*0.15);
+      ns.connect(hp); hp.connect(sg); sg.connect(o); ns.start(now+t); ns.stop(now+t+0.1);
+    });
+    // Blade ring — pirate swagger, slightly detuned for menace
+    [[1760,0.24],[1865,0.16],[1318,0.12],[2093,0.08]].forEach(([f,v],i)=>{
+      const r=c.createOscillator(), rg=c.createGain(); r.type='sine'; r.frequency.value=f;
+      this.env(rg, now+0.18+i*0.015, 0.004, 0.02, 0.55+i*0.08, v);
+      r.connect(rg); rg.connect(o); r.start(now+0.18); r.stop(now+0.95);
+    });
+    // Low chuckle undertone — the pirate enjoying the kill
+    const ch=c.createOscillator(), chd=this.dist(40), chg=c.createGain(); ch.type='sawtooth'; ch.frequency.value=110;
+    this.env(chg, now+0.22, 0.04, 0.18, 0.2, 0.12);
+    ch.connect(chd); chd.connect(chg); chg.connect(o); ch.start(now+0.22); ch.stop(now+0.55);
+  },
+
+  // Blunderbuss: terrifying click of hammer → deafening chaotic blast (it hits everything)
+  blunderbuss() {
+    const c=this.ctx, now=c.currentTime, o=this.out(0.85);
+    const rv=this.reverb(2.2), rvg=c.createGain(); rvg.gain.value=0.5; rv.connect(rvg); rvg.connect(o);
+    // Hammer click
+    const ck=c.createOscillator(), ckg=c.createGain(); ck.type='square'; ck.frequency.value=1200;
+    this.env(ckg, now, 0.001, 0.004, 0.015, 0.7);
+    ck.connect(ckg); ckg.connect(o); ck.start(now); ck.stop(now+0.025);
+    // Massive chaotic blast — wide frequency noise, distorted badly
+    const ns=this.noise(0.6), d=this.dist(180), lp=c.createBiquadFilter(), ng=c.createGain();
+    lp.type='lowpass'; lp.frequency.value=1200;
+    this.env(ng, now+0.06, 0.001, 0.025, 0.5, 1.4);
+    ns.connect(d); d.connect(lp); lp.connect(ng); ng.connect(o); ng.connect(rv); ns.start(now+0.06); ns.stop(now+0.65);
+    // Multiple sub-booms (scatter shot pellets)
+    [0,0.04,0.08].forEach((t,i)=>{
+      const bm=c.createOscillator(), bg=c.createGain(); bm.type='sine';
+      bm.frequency.setValueAtTime(140-i*20,now+0.06+t); bm.frequency.exponentialRampToValueAtTime(18,now+0.5+t);
+      this.env(bg, now+0.06+t, 0.001, 0.02, 0.45, 1.2-i*0.2);
+      bm.connect(bg); bg.connect(o); bg.connect(rv); bm.start(now+0.06+t); bm.stop(now+0.6+t);
+    });
+  },
+
+  // Crossbowman: cold deliberate ratchet of mechanism → single precise bolt (no fanfare — just death)
+  crossbowman() {
+    const c=this.ctx, now=c.currentTime, o=this.out(0.72);
+    // Ratchet — slow, patient, mechanical (3 clicks of the windlass)
+    [0, 0.1, 0.2].forEach((t,i)=>{
+      const ck=c.createOscillator(), ckg=c.createGain(); ck.type='square'; ck.frequency.value=700+i*80;
+      this.env(ckg, now+t, 0.001, 0.006, 0.03, 0.55);
+      ck.connect(ckg); ckg.connect(o); ck.start(now+t); ck.stop(now+t+0.045);
+    });
+    // Trigger release snap — cold, precise
+    const snap=c.createOscillator(), snapg=c.createGain(); snap.type='square'; snap.frequency.value=900;
+    this.env(snapg, now+0.32, 0.001, 0.004, 0.02, 0.85);
+    snap.connect(snapg); snapg.connect(o); snap.start(now+0.32); snap.stop(now+0.35);
+    // Bolt — thin, fast, no mercy (higher pitched than arrow, less air drag)
+    const ns=this.noise(0.28), hp=c.createBiquadFilter(), bp=c.createBiquadFilter(), bg=c.createGain();
+    hp.type='highpass'; hp.frequency.value=4000;
+    bp.type='bandpass'; bp.frequency.setValueAtTime(5000,now+0.33); bp.frequency.exponentialRampToValueAtTime(1500,now+0.58); bp.Q.value=6;
+    this.env(bg, now+0.33, 0.006, 0.12, 0.07, 0.7);
+    ns.connect(hp); hp.connect(bp); bp.connect(bg); bg.connect(o); ns.start(now+0.33); ns.stop(now+0.62);
+  },
+
+  // ── ERA IV — MODERN ──────────────────────────
+
+  // Ghillie Knife: absolute silence… barely perceptible breathing… then brutal sudden violence
+  ghillieKnife() {
+    const c=this.ctx, now=c.currentTime, o=this.out(0.68);
+    // Near-silence — just the victim's heartbeat (very faint low thud)
+    [0, 0.55].forEach(t=>{
+      const hb=c.createOscillator(), hbg=c.createGain(); hb.type='sine'; hb.frequency.value=52;
+      this.env(hbg, now+t, 0.01, 0.06, 0.12, 0.05);
+      hb.connect(hbg); hbg.connect(o); hb.start(now+t); hb.stop(now+t+0.22);
+    });
+    // Barely-audible breathing (sinister presence)
+    const breath=this.noise(0.55), blp=c.createBiquadFilter(), bg=c.createGain();
+    blp.type='bandpass'; blp.frequency.value=400; blp.Q.value=4;
+    this.env(bg, now, 0.08, 0.36, 0.1, 0.06);
+    breath.connect(blp); blp.connect(bg); bg.connect(o); breath.start(now); breath.stop(now+0.6);
+    // Sudden knife scrape — slow draw (menacing delay before strike)
+    const scr=this.noise(0.16), shp=c.createBiquadFilter(), sg=c.createGain();
+    shp.type='highpass'; shp.frequency.value=5000;
+    this.env(sg, now+0.7, 0.03, 0.09, 0.03, 0.55);
+    scr.connect(shp); shp.connect(sg); sg.connect(o); scr.start(now+0.7); scr.stop(now+0.9);
+    // The stab — violent, sudden, no escape
+    const sl=c.createOscillator(), sld=this.dist(120), slg=c.createGain(); sl.type='sawtooth';
+    sl.frequency.setValueAtTime(2400,now+0.88); sl.frequency.exponentialRampToValueAtTime(150,now+0.98);
+    this.env(slg, now+0.87, 0.002, 0.008, 0.22, 0.65);
+    sl.connect(sld); sld.connect(slg); slg.connect(o); sl.start(now+0.87); sl.stop(now+1.05);
+  },
+
+  // Machine Gunner: mag slap → maniacal escalating full-auto (shots speed up as the gunner loses control)
+  machineGunner() {
+    const c=this.ctx, now=c.currentTime, o=this.out(0.75);
+    const rv=this.reverb(0.9), rvg=c.createGain(); rvg.gain.value=0.2; rv.connect(rvg); rvg.connect(o);
+    // Magazine slap-in
+    const slap=c.createOscillator(), sd=this.dist(80), sg=c.createGain(); slap.type='square'; slap.frequency.value=180;
+    this.env(sg, now, 0.001, 0.02, 0.04, 0.5);
+    slap.connect(sd); sd.connect(sg); sg.connect(o); slap.start(now); slap.stop(now+0.07);
+    // Full-auto burst — shots accelerate, gunner is enjoying this
+    const intervals = [0,0.1,0.18,0.25,0.31,0.36,0.40,0.43,0.46,0.48,0.50,0.52];
+    intervals.forEach((t,i)=>{
+      const ns=this.noise(0.05), d=this.dist(240), lp=c.createBiquadFilter(), eg=c.createGain();
+      lp.type='lowpass'; lp.frequency.value=600+i*20;
+      this.env(eg, now+0.15+t, 0.001, 0.01, 0.04+i*0.003, 0.75+i*0.025);
+      ns.connect(d); d.connect(lp); lp.connect(eg); eg.connect(o); eg.connect(rv);
+      ns.start(now+0.15+t); ns.stop(now+0.2+t+0.06);
+    });
+  },
+
+  // Turret: cold robotic target-lock beeps → barrel spin-up → relentless sustained fire
+  turret() {
+    const c=this.ctx, now=c.currentTime, o=this.out(0.78);
+    const rv=this.reverb(1.0), rvg=c.createGain(); rvg.gain.value=0.22; rv.connect(rvg); rvg.connect(o);
+    // Target-lock beeps — robotic, cold, emotionless
+    [0, 0.14, 0.25].forEach((t,i)=>{
+      const tb=c.createOscillator(), tg=c.createGain(); tb.type='sine'; tb.frequency.value=1200+i*200;
+      this.env(tg, now+t, 0.003, 0.06, 0.015, 0.35-i*0.05);
+      tb.connect(tg); tg.connect(o); tb.start(now+t); tb.stop(now+t+0.09);
+    });
+    // Barrel spin — mechanical whir, cold and inevitable
+    const wh=c.createOscillator(), wg=c.createGain(); wh.type='sawtooth';
+    wh.frequency.setValueAtTime(15,now+0.35); wh.frequency.linearRampToValueAtTime(220,now+0.72);
+    this.env(wg, now+0.35, 0.05, 0.3, 0.06, 0.3);
+    wh.connect(wg); wg.connect(o); wh.start(now+0.35); wh.stop(now+0.78);
+    // Sustained fire — no mercy, no hesitation
+    for (let i=0;i<8;i++) {
+      const t=now+0.72+i*0.042;
+      const ns=this.noise(0.04), lp=c.createBiquadFilter(), eg=c.createGain();
+      lp.type='lowpass'; lp.frequency.value=520;
+      this.env(eg, t, 0.001, 0.007, 0.036, 1.15);
+      ns.connect(lp); lp.connect(eg); eg.connect(o); eg.connect(rv); ns.start(t); ns.stop(t+0.05);
+    }
+  },
+
+  // ── ERA V — FUTURE ───────────────────────────
+
+  // Lightsaber: dark-side power-on hum (deep, crackling) → deliberate menacing swing → blade crackle on impact
+  lightsaber() {
+    const c=this.ctx, now=c.currentTime, o=this.out(0.75);
+    const rv=this.reverb(0.8), rvg=c.createGain(); rvg.gain.value=0.18; rv.connect(rvg); rvg.connect(o);
+    // Ignition — dark-side blade emerges (lower, more sinister than heroic)
+    const ign=c.createOscillator(), id=this.dist(45), ig=c.createGain(); ign.type='sawtooth';
+    ign.frequency.setValueAtTime(65,now); ign.frequency.exponentialRampToValueAtTime(115,now+0.28);
+    this.env(ig, now, 0.05, 0.2, 0.5, 0.7);
+    // Blade crackle (electricity hiss)
+    const crk=this.noise(0.35), chp=c.createBiquadFilter(), cg=c.createGain();
+    chp.type='bandpass'; chp.frequency.value=8000; chp.Q.value=2;
+    this.env(cg, now, 0.02, 0.28, 0.06, 0.12);
+    crk.connect(chp); chp.connect(cg); cg.connect(o);
+    // Tremolo LFO (blade instability — dark side power is unstable)
+    const lfo=c.createOscillator(), lfog=c.createGain(); lfo.frequency.value=118; lfog.gain.value=0.4;
+    const tremBase=c.createGain(); tremBase.gain.value=0.55; lfo.connect(lfog); lfog.connect(tremBase.gain);
+    const hs=c.createBiquadFilter(); hs.type='highshelf'; hs.frequency.value=2000; hs.gain.value=10;
+    ign.connect(id); id.connect(hs); hs.connect(tremBase); tremBase.connect(ig); ig.connect(o); ig.connect(rv);
+    [ign,lfo].forEach(o=>{o.start(now);o.start(now);});
+    [ign,lfo].forEach(o=>o.stop(now+1.1));
+    crk.start(now); crk.stop(now+0.38);
+    // Swing — deliberate, slow arc (more threatening than fast)
+    const sns=this.noise(0.38), sbp=c.createBiquadFilter(), swg=c.createGain();
+    sbp.type='bandpass'; sbp.frequency.setValueAtTime(900,now+0.42); sbp.frequency.exponentialRampToValueAtTime(300,now+0.78); sbp.Q.value=1.5;
+    this.env(swg, now+0.42, 0.08, 0.2, 0.1, 0.45);
+    sns.connect(sbp); sbp.connect(swg); swg.connect(o); sns.start(now+0.42); sns.stop(now+0.82);
+  },
+
+  // Railgun: patient magnetic charge building (the weapon knows you're already dead) → hypersonic crack
+  railgun() {
+    const c=this.ctx, now=c.currentTime, o=this.out(0.82);
+    const rv=this.reverb(2.4), rvg=c.createGain(); rvg.gain.value=0.6; rv.connect(rvg); rvg.connect(o);
+    // Magnetic field build — low hum that intensifies (patient, inevitable)
+    const mag=c.createOscillator(), mg=c.createGain(); mag.type='sine'; mag.frequency.value=55;
+    this.env(mg, now, 0.1, 0.4, 0.05, 0.35);
+    mag.connect(mg); mg.connect(o); mag.start(now); mag.stop(now+0.55);
+    // Charge whine — electromagnetic coils screaming
+    const ch=c.createOscillator(), chg=c.createGain(); ch.type='sine';
+    ch.frequency.setValueAtTime(200,now+0.05); ch.frequency.exponentialRampToValueAtTime(6200,now+0.58);
+    this.env(chg, now+0.05, 0.08, 0.44, 0.04, 0.58);
+    ch.connect(chg); chg.connect(o); chg.connect(rv); ch.start(now+0.05); ch.stop(now+0.64);
+    // CRACK — projectile leaves at hypersonic speed (sharp, massive, final)
+    const ns=this.noise(0.22), d=this.dist(350), cg=c.createGain();
+    this.env(cg, now+0.56, 0.003, 0.012, 0.22, 2.2);
+    ns.connect(d); d.connect(cg); cg.connect(o); cg.connect(rv); ns.start(now+0.56); ns.stop(now+0.8);
+    // Sonic boom trail
+    const trail=c.createOscillator(), tg=c.createGain(); trail.type='sine'; trail.frequency.value=80;
+    trail.frequency.setValueAtTime(800,now+0.58); trail.frequency.exponentialRampToValueAtTime(25,now+1.1);
+    this.env(tg, now+0.58, 0.001, 0.05, 0.45, 0.5);
+    trail.connect(tg); tg.connect(o); tg.connect(rv); trail.start(now+0.58); trail.stop(now+1.2);
+  },
+
+  // Orbital Laser: target acquired warning → silent gap of dread → beam arrives from orbit (godlike devastation)
+  orbitalLaser() {
+    const c=this.ctx, now=c.currentTime, o=this.out(0.75);
+    const rv=this.reverb(3.0), rvg=c.createGain(); rvg.gain.value=0.7; rv.connect(rvg); rvg.connect(o);
+    // Target acquired — cold computer voice (sine wave morse-like blips)
+    [{t:0,f:1046},{t:0.14,f:1318},{t:0.24,f:880},{t:0.34,f:1175}].forEach(({t,f})=>{
+      const b=c.createOscillator(), bg=c.createGain(); b.type='sine'; b.frequency.value=f;
+      this.env(bg, now+t, 0.004, 0.055, 0.018, 0.32);
+      b.connect(bg); bg.connect(o); bg.connect(rv); b.start(now+t); b.stop(now+t+0.09);
+    });
+    // Dread silence — 0.25 seconds of nothing (the beam is traveling from orbit)
+    // Layered build hum (the air itself heating up from the beam's approach)
+    [50,100,200,400].forEach((f,i)=>{
+      const h=c.createOscillator(), hg=c.createGain(); h.type='sawtooth'; h.frequency.value=f;
+      this.env(hg, now+0.55, 0.18, 0.22, 0.22, 0.12/(i+1));
+      h.connect(hg); hg.connect(o); hg.connect(rv); h.start(now+0.55); h.stop(now+1.2);
+    });
+    // THE BEAM — starts from space (ethereal thin tone) then the devastation hits (deafening)
+    const pre=c.createOscillator(), preg=c.createGain(); pre.type='sine'; pre.frequency.value=12000;
+    this.env(preg, now+0.58, 0.06, 0.12, 0.08, 0.18);
+    pre.connect(preg); preg.connect(o); pre.start(now+0.58); pre.stop(now+0.85);
+    // Devastation impact — everything burning
+    const bm=c.createOscillator(), bd=this.dist(280), bg2=c.createGain(); bm.type='sawtooth';
+    bm.frequency.setValueAtTime(9000,now+0.78); bm.frequency.exponentialRampToValueAtTime(120,now+1.3);
+    this.env(bg2, now+0.77, 0.006, 0.38, 0.45, 1.1);
+    bm.connect(bd); bd.connect(bg2); bg2.connect(o); bg2.connect(rv); bm.start(now+0.77); bm.stop(now+1.4);
+    // Sub earth-shake
+    const sub=c.createOscillator(), subg=c.createGain(); sub.type='sine'; sub.frequency.value=28;
+    this.env(subg, now+0.8, 0.02, 0.4, 0.5, 0.8);
+    sub.connect(subg); subg.connect(o); sub.start(now+0.8); sub.stop(now+1.8);
+  },
+};
+
+// Per-character and per-enemy button click triggers
+document.querySelectorAll('.char-btn, .enemy-btn').forEach(btn => {
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    const fn = SFX[btn.dataset.sfx];
+    if (fn) fn.call(SFX);
+  });
+});
+
+/* ══════════════════════════════════════════════
+   START GAME
+══════════════════════════════════════════════ */
+function startGame() {
+  const overlay = document.createElement('div');
+  Object.assign(overlay.style, {
+    position:'fixed', inset:'0', background:'black',
+    zIndex:'9999', opacity:'0', transition:'opacity 1s ease',
+    display:'flex', alignItems:'center', justifyContent:'center',
+    fontFamily:"'Cinzel Decorative',serif", color:'#FFD700',
+    fontSize:'2rem', letterSpacing:'0.3em'
+  });
+  overlay.textContent = 'Loading Era I…';
+  document.body.appendChild(overlay);
+  requestAnimationFrame(() => { overlay.style.opacity = '1'; });
+  setTimeout(() => {
+    overlay.textContent = 'Game Not Yet Implemented — But the Towers Await…';
+    overlay.style.fontSize = '1rem';
+  }, 1200);
+  setTimeout(() => {
+    overlay.style.opacity = '0';
+    setTimeout(() => overlay.remove(), 1000);
+  }, 3500);
+}
+</script>
+</body>
+</html>
