@@ -513,6 +513,146 @@
   }
 </script>
 
+<!-- ── Bow Man ──────────────────────────────────────────────── -->
+<div class="section">
+  <div class="section-title">Bow Man</div>
+  <div class="stt-wrapper" id="bwm-wrapper">
+    <canvas id="bwm"></canvas>
+  </div>
+  <div id="bwm-state-label" style="font-size:13px;color:#aaa;letter-spacing:1px">STATE: ATTACK</div>
+  <div class="slider-row">
+    <span>Scale</span>
+    <input type="range" id="bwm-scale-slider" min="10" max="100" value="25" step="5">
+    <span id="bwm-scale-label">25%</span>
+  </div>
+</div>
+
+<script>
+  // ── Bow Man ────────────────────────────────────────────────────────────
+  const BWM_FW  = 1280;
+  const BWM_FH  = 720;
+  const BWM_FPS = 24;
+  const BWM_TOTAL = 102;
+
+  const bwmCanvas = document.getElementById('bwm');
+  bwmCanvas.width  = BWM_FW;
+  bwmCanvas.height = BWM_FH;
+  const bwmCtx = bwmCanvas.getContext('2d');
+  bwmCtx.imageSmoothingEnabled = true;
+
+  const bwmImgs = [];
+  let bwmReady  = 0;
+  for (let i = 1; i <= BWM_TOTAL; i++) {
+    const img = new Image();
+    img.src = `Bow Man/bow-man-attacking/${String(i).padStart(4,'0')}.jpg`;
+    img.onload = () => { if (++bwmReady === BWM_TOTAL) requestAnimationFrame(bwmLoop); };
+    bwmImgs.push(img);
+  }
+
+  let bwmFrame   = 0;
+  let bwmElapsed = 0;
+  let bwmLast    = 0;
+
+  function applyBwmScale(pct) {
+    const s = pct / 100;
+    bwmCanvas.style.transform = `scale(${s})`;
+    bwmCanvas.style.transformOrigin = 'top left';
+    const wrapper = document.getElementById('bwm-wrapper');
+    wrapper.style.width  = Math.round(BWM_FW * s) + 'px';
+    wrapper.style.height = Math.round(BWM_FH * s) + 'px';
+    document.getElementById('bwm-scale-label').textContent = pct + '%';
+  }
+  applyBwmScale(25);
+
+  document.getElementById('bwm-scale-slider').addEventListener('input', e => {
+    applyBwmScale(Number(e.target.value));
+  });
+
+  function bwmLoop(ts) {
+    requestAnimationFrame(bwmLoop);
+    bwmElapsed += ts - bwmLast;
+    bwmLast     = ts;
+
+    if (bwmElapsed >= 1000 / BWM_FPS) {
+      bwmFrame    = (bwmFrame + 1) % BWM_TOTAL;
+      bwmElapsed -= 1000 / BWM_FPS;
+    }
+
+    if (bwmImgs[bwmFrame]?.complete)
+      bwmCtx.drawImage(bwmImgs[bwmFrame], 0, 0, BWM_FW, BWM_FH);
+  }
+</script>
+
+<!-- ── Horse Man ─────────────────────────────────────────────── -->
+<div class="section">
+  <div class="section-title">Horse Man</div>
+  <div class="stt-wrapper" id="hm-wrapper">
+    <canvas id="hm"></canvas>
+  </div>
+  <div id="hm-state-label" style="font-size:13px;color:#aaa;letter-spacing:1px">STATE: ATTACK</div>
+  <div class="slider-row">
+    <span>Scale</span>
+    <input type="range" id="hm-scale-slider" min="10" max="100" value="25" step="5">
+    <span id="hm-scale-label">25%</span>
+  </div>
+</div>
+
+<script>
+  // ── Horse Man ──────────────────────────────────────────────────────────
+  const HM_FW  = 1280;
+  const HM_FH  = 720;
+  const HM_FPS = 24;
+  const HM_TOTAL = 116;
+
+  const hmCanvas = document.getElementById('hm');
+  hmCanvas.width  = HM_FW;
+  hmCanvas.height = HM_FH;
+  const hmCtx = hmCanvas.getContext('2d');
+  hmCtx.imageSmoothingEnabled = true;
+
+  const hmImgs = [];
+  let hmReady  = 0;
+  for (let i = 1; i <= HM_TOTAL; i++) {
+    const img = new Image();
+    img.src = `Horse Man/horse-man-attacking/${String(i).padStart(4,'0')}.jpg`;
+    img.onload = () => { if (++hmReady === HM_TOTAL) requestAnimationFrame(hmLoop); };
+    hmImgs.push(img);
+  }
+
+  let hmFrame   = 0;
+  let hmElapsed = 0;
+  let hmLast    = 0;
+
+  function applyHmScale(pct) {
+    const s = pct / 100;
+    hmCanvas.style.transform = `scale(${s})`;
+    hmCanvas.style.transformOrigin = 'top left';
+    const wrapper = document.getElementById('hm-wrapper');
+    wrapper.style.width  = Math.round(HM_FW * s) + 'px';
+    wrapper.style.height = Math.round(HM_FH * s) + 'px';
+    document.getElementById('hm-scale-label').textContent = pct + '%';
+  }
+  applyHmScale(25);
+
+  document.getElementById('hm-scale-slider').addEventListener('input', e => {
+    applyHmScale(Number(e.target.value));
+  });
+
+  function hmLoop(ts) {
+    requestAnimationFrame(hmLoop);
+    hmElapsed += ts - hmLast;
+    hmLast     = ts;
+
+    if (hmElapsed >= 1000 / HM_FPS) {
+      hmFrame    = (hmFrame + 1) % HM_TOTAL;
+      hmElapsed -= 1000 / HM_FPS;
+    }
+
+    if (hmImgs[hmFrame]?.complete)
+      hmCtx.drawImage(hmImgs[hmFrame], 0, 0, HM_FW, HM_FH);
+  }
+</script>
+
 <!-- ── Sword Man ─────────────────────────────────────────────── -->
 <div class="section">
   <div class="section-title">Sword Man</div>

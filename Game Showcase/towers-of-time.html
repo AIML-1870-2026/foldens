@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Towers of Time</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@400;600&family=Orbitron:wght@400;700;900&display=swap');
+
+    :root {
+      --era1: #8B4513;
+      --era2: #2C3E7A;
+      --era3: #C47B22;
+      --era4: #2D5A1B;
+      --era5: #0D1B4B;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #000;
+      color: #fff;
+      font-family: 'Cinzel', serif;
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    /* ── CANVAS BACKGROUND ── */
+    #bgCanvas {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+    }
+
+    /* ── PARTICLE LAYER ── */
+    #particles {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    /* ── SCANLINE OVERLAY ── */
+    .scanlines {
+      position: fixed;
+      inset: 0;
+      z-index: 2;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.08) 2px,
+        rgba(0,0,0,0.08) 4px
+      );
+      pointer-events: none;
+    }
+
+    /* ── MAIN CONTAINER ── */
+    #app {
+      position: relative;
+      z-index: 10;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ── TITLE BLOCK ── */
+    .title-block {
+      text-align: center;
+      margin-bottom: 18px;
+      animation: fadeDown 1.2s ease forwards;
+    }
+
+    .subtitle {
+      font-family: 'Cinzel', serif;
+      font-size: clamp(0.7rem, 1.4vw, 1rem);
+      letter-spacing: 0.55em;
+      color: rgba(255,220,100,0.75);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .main-title {
+      font-family: 'Cinzel Decorative', serif;
+      font-size: clamp(2.8rem, 7vw, 5.8rem);
+      font-weight: 900;
+      line-height: 1;
+      background: linear-gradient(135deg, #FFD700 0%, #FFA500 40%, #FF6B00 70%, #FFD700 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      filter: drop-shadow(0 0 30px rgba(255,165,0,0.6));
+      animation: pulse-glow 3s ease-in-out infinite;
+    }
+
+    .tagline {
+      font-size: clamp(0.6rem, 1.2vw, 0.85rem);
+      letter-spacing: 0.35em;
+      color: rgba(255,255,255,0.5);
+      text-transform: uppercase;
+      margin-top: 8px;
+    }
+
+    @keyframes pulse-glow {
+      0%, 100% { filter: drop-shadow(0 0 25px rgba(255,165,0,0.5)); }
+      50%       { filter: drop-shadow(0 0 55px rgba(255,165,0,0.95)); }
+    }
+
+    @keyframes fadeDown {
+      from { opacity: 0; transform: translateY(-40px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── ERA STRIP ── */
+    .era-strip {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 22px;
+      animation: fadeIn 1.4s 0.4s ease both;
+    }
+
+    .era-card {
+      width: clamp(90px, 10vw, 120px);
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px;
+      padding: 8px 6px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .era-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .era-card:nth-child(1)::before { background: radial-gradient(circle at 50% 50%, rgba(139,69,19,0.5), transparent 70%); }
+    .era-card:nth-child(2)::before { background: radial-gradient(circle at 50% 50%, rgba(44,62,122,0.5), transparent 70%); }
+    .era-card:nth-child(3)::before { background: radial-gradient(circle at 50% 50%, rgba(196,123,34,0.5), transparent 70%); }
+    .era-card:nth-child(4)::before { background: radial-gradient(circle at 50% 50%, rgba(45,90,27,0.5), transparent 70%); }
+    .era-card:nth-child(5)::before { background: radial-gradient(circle at 50% 50%, rgba(13,27,75,0.5), transparent 70%); }
+
+    .era-card:hover::before { opacity: 1; }
+    .era-card:hover {
+      border-color: rgba(255,215,0,0.6);
+      transform: translateY(-4px) scale(1.04);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    }
+
+    .era-icon { font-size: 1.8rem; margin-bottom: 4px; display: block; }
+    .era-num  { font-size: 0.55rem; letter-spacing: 0.2em; color: rgba(255,215,0,0.7); text-transform: uppercase; }
+    .era-name { font-size: 0.65rem; color: rgba(255,255,255,0.85); margin-top: 2px; line-height: 1.2; }
+
+    /* ── RESOURCE BAR ── */
+    .resource-bar {
+      display: flex;
+      gap: 22px;
+      margin-bottom: 26px;
+      animation: fadeIn 1.4s 0.6s ease both;
+    }
+
+    .resource {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      background: rgba(0,0,0,0.45);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 0.7rem;
+      letter-spacing: 0.12em;
+      color: rgba(255,255,255,0.75);
+    }
+
+    .resource-icon { font-size: 1rem; }
+    .resource-fill {
+      width: 70px;
+      height: 5px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .resource-fill-inner {
+      height: 100%;
+      border-radius: 3px;
+      animation: fillUp 2s 1s ease forwards;
+      width: 0%;
+    }
+    .ammo-fill   { background: linear-gradient(90deg, #FFD700, #FF8C00); }
+    .health-fill { background: linear-gradient(90deg, #00FF88, #00CC55); }
+    .morale-fill { background: linear-gradient(90deg, #00BFFF, #0080FF); }
+
+    @keyframes fillUp {
+      to { width: var(--target-w); }
+    }
+
+    /* ── MENU BUTTONS ── */
+    .menu-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      align-items: center;
+      animation: fadeIn 1.4s 0.8s ease both;
+    }
+
+    .btn {
+      font-family: 'Cinzel', serif;
+      font-size: clamp(0.75rem, 1.4vw, 0.95rem);
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      border: none;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.25s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0.12);
+      transform: translateX(-100%);
+      transition: transform 0.3s ease;
+    }
+    .btn:hover::after { transform: translateX(0); }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #8B2500, #CC3300, #FF5500);
+      color: #FFD700;
+      padding: 14px 60px;
+      font-size: clamp(0.9rem, 1.8vw, 1.15rem);
+      font-weight: 700;
+      box-shadow: 0 0 20px rgba(255,80,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15);
+    }
+    .btn-primary:hover {
+      box-shadow: 0 0 40px rgba(255,100,0,0.7), inset 0 1px 0 rgba(255,255,255,0.2);
+      transform: scale(1.03);
+    }
+
+    .btn-secondary {
+      background: rgba(255,255,255,0.06);
+      color: rgba(255,255,255,0.75);
+      padding: 10px 40px;
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    .btn-secondary:hover {
+      border-color: rgba(255,215,0,0.5);
+      color: #FFD700;
+    }
+
+    .secondary-row { display: flex; gap: 12px; }
+
+    /* ── VERSION ── */
+    .version {
+      position: fixed;
+      bottom: 14px;
+      right: 18px;
+      font-size: 0.6rem;
+      color: rgba(255,255,255,0.25);
+      letter-spacing: 0.15em;
+      z-index: 20;
+    }
+
+    /* ── ERA TOOLTIP ── */
+    #eraTooltip {
+      position: fixed;
+      bottom: 0;
+      left: 0; right: 0;
+      padding: 10px 20px;
+      background: rgba(0,0,0,0.8);
+      border-top: 1px solid rgba(255,215,0,0.25);
+      display: flex;
+      gap: 40px;
+      justify-content: center;
+      font-size: 0.7rem;
+      color: rgba(255,255,255,0.65);
+      z-index: 20;
+      opacity: 0;
+      transform: translateY(100%);
+      transition: all 0.3s ease;
+    }
+    #eraTooltip.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .tip-group { display: flex; flex-direction: column; gap: 3px; }
+    .tip-label {
+      font-size: 0.55rem;
+      letter-spacing: 0.2em;
+      color: rgba(255,215,0,0.7);
+      text-transform: uppercase;
+    }
+    .tip-val { font-size: 0.68rem; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="bgCanvas"></canvas>
+<canvas id="particles"></canvas>
+<div class="scanlines"></div>
+
+<div id="app">
+  <!-- Title -->
+  <div class="title-block">
+    <div class="subtitle">A Tower Defense Epic</div>
+    <div class="main-title">Towers of Time</div>
+    <div class="tagline">Five Eras &nbsp;·&nbsp; Infinite Battles &nbsp;·&nbsp; One Destiny</div>
+  </div>
+
+  <!-- Era Strip -->
+  <div class="era-strip">
+    <div class="era-card" data-era="1"
+         data-chars="Club · Rock Thrower · Spear"
+         data-enemies="Boar · Sabre-Tooth Tiger · Mastodon"
+         data-cooldown="Fire Rain"
+         data-obstacle="Boulder">
+      <span class="era-icon">🦣</span>
+      <div class="era-num">Era I</div>
+      <div class="era-name">Prehistoric</div>
+    </div>
+    <div class="era-card" data-era="2"
+         data-chars="Swordsman · Archer · Cavalry"
+         data-enemies="Witch · Vampire · Ghost"
+         data-cooldown="Trebuchet"
+         data-obstacle="Wooden Wall">
+      <span class="era-icon">⚔️</span>
+      <div class="era-num">Era II</div>
+      <div class="era-name">Medieval</div>
+    </div>
+    <div class="era-card" data-era="3"
+         data-chars="Cutlass · Blunderbuss · Crossbowman"
+         data-enemies="Pirates"
+         data-cooldown="Cannon"
+         data-obstacle="Stone Wall">
+      <span class="era-icon">🏴‍☠️</span>
+      <div class="era-num">Era III</div>
+      <div class="era-name">Age of Pirates</div>
+    </div>
+    <div class="era-card" data-era="4"
+         data-chars="Ghillie Suit · Machine Gunner · Turret"
+         data-enemies="Grunt Zombie · Vombie · Necro Zombie"
+         data-cooldown="Fighter Jets"
+         data-obstacle="Barbed Wire">
+      <span class="era-icon">🧟</span>
+      <div class="era-num">Era IV</div>
+      <div class="era-name">Modern</div>
+    </div>
+    <div class="era-card" data-era="5"
+         data-chars="Lightsaber · Railgun · Orbital Laser"
+         data-enemies="Laser Alien · Fortnite Bart Simpson · Flying Saucer"
+         data-cooldown="Nuclear Bombs"
+         data-obstacle="Force Field">
+      <span class="era-icon">🚀</span>
+      <div class="era-num">Era V</div>
+      <div class="era-name">Future Wars</div>
+    </div>
+  </div>
+
+  <!-- Resources -->
+  <div class="resource-bar">
+    <div class="resource">
+      <span class="resource-icon">🎯</span>
+      <span>Ammo</span>
+      <div class="resource-fill"><div class="resource-fill-inner ammo-fill" style="--target-w:82%"></div></div>
+    </div>
+    <div class="resource">
+      <span class="resource-icon">🏰</span>
+      <span>Tower HP</span>
+      <div class="resource-fill"><div class="resource-fill-inner health-fill" style="--target-w:90%"></div></div>
+    </div>
+    <div class="resource">
+      <span class="resource-icon">⚡</span>
+      <span>Morale</span>
+      <div class="resource-fill"><div class="resource-fill-inner morale-fill" style="--target-w:68%"></div></div>
+    </div>
+  </div>
+
+  <!-- Menu -->
+  <div class="menu-buttons">
+    <button class="btn btn-primary" onclick="startGame()">⚔ &nbsp; Begin Campaign</button>
+    <div class="secondary-row">
+      <button class="btn btn-secondary" onclick="alert('Era Select — Coming Soon')">Select Era</button>
+      <button class="btn btn-secondary" onclick="alert('Settings — Coming Soon')">Settings</button>
+      <button class="btn btn-secondary" onclick="alert('Credits — Coming Soon')">Credits</button>
+    </div>
+  </div>
+</div>
+
+<!-- Era Tooltip -->
+<div id="eraTooltip">
+  <div class="tip-group"><div class="tip-label">Characters</div><div class="tip-val" id="tipChars">—</div></div>
+  <div class="tip-group"><div class="tip-label">Enemies</div><div class="tip-val" id="tipEnemies">—</div></div>
+  <div class="tip-group"><div class="tip-label">Cooldown</div><div class="tip-val" id="tipCooldown">—</div></div>
+  <div class="tip-group"><div class="tip-label">Obstacle</div><div class="tip-val" id="tipObstacle">—</div></div>
+</div>
+
+<div class="version">TOWERS OF TIME · v0.1.0 · PRE-ALPHA</div>
+
+<script>
+/* ══════════════════════════════════════════════
+   BACKGROUND CANVAS — cycling era landscapes
+══════════════════════════════════════════════ */
+const bgCanvas = document.getElementById('bgCanvas');
+const bgCtx    = bgCanvas.getContext('2d');
+
+const ERAS = [
+  { sky: ['#1a0a00','#5C3317','#8B4513','#D2691E'], ground: '#3B2507', accent: '#FF6B00', label: 'Prehistoric' },
+  { sky: ['#0a0a1a','#1a1a3a','#2C3E7A','#4B6CB7'], ground: '#1a1a2a', accent: '#7B68EE', label: 'Medieval'    },
+  { sky: ['#0a0505','#3B1515','#6B2D2D','#C4762B'], ground: '#0D0808', accent: '#FF9933', label: 'Pirates'     },
+  { sky: ['#050a05','#0F1F0F','#1A3A1A','#2D5A1B'], ground: '#050805', accent: '#39FF14', label: 'Modern War'  },
+  { sky: ['#000005','#05050F','#0D0D2B','#1A1A4B'], ground: '#000010', accent: '#00BFFF', label: 'Future'      },
+];
+
+let currentEra = 0;
+let eraT = 0;       // 0→1 per era
+let eraDuration = 5; // seconds per era
+let lastTime = 0;
+
+function resizeBg() {
+  bgCanvas.width  = window.innerWidth;
+  bgCanvas.height = window.innerHeight;
+}
+resizeBg();
+window.addEventListener('resize', resizeBg);
+
+function lerp(a, b, t) { return a + (b - a) * t; }
+
+function hexToRgb(hex) {
+  const r = parseInt(hex.slice(1,3),16);
+  const g = parseInt(hex.slice(3,5),16);
+  const b = parseInt(hex.slice(5,7),16);
+  return {r,g,b};
+}
+
+function lerpColor(hex1, hex2, t) {
+  const a = hexToRgb(hex1), b = hexToRgb(hex2);
+  const r = Math.round(lerp(a.r, b.r, t));
+  const g = Math.round(lerp(a.g, b.g, t));
+  const bv= Math.round(lerp(a.b, b.b, t));
+  return `rgb(${r},${g},${bv})`;
+}
+
+// Pre-generate silhouette shapes for each era
+const silhouettes = {
+  0: drawPrehistoric,
+  1: drawMedieval,
+  2: drawPirate,
+  3: drawModern,
+  4: drawFuture,
+};
+
+function drawPrehistoric(ctx, w, h, t) {
+  ctx.fillStyle = '#2A1B08';
+  // rolling hills
+  ctx.beginPath();
+  ctx.moveTo(0, h);
+  for (let x = 0; x <= w; x += 10) {
+    const y = h * 0.6 + Math.sin(x * 0.008 + t * 0.3) * h * 0.07
+                      + Math.cos(x * 0.015 + t * 0.2) * h * 0.04;
+    ctx.lineTo(x, y);
+  }
+  ctx.lineTo(w, h); ctx.closePath(); ctx.fill();
+
+  // boulders
+  ctx.fillStyle = '#1A0F05';
+  [[0.1,0.65,40],[0.4,0.7,25],[0.7,0.62,55],[0.9,0.68,30]].forEach(([rx,ry,r]) => {
+    ctx.beginPath();
+    ctx.arc(w*rx, h*ry, r, 0, Math.PI*2);
+    ctx.fill();
+  });
+
+  // trees (primitive)
+  ctx.fillStyle = '#1C3A0A';
+  [[0.2,0.55,15,30],[0.55,0.58,18,35],[0.82,0.52,12,25]].forEach(([rx,ry,rw,rh]) => {
+    ctx.beginPath();
+    ctx.moveTo(w*rx, h*ry);
+    ctx.lineTo(w*rx - rw, h*ry + rh);
+    ctx.lineTo(w*rx + rw, h*ry + rh);
+    ctx.closePath(); ctx.fill();
+  });
+}
+
+function drawMedieval(ctx, w, h, t) {
+  ctx.fillStyle = '#0D1020';
+  // ground
+  ctx.fillRect(0, h*0.65, w, h);
+
+  // castle towers
+  const towers = [[0.15,0.25],[0.35,0.35],[0.65,0.3],[0.85,0.2]];
+  towers.forEach(([rx, topY]) => {
+    const x = w*rx, tw = w*0.05, th = h*(0.65-topY);
+    ctx.fillStyle = '#0D1020';
+    ctx.fillRect(x - tw/2, h*topY, tw, th);
+    // merlons
+    ctx.fillStyle = '#0A0D1A';
+    for (let i = 0; i < 3; i++) {
+      ctx.fillRect(x - tw/2 + i*(tw/3), h*topY - 10, tw/4, 10);
+    }
+  });
+
+  // moon
+  ctx.fillStyle = 'rgba(200,200,255,0.15)';
+  ctx.beginPath();
+  ctx.arc(w*0.75, h*0.2, 35, 0, Math.PI*2);
+  ctx.fill();
+}
+
+function drawPirate(ctx, w, h, t) {
+  // ocean waves
+  const waveOff = t * 0.5;
+  ctx.fillStyle = '#0A1520';
+  ctx.fillRect(0, h*0.55, w, h);
+
+  ctx.strokeStyle = 'rgba(100,160,200,0.3)';
+  ctx.lineWidth = 2;
+  for (let wy = 0; wy < 5; wy++) {
+    ctx.beginPath();
+    for (let x = 0; x <= w; x += 8) {
+      const y = h*(0.58 + wy*0.04) + Math.sin(x*0.02 + waveOff + wy) * 6;
+      x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+
+  // ship silhouette
+  ctx.fillStyle = '#0A0A0A';
+  const sx = w*0.5, sy = h*0.52;
+  ctx.beginPath();
+  ctx.moveTo(sx - 80, sy + 30);
+  ctx.lineTo(sx + 80, sy + 30);
+  ctx.lineTo(sx + 60, sy + 50);
+  ctx.lineTo(sx - 60, sy + 50);
+  ctx.closePath(); ctx.fill();
+  // mast
+  ctx.fillRect(sx - 3, sy - 40, 6, 70);
+  // sail
+  ctx.beginPath();
+  ctx.moveTo(sx, sy - 35);
+  ctx.lineTo(sx + 40, sy);
+  ctx.lineTo(sx, sy + 5);
+  ctx.closePath(); ctx.fill();
+
+  // island far right
+  ctx.fillStyle = '#0F1505';
+  ctx.beginPath();
+  ctx.arc(w*0.88, h*0.58, 45, Math.PI, Math.PI*2);
+  ctx.fill();
+}
+
+function drawModern(ctx, w, h, t) {
+  // ground
+  ctx.fillStyle = '#050A05';
+  ctx.fillRect(0, h*0.6, w, h);
+
+  // ruined buildings
+  const buildings = [[0.1,0.3,60,h*0.3],[0.3,0.4,45,h*0.2],[0.6,0.25,70,h*0.35],[0.8,0.35,50,h*0.25]];
+  buildings.forEach(([rx,topFrac,bw,bh]) => {
+    ctx.fillStyle = '#0A150A';
+    const bx = w*rx - bw/2;
+    const by = h*topFrac;
+    ctx.fillRect(bx, by, bw, bh);
+    // broken top
+    ctx.fillStyle = '#050A05';
+    ctx.beginPath();
+    ctx.moveTo(bx, by);
+    ctx.lineTo(bx + bw*0.3, by - 12);
+    ctx.lineTo(bx + bw*0.5, by);
+    ctx.lineTo(bx + bw*0.7, by - 8);
+    ctx.lineTo(bx + bw, by);
+    ctx.closePath(); ctx.fill();
+  });
+
+  // searchlight sweep
+  const angle = Math.sin(t * 0.6) * 0.4 - 0.2;
+  const grd = ctx.createRadialGradient(w*0.5, h, 0, w*0.5, h, h*0.7);
+  grd.addColorStop(0, 'rgba(57,255,20,0.07)');
+  grd.addColorStop(1, 'transparent');
+  ctx.save();
+  ctx.translate(w*0.5, h);
+  ctx.rotate(angle);
+  ctx.fillStyle = grd;
+  ctx.beginPath();
+  ctx.moveTo(0,0);
+  ctx.lineTo(-h*0.4, -h*0.9);
+  ctx.lineTo(h*0.4, -h*0.9);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawFuture(ctx, w, h, t) {
+  // planet surface
+  ctx.fillStyle = '#050510';
+  ctx.fillRect(0, h*0.65, w, h);
+
+  // grid lines
+  ctx.strokeStyle = 'rgba(0,100,200,0.12)';
+  ctx.lineWidth = 1;
+  const vp = {x: w/2, y: h*0.65};
+  for (let i = -10; i <= 10; i++) {
+    ctx.beginPath();
+    ctx.moveTo(vp.x + i*60, vp.y);
+    ctx.lineTo(vp.x + i*300, h);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, vp.y + i*20 + t*5 % 20);
+    ctx.lineTo(w, vp.y + i*20 + t*5 % 20);
+    ctx.stroke();
+  }
+
+  // distant planet
+  const grd = ctx.createRadialGradient(w*0.2, h*0.25, 5, w*0.2, h*0.25, 70);
+  grd.addColorStop(0, 'rgba(80,0,120,0.6)');
+  grd.addColorStop(0.5, 'rgba(40,0,80,0.3)');
+  grd.addColorStop(1, 'transparent');
+  ctx.fillStyle = grd;
+  ctx.beginPath();
+  ctx.arc(w*0.2, h*0.25, 70, 0, Math.PI*2);
+  ctx.fill();
+
+  // rings
+  ctx.strokeStyle = 'rgba(120,80,200,0.3)';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.ellipse(w*0.2, h*0.28, 100, 18, 0.2, 0, Math.PI*2);
+  ctx.stroke();
+}
+
+function drawStars(ctx, w, h, density=1) {
+  ctx.fillStyle = 'rgba(255,255,255,0.8)';
+  for (let i=0; i<120*density; i++) {
+    // deterministic star positions using index as seed
+    const sx = ((i * 7919) % w);
+    const sy = ((i * 6271) % (h * 0.65));
+    const r  = (i % 3 === 0) ? 1.5 : 0.8;
+    ctx.beginPath();
+    ctx.arc(sx, sy, r, 0, Math.PI*2);
+    ctx.fill();
+  }
+}
+
+function bgLoop(timestamp) {
+  const dt = Math.min((timestamp - lastTime) / 1000, 0.05);
+  lastTime = timestamp;
+
+  eraT += dt / eraDuration;
+  if (eraT >= 1) { eraT = 0; currentEra = (currentEra + 1) % ERAS.length; }
+
+  const era = ERAS[currentEra];
+  const next = ERAS[(currentEra + 1) % ERAS.length];
+  const blend = Math.pow(eraT, 2); // ease-in blend for transitions
+
+  const w = bgCanvas.width, h = bgCanvas.height;
+  bgCtx.clearRect(0, 0, w, h);
+
+  // sky gradient
+  const sky = bgCtx.createLinearGradient(0, 0, 0, h*0.65);
+  era.sky.forEach((c, i) => {
+    const nc = next.sky[i];
+    sky.addColorStop(i / (era.sky.length - 1), lerpColor(c, nc, blend));
+  });
+  bgCtx.fillStyle = sky;
+  bgCtx.fillRect(0, 0, w, h*0.65);
+
+  // stars (for dark eras)
+  drawStars(bgCtx, w, h, 0.6);
+
+  // silhouette
+  const fn = silhouettes[currentEra];
+  if (fn) fn(bgCtx, w, h, timestamp / 1000);
+
+  // vignette
+  const vig = bgCtx.createRadialGradient(w/2, h/2, h*0.2, w/2, h/2, h*0.85);
+  vig.addColorStop(0, 'transparent');
+  vig.addColorStop(1, 'rgba(0,0,0,0.75)');
+  bgCtx.fillStyle = vig;
+  bgCtx.fillRect(0, 0, w, h);
+
+  requestAnimationFrame(bgLoop);
+}
+requestAnimationFrame(ts => { lastTime = ts; bgLoop(ts); });
+
+/* ══════════════════════════════════════════════
+   PARTICLE CANVAS
+══════════════════════════════════════════════ */
+const pCanvas = document.getElementById('particles');
+const pCtx    = pCanvas.getContext('2d');
+
+function resizeP() { pCanvas.width = window.innerWidth; pCanvas.height = window.innerHeight; }
+resizeP();
+window.addEventListener('resize', resizeP);
+
+const particles = Array.from({length: 60}, () => ({
+  x: Math.random() * window.innerWidth,
+  y: Math.random() * window.innerHeight,
+  r: Math.random() * 2 + 0.5,
+  vx: (Math.random() - 0.5) * 0.4,
+  vy: -Math.random() * 0.6 - 0.1,
+  life: Math.random(),
+  maxLife: 0.5 + Math.random() * 1.5,
+  hue: 30 + Math.random() * 30,
+}));
+
+function pLoop() {
+  pCtx.clearRect(0, 0, pCanvas.width, pCanvas.height);
+  particles.forEach(p => {
+    p.x += p.vx; p.y += p.vy; p.life -= 0.003;
+    if (p.life <= 0) {
+      p.x = Math.random() * pCanvas.width;
+      p.y = pCanvas.height * 0.5 + Math.random() * pCanvas.height * 0.5;
+      p.life = p.maxLife;
+    }
+    const alpha = Math.min(p.life / 0.3, 1) * 0.5;
+    pCtx.fillStyle = `hsla(${p.hue},80%,65%,${alpha})`;
+    pCtx.beginPath();
+    pCtx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+    pCtx.fill();
+  });
+  requestAnimationFrame(pLoop);
+}
+pLoop();
+
+/* ══════════════════════════════════════════════
+   ERA CARD TOOLTIPS
+══════════════════════════════════════════════ */
+const tooltip  = document.getElementById('eraTooltip');
+const tipChars   = document.getElementById('tipChars');
+const tipEnemies = document.getElementById('tipEnemies');
+const tipCooldown= document.getElementById('tipCooldown');
+const tipObstacle= document.getElementById('tipObstacle');
+
+document.querySelectorAll('.era-card').forEach(card => {
+  card.addEventListener('mouseenter', () => {
+    tipChars.textContent    = card.dataset.chars;
+    tipEnemies.textContent  = card.dataset.enemies;
+    tipCooldown.textContent = card.dataset.cooldown;
+    tipObstacle.textContent = card.dataset.obstacle;
+    tooltip.classList.add('visible');
+  });
+  card.addEventListener('mouseleave', () => {
+    tooltip.classList.remove('visible');
+  });
+});
+
+/* ══════════════════════════════════════════════
+   START GAME
+══════════════════════════════════════════════ */
+function startGame() {
+  const overlay = document.createElement('div');
+  Object.assign(overlay.style, {
+    position:'fixed', inset:'0', background:'black',
+    zIndex:'9999', opacity:'0', transition:'opacity 1s ease',
+    display:'flex', alignItems:'center', justifyContent:'center',
+    fontFamily:"'Cinzel Decorative',serif", color:'#FFD700',
+    fontSize:'2rem', letterSpacing:'0.3em'
+  });
+  overlay.textContent = 'Loading Era I…';
+  document.body.appendChild(overlay);
+  requestAnimationFrame(() => { overlay.style.opacity = '1'; });
+  setTimeout(() => {
+    overlay.textContent = 'Game Not Yet Implemented — But the Towers Await…';
+    overlay.style.fontSize = '1rem';
+  }, 1200);
+  setTimeout(() => {
+    overlay.style.opacity = '0';
+    setTimeout(() => overlay.remove(), 1000);
+  }, 3500);
+}
+</script>
+</body>
+</html>
