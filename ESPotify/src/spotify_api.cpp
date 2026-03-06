@@ -2,14 +2,22 @@
 #include <ArduinoJson.h>
 #include <base64.h>   // ESP32 built-in base64
 
-void SpotifyAPI::begin(const char* clientId, const char* clientSecret, const String& redirectUri) {
+void SpotifyAPI::begin(const char* clientId, const char* clientSecret, const String& redirectUri,
+                       const char* seedRefreshToken) {
     _clientId     = clientId;
     _clientSecret = clientSecret;
     _redirectUri  = redirectUri;
 
     _client.setInsecure();  // Skip cert verification (saves RAM)
 
-    loadRefreshToken();
+    // If a pre-generated refresh token was provided, use it directly
+    if (seedRefreshToken && strlen(seedRefreshToken) > 0) {
+        _refreshToken = seedRefreshToken;
+        saveRefreshToken();  // Persist it so future boots load from NVS
+        Serial.println(F("[Spotify] Using pre-seeded refresh token"));
+    } else {
+        loadRefreshToken();
+    }
 }
 
 // ---- Auth ----
@@ -53,17 +61,16 @@ bool SpotifyAPI::exchangeCode(const String& authCode) {
 
     if (response.length() == 0) return false;
 
-    DynamicJsonBuffer jsonBuffer(512);
-    JsonObject& root = jsonBuffer.parseObject(response);
-    if (!root.success()) {
+    JsonDocument doc;
+    if (deserializeJson(doc, response) != DeserializationError::Ok) {
         Serial.println(F("[Spotify] JSON parse error"));
         return false;
     }
 
-    if (root.containsKey("access_token")) {
-        _accessToken  = root["access_token"].as<String>();
-        _refreshToken = root["refresh_token"].as<String>();
-        int expiresIn = root["expires_in"].as<int>();
+    if (doc["access_token"].is<const char*>()) {
+        _accessToken  = doc["access_token"].as<String>();
+        _refreshToken = doc["refresh_token"].as<String>();
+        int expiresIn = doc["expires_in"].as<int>();
         _tokenExpiresAt = millis() + (expiresIn - 60) * 1000UL;  // Refresh 60s early
 
         saveRefreshToken();
@@ -72,7 +79,7 @@ bool SpotifyAPI::exchangeCode(const String& authCode) {
     }
 
     Serial.printf("[Spotify] Token error: %s\n",
-                  root.containsKey("error") ? root["error"].as<const char*>() : "unknown");
+                  doc["error"].as<const char*>() ?: "unknown");
     return false;
 }
 
@@ -90,18 +97,17 @@ bool SpotifyAPI::refreshAccessToken() {
 
     if (response.length() == 0) return false;
 
-    DynamicJsonBuffer jsonBuffer(512);
-    JsonObject& root = jsonBuffer.parseObject(response);
-    if (!root.success()) return false;
+    JsonDocument doc;
+    if (deserializeJson(doc, response) != DeserializationError::Ok) return false;
 
-    if (root.containsKey("access_token")) {
-        _accessToken = root["access_token"].as<String>();
-        int expiresIn = root["expires_in"].as<int>();
+    if (doc["access_token"].is<const char*>()) {
+        _accessToken = doc["access_token"].as<String>();
+        int expiresIn = doc["expires_in"].as<int>();
         _tokenExpiresAt = millis() + (expiresIn - 60) * 1000UL;
 
         // Spotify may issue a new refresh token
-        if (root.containsKey("refresh_token")) {
-            _refreshToken = root["refresh_token"].as<String>();
+        if (doc["refresh_token"].is<const char*>()) {
+            _refreshToken = doc["refresh_token"].as<String>();
             saveRefreshToken();
         }
 
@@ -123,6 +129,9 @@ bool SpotifyAPI::getCurrentlyPlaying(TrackInfo& info) {
     String response = httpGet("api.spotify.com", "/v1/me/player/currently-playing",
                               authHeader);
 
+    Serial.printf("[Spotify] /currently-playing response (%d bytes): %.120s\n",
+                  response.length(), response.c_str());
+
     if (response.length() == 0) {
         info.title     = "";
         info.artist    = "";
@@ -131,15 +140,14 @@ bool SpotifyAPI::getCurrentlyPlaying(TrackInfo& info) {
         return false;
     }
 
-    DynamicJsonBuffer jsonBuffer(2048);
-    JsonObject& root = jsonBuffer.parseObject(response);
-    if (!root.success()) return false;
+    JsonDocument doc;
+    if (deserializeJson(doc, response) != DeserializationError::Ok) return false;
 
-    info.isPlaying  = root["is_playing"].as<bool>();
-    info.progressMs = root["progress_ms"].as<int>();
+    info.isPlaying  = doc["is_playing"].as<bool>();
+    info.progressMs = doc["progress_ms"].as<int>();
 
-    JsonObject& item = root["item"];
-    if (!item.success()) return false;
+    JsonObject item = doc["item"];
+    if (item.isNull()) return false;
 
     info.title      = item["name"].as<String>();
     info.durationMs = item["duration_ms"].as<int>();
@@ -147,8 +155,8 @@ bool SpotifyAPI::getCurrentlyPlaying(TrackInfo& info) {
 
     // Build artist string (may have multiple)
     info.artist = "";
-    JsonArray& artists = item["artists"];
-    for (int i = 0; i < artists.size() && i < 3; i++) {
+    JsonArray artists = item["artists"];
+    for (int i = 0; i < (int)artists.size() && i < 3; i++) {
         if (i > 0) info.artist += ", ";
         info.artist += artists[i]["name"].as<String>();
     }
@@ -221,86 +229,72 @@ void SpotifyAPI::loop() {
     }
 }
 
-// ---- HTTP Helpers ----
+// ---- HTTP Helpers (HTTPClient-based for connection reuse + chunked encoding) ----
 
 String SpotifyAPI::httpPost(const String& host, const String& path,
                             const String& body, const String& contentType,
                             const String& authHeader) {
-    if (!_client.connect(host.c_str(), 443)) {
-        Serial.printf("[HTTP] POST connect failed: %s\n", host.c_str());
+    String url = "https://" + host + path;
+    if (!_https.begin(_client, url)) {
+        Serial.printf("[HTTP] POST begin failed: %s\n", host.c_str());
         return "";
     }
 
-    _client.printf("POST %s HTTP/1.1\r\n", path.c_str());
-    _client.printf("Host: %s\r\n", host.c_str());
-    _client.printf("Content-Type: %s\r\n", contentType.c_str());
-    _client.printf("Content-Length: %d\r\n", body.length());
-    if (authHeader.length() > 0) {
-        _client.printf("Authorization: %s\r\n", authHeader.c_str());
-    }
-    _client.print("Connection: close\r\n\r\n");
-    _client.print(body);
+    if (contentType.length() > 0) _https.addHeader("Content-Type", contentType);
+    if (authHeader.length() > 0)  _https.addHeader("Authorization", authHeader);
 
-    // Skip headers
-    while (_client.connected()) {
-        String line = _client.readStringUntil('\n');
-        if (line == "\r") break;
+    int code = _https.POST(body);
+    String response = (code > 0) ? _https.getString() : "";
+    if (code <= 0) {
+        Serial.printf("[HTTP] POST error: %s\n", HTTPClient::errorToString(code).c_str());
+        _https.end();
     }
-
-    String response = _client.readString();
-    _client.stop();
     return response;
 }
 
 String SpotifyAPI::httpGet(const String& host, const String& path,
                            const String& authHeader) {
-    if (!_client.connect(host.c_str(), 443)) {
-        Serial.printf("[HTTP] GET connect failed: %s\n", host.c_str());
+    String url = "https://" + host + path;
+
+    Serial.printf("[HTTP] heap: %u free, %u max-block\n",
+                  ESP.getFreeHeap(), ESP.getMaxAllocHeap());
+
+    if (!_https.begin(_client, url)) {
+        Serial.printf("[HTTP] GET begin failed: %s\n", host.c_str());
         return "";
     }
 
-    _client.printf("GET %s HTTP/1.1\r\n", path.c_str());
-    _client.printf("Host: %s\r\n", host.c_str());
-    if (authHeader.length() > 0) {
-        _client.printf("Authorization: %s\r\n", authHeader.c_str());
-    }
-    _client.print("Connection: close\r\n\r\n");
+    if (authHeader.length() > 0) _https.addHeader("Authorization", authHeader);
 
-    while (_client.connected()) {
-        String line = _client.readStringUntil('\n');
-        if (line == "\r") break;
+    int code = _https.GET();
+    String response = "";
+    if (code == HTTP_CODE_OK) {
+        response = _https.getString();
+    } else if (code != HTTP_CODE_NO_CONTENT) {
+        // 204 = nothing playing (normal); anything else is an error
+        Serial.printf("[HTTP] GET %s -> %d %s\n", path.c_str(), code,
+                      HTTPClient::errorToString(code).c_str());
+        _https.end();  // Force close on error so next attempt gets a fresh connection
     }
-
-    String response = _client.readString();
-    _client.stop();
     return response;
 }
 
 String SpotifyAPI::httpPut(const String& host, const String& path,
                            const String& body, const String& authHeader) {
-    if (!_client.connect(host.c_str(), 443)) {
-        Serial.printf("[HTTP] PUT connect failed: %s\n", host.c_str());
+    String url = "https://" + host + path;
+    if (!_https.begin(_client, url)) {
+        Serial.printf("[HTTP] PUT begin failed: %s\n", host.c_str());
         return "";
     }
 
-    _client.printf("PUT %s HTTP/1.1\r\n", path.c_str());
-    _client.printf("Host: %s\r\n", host.c_str());
-    _client.print("Content-Type: application/json\r\n");
-    _client.printf("Content-Length: %d\r\n", body.length());
-    if (authHeader.length() > 0) {
-        _client.printf("Authorization: %s\r\n", authHeader.c_str());
-    }
-    _client.print("Connection: close\r\n\r\n");
-    if (body.length() > 0) {
-        _client.print(body);
-    }
+    _https.addHeader("Content-Type", "application/json");
+    if (authHeader.length() > 0) _https.addHeader("Authorization", authHeader);
 
-    while (_client.connected()) {
-        String line = _client.readStringUntil('\n');
-        if (line == "\r") break;
+    int code = _https.sendRequest("PUT", body);
+    String response = (code > 0) ? _https.getString() : "";
+    if (code <= 0) {
+        Serial.printf("[HTTP] PUT error: %s\n", HTTPClient::errorToString(code).c_str());
+        _https.end();
     }
-
-    String response = _client.readString();
-    _client.stop();
     return response;
 }

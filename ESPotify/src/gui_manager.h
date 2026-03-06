@@ -1,5 +1,5 @@
 #pragma once
-#include <Adafruit_SSD1306.h>
+#include <Adafruit_SH110X.h>
 #include "config.h"
 #include "button_handler.h"
 
@@ -60,7 +60,7 @@ public:
     EQCallback     onEQChange   = nullptr;
 
 private:
-    Adafruit_SSD1306 _display{SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET};
+    Adafruit_SH1107  _display{SCREEN_HEIGHT, SCREEN_WIDTH, &Wire}; // SH1107: h,w order
     ScreenID         _currentScreen = SCREEN_BOOT;
     unsigned long    _lastRenderMs  = 0;
 

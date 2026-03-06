@@ -30,6 +30,7 @@ private:
 
     struct BiquadState {
         float z1 = 0, z2 = 0;  // State variables
+        void reset() { z1 = 0; z2 = 0; }
     };
 
     struct EQBand {

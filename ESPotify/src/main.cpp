@@ -5,7 +5,9 @@
 #include "secrets.h"
 #include "wifi_manager.h"
 #include "spotify_api.h"
+#if ENABLE_BLUETOOTH
 #include "bt_audio.h"
+#endif
 #include "audio_pipeline.h"
 #include "fft_analyzer.h"
 #include "gui_manager.h"
@@ -16,7 +18,9 @@
 // ============================================================
 static WiFiManager    wifiMgr;
 static SpotifyAPI     spotify;
+#if ENABLE_BLUETOOTH
 static BTAudio        btAudio;
+#endif
 static AudioPipeline  audioPipe;
 static FFTAnalyzer    fftAnalyzer;
 static GUIManager     gui;
@@ -25,10 +29,12 @@ static ButtonHandler  buttons;
 // ============================================================
 // Audio callback (called from Bluetooth A2DP context)
 // ============================================================
+#if ENABLE_BLUETOOTH
 static void onAudioData(const int16_t* data, int sampleCount) {
     // Process through EQ filter bank (modifies data in-place)
     audioPipe.processSamples(data, sampleCount);
 }
+#endif
 
 // ============================================================
 // Spotify control callbacks (called from GUI button events)
@@ -95,8 +101,9 @@ void setup() {
     delay(500);
     Serial.println(F("\n=== ESPotify ===\n"));
 
-    // Init I2C for OLED
-    Wire.begin();
+    // Init I2C for OLED - HUZZAH32 routes Feather SDA to GPIO 23, SCL to GPIO 22
+    Wire.begin(23, 22);
+    delay(100);
 
     // Init OLED display
     if (!gui.begin()) {
@@ -141,7 +148,8 @@ void setup() {
 
         // Init Spotify API
         String redirectUri = "http://" + wifiMgr.getIP() + "/callback";
-        spotify.begin(SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, redirectUri);
+        spotify.begin(SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, redirectUri,
+                      SPOTIFY_REFRESH_TOKEN);  // Pre-seeded token (empty = use captive portal)
 
         // Check for saved refresh token
         if (spotify.hasRefreshToken()) {
@@ -169,10 +177,24 @@ void setup() {
         Serial.println(F("[Main] Auth needed - portal started"));
     }
 
+    // Fetch initial track before BT starts (BT fragments heap, breaking TLS)
+    if (appState == STATE_RUNNING) {
+        TrackInfo initial;
+        if (spotify.getCurrentlyPlaying(initial)) {
+            gui.setTrackInfo(initial);
+            Serial.printf("[Main] Now playing: %s - %s\n",
+                          initial.title.c_str(), initial.artist.c_str());
+        }
+    }
+
+#if ENABLE_BLUETOOTH
     // Start Bluetooth A2DP sink
     btAudio.setDataCallback(onAudioData);
     btAudio.begin(BT_DEVICE_NAME);
     Serial.println(F("[Main] Bluetooth A2DP started"));
+#else
+    Serial.println(F("[Main] Bluetooth disabled (set ENABLE_BLUETOOTH=1 when DAC is ready)"));
+#endif
 
     // If already authenticated, go to now playing
     if (appState == STATE_RUNNING) {
@@ -206,17 +228,24 @@ void loop() {
         }
     }
 
-    // --- Spotify API polling ---
+    // --- Track info: AVRCP (BT) when connected, Spotify API otherwise ---
+#if ENABLE_BLUETOOTH
+    if (btAudio.isConnected()) {
+        // Phone pushes metadata via AVRCP — no WiFi polling needed.
+        // Advance elapsed time locally (Spotify doesn't send AVRCP position events).
+        btAudio.tickPosition();
+        if (btAudio.hasNewTrack()) {
+            btAudio.clearNewTrack();
+        }
+        gui.setTrackInfo(btAudio.getTrackInfo());
+    } else
+#endif
     if (appState == STATE_RUNNING && wifiMgr.isConnected()) {
         spotify.loop();
-
         if (spotify.hasNewTrack()) {
             spotify.clearNewTrack();
-            gui.setTrackInfo(spotify.getLastTrack());
-        } else {
-            // Update progress even when same track
-            gui.setTrackInfo(spotify.getLastTrack());
         }
+        gui.setTrackInfo(spotify.getLastTrack());
     }
 
     // --- FFT processing ---
@@ -237,9 +266,14 @@ void loop() {
         lastStatusUpdate = now;
         DeviceStatus status;
         status.wifiConnected = wifiMgr.isConnected();
-        status.btConnected   = btAudio.isConnected();
         status.ipAddress     = wifiMgr.getIP();
+#if ENABLE_BLUETOOTH
+        status.btConnected   = btAudio.isConnected();
         status.btPeerName    = btAudio.getPeerName();
+#else
+        status.btConnected   = false;
+        status.btPeerName    = "";
+#endif
         status.freeHeap      = ESP.getFreeHeap();
         gui.setDeviceStatus(status);
     }

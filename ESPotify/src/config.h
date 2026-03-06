@@ -4,6 +4,10 @@
 // ESPotify Configuration
 // ============================================================
 
+// --- I2C (HUZZAH32 routes Feather header to GPIO 23/22, not ESP32 default 21/22) ---
+#define I2C_SDA_PIN       23
+#define I2C_SCL_PIN       22
+
 // --- Display (SSD1306 OLED FeatherWing) ---
 #define SCREEN_WIDTH      128
 #define SCREEN_HEIGHT     64
@@ -58,6 +62,9 @@
 #define EQ_STEP_DB        3
 
 // --- Bluetooth ---
+// Set to 1 when the PCM5102A DAC is wired and you're ready to test A2DP audio.
+// Leaving it 0 frees ~45KB RAM so TLS (Spotify API) can work alongside WiFi.
+#define ENABLE_BLUETOOTH  1
 #define BT_DEVICE_NAME    "ESPotify"
 
 // --- WiFi ---

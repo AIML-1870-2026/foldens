@@ -19,8 +19,8 @@ void AudioPipeline::begin() {
     // Initialize all bands to flat (0 dB)
     for (int i = 0; i < EQ_BANDS; i++) {
         _bands[i].gainDb = 0.0f;
-        _bands[i].stateL = {0, 0};
-        _bands[i].stateR = {0, 0};
+        _bands[i].stateL.reset();
+        _bands[i].stateR.reset();
         recalcBand(i);
     }
 
@@ -117,8 +117,8 @@ void AudioPipeline::recalcBand(int band) {
     }
 
     // Reset filter state to avoid pops
-    _bands[band].stateL = {0, 0};
-    _bands[band].stateR = {0, 0};
+    _bands[band].stateL.reset();
+    _bands[band].stateR.reset();
 }
 
 void AudioPipeline::computePeakingEQ(BiquadCoeffs& c, float freq, float gainDb, float Q) {

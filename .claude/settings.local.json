@@ -16,7 +16,10 @@
       "WebFetch(domain:localhost)",
       "Bash(curl:*)",
       "Bash(python -m http.server:*)",
-      "WebFetch(domain:learn.adafruit.com)"
+      "WebFetch(domain:learn.adafruit.com)",
+      "Bash(start \"\" \"c:\\\\Users\\\\willi\\\\OneDrive\\\\Desktop\\\\AIML\\\\Readable\\\\index.html\")",
+      "Bash(~/.platformio/penv/Scripts/pio.exe platform install:*)",
+      "Bash(~/.platformio/penv/Scripts/pio.exe run:*)"
     ]
   }
 }

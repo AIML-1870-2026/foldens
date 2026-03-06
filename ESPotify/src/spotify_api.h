@@ -1,13 +1,15 @@
 #pragma once
 #include <Arduino.h>
 #include <WiFiClientSecure.h>
+#include <HTTPClient.h>
 #include <Preferences.h>
 #include "config.h"
 #include "gui_manager.h"  // For TrackInfo struct
 
 class SpotifyAPI {
 public:
-    void begin(const char* clientId, const char* clientSecret, const String& redirectUri);
+    void begin(const char* clientId, const char* clientSecret, const String& redirectUri,
+               const char* seedRefreshToken = "");  // Optional pre-generated refresh token
 
     // Auth flow
     bool exchangeCode(const String& authCode);   // Exchange OAuth code for tokens
@@ -44,8 +46,9 @@ private:
     bool      _newTrackAvailable = false;
     unsigned long _lastPollMs = 0;
 
-    Preferences _prefs;
+    Preferences      _prefs;
     WiFiClientSecure _client;
+    HTTPClient       _https;   // Persistent; reuses TLS connection between polls
 
     String httpPost(const String& host, const String& path,
                     const String& body, const String& contentType,

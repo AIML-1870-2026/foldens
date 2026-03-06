@@ -10,12 +10,16 @@ static TextScroller titleScroller;
 static TextScroller artistScroller;
 
 bool GUIManager::begin() {
-    if (!_display.begin(SSD1306_SWITCHCAPVCC, OLED_I2C_ADDR)) {
-        Serial.println(F("[GUI] SSD1306 init failed"));
+    // SH1107: begin(i2c_addr, reset)
+    if (!_display.begin(OLED_I2C_ADDR, true)) {
+        Serial.println(F("[GUI] SH1107 init failed"));
         return false;
     }
+    // Rotate 90 degrees: SH1107 is natively 64 wide x 128 tall;
+    // rotation=1 gives us 128 wide x 64 tall (landscape)
+    _display.setRotation(1);
     _display.clearDisplay();
-    _display.setTextColor(SSD1306_WHITE);
+    _display.setTextColor(SH110X_WHITE);
     _display.setTextSize(1);
     _display.display();
 
@@ -146,7 +150,7 @@ void GUIManager::render() {
 
 void GUIManager::drawStatusBar() {
     // Music note icon
-    _display.drawBitmap(0, 0, icon_note, 8, 8, SSD1306_WHITE);
+    _display.drawBitmap(0, 0, icon_note, 8, 8, SH110X_WHITE);
 
     // Screen label
     _display.setCursor(10, 0);
@@ -160,23 +164,23 @@ void GUIManager::drawStatusBar() {
 
     // Play state icon
     if (_track.isPlaying) {
-        _display.drawBitmap(80, 0, icon_play, 8, 8, SSD1306_WHITE);
+        _display.drawBitmap(80, 0, icon_play, 8, 8, SH110X_WHITE);
     } else {
-        _display.drawBitmap(80, 0, icon_pause, 8, 8, SSD1306_WHITE);
+        _display.drawBitmap(80, 0, icon_pause, 8, 8, SH110X_WHITE);
     }
 
     // Bluetooth icon
     if (_status.btConnected) {
-        _display.drawBitmap(104, 0, icon_bt, 8, 8, SSD1306_WHITE);
+        _display.drawBitmap(104, 0, icon_bt, 8, 8, SH110X_WHITE);
     }
 
     // WiFi icon
     if (_status.wifiConnected) {
-        _display.drawBitmap(120, 0, icon_wifi, 8, 8, SSD1306_WHITE);
+        _display.drawBitmap(120, 0, icon_wifi, 8, 8, SH110X_WHITE);
     }
 
     // Separator line
-    _display.drawFastHLine(0, 9, SCREEN_WIDTH, SSD1306_WHITE);
+    _display.drawFastHLine(0, 9, SCREEN_WIDTH, SH110X_WHITE);
 }
 
 // ---- Boot Screen ----
@@ -233,27 +237,25 @@ void GUIManager::drawNowPlaying() {
         return;
     }
 
-    // Title (scrolling, larger area)
     _display.setTextSize(1);
-    int titleOffset = titleScroller.getOffset();
-    _display.setCursor(-titleOffset, 12);
+    _display.setTextWrap(false);  // Prevent long strings overflowing onto next line
+
+    // Title (scrolling)
+    _display.setCursor(-titleScroller.getOffset(), 11);
     _display.print(_track.title);
 
-    // Artist
-    int artistOffset = artistScroller.getOffset();
-    _display.setCursor(-artistOffset, 24);
+    // Artist (scrolling)
+    _display.setCursor(-artistScroller.getOffset(), 21);
     _display.print(_track.artist);
 
-    // Album (truncated, no scroll)
-    _display.setCursor(0, 34);
-    String albumDisplay = _track.album;
-    if (albumDisplay.length() > MAX_DISPLAY_CHARS) {
-        albumDisplay = albumDisplay.substring(0, MAX_DISPLAY_CHARS - 1) + ".";
-    }
-    _display.print(albumDisplay);
+    // Album (static, clipped at display edge)
+    _display.setCursor(0, 31);
+    _display.print(_track.album);
 
-    // Progress bar + time
-    drawProgressBar(48, _track.progressMs, _track.durationMs);
+    _display.setTextWrap(true);
+
+    // Full-width progress bar + elapsed/total times below
+    drawProgressBar(41, _track.progressMs, _track.durationMs);
 
     // Button hints
     _display.setCursor(0, 56);
@@ -280,19 +282,19 @@ void GUIManager::drawSpectrum() {
         if (_spectrumStyle == 0) {
             // Solid bars
             if (h > 0) {
-                _display.fillRect(x, baseY - h, barWidth, h, SSD1306_WHITE);
+                _display.fillRect(x, baseY - h, barWidth, h, SH110X_WHITE);
             }
         } else if (_spectrumStyle == 1) {
             // Dots only (peak dot)
             if (h > 0) {
-                _display.fillRect(x, baseY - h, barWidth, 2, SSD1306_WHITE);
+                _display.fillRect(x, baseY - h, barWidth, 2, SH110X_WHITE);
             }
         } else {
             // Mirrored bars
             int halfH = h / 2;
             int midY = baseY - maxHeight / 2;
             if (halfH > 0) {
-                _display.fillRect(x, midY - halfH, barWidth, halfH * 2, SSD1306_WHITE);
+                _display.fillRect(x, midY - halfH, barWidth, halfH * 2, SH110X_WHITE);
             }
         }
 
@@ -301,7 +303,7 @@ void GUIManager::drawSpectrum() {
         if (peak > 1.0f) peak = 1.0f;
         int peakY = baseY - (int)(peak * maxHeight);
         if (peak > 0.02f) {
-            _display.drawFastHLine(x, peakY, barWidth, SSD1306_WHITE);
+            _display.drawFastHLine(x, peakY, barWidth, SH110X_WHITE);
         }
     }
 
@@ -351,18 +353,18 @@ void GUIManager::drawEQ() {
         int barH  = 5;
         int midX  = barX + barW / 2;
 
-        _display.drawRect(barX, y, barW, barH, SSD1306_WHITE);
+        _display.drawRect(barX, y, barW, barH, SH110X_WHITE);
 
         // Fill from center based on gain
         int fillW = (int)((float)_eq.gains[i] / EQ_MAX_DB * (barW / 2));
         if (fillW > 0) {
-            _display.fillRect(midX, y + 1, fillW, barH - 2, SSD1306_WHITE);
+            _display.fillRect(midX, y + 1, fillW, barH - 2, SH110X_WHITE);
         } else if (fillW < 0) {
-            _display.fillRect(midX + fillW, y + 1, -fillW, barH - 2, SSD1306_WHITE);
+            _display.fillRect(midX + fillW, y + 1, -fillW, barH - 2, SH110X_WHITE);
         }
 
         // Center line
-        _display.drawFastVLine(midX, y, barH, SSD1306_WHITE);
+        _display.drawFastVLine(midX, y, barH, SH110X_WHITE);
 
         // dB value
         _display.setCursor(104, y);
@@ -378,10 +380,10 @@ void GUIManager::drawEQ() {
 // ---- Settings Screen ----
 
 void GUIManager::drawSettings() {
-    _display.drawBitmap(0, 0, icon_gear, 8, 8, SSD1306_WHITE);
+    _display.drawBitmap(0, 0, icon_gear, 8, 8, SH110X_WHITE);
     _display.setCursor(10, 0);
     _display.print(F("Settings"));
-    _display.drawFastHLine(0, 9, SCREEN_WIDTH, SSD1306_WHITE);
+    _display.drawFastHLine(0, 9, SCREEN_WIDTH, SH110X_WHITE);
 
     const char* labels[] = {
         "WiFi:", "Bluetooth:", "EQ:", "FFT Size:", "Heap:"
@@ -415,28 +417,33 @@ void GUIManager::drawSettings() {
 // ---- Helpers ----
 
 void GUIManager::drawProgressBar(int y, int progressMs, int durationMs) {
-    if (durationMs <= 0) return;
-
-    int barX = 0;
-    int barW = 90;
+    int barW = SCREEN_WIDTH;
     int barH = 3;
 
-    // Background
-    _display.drawRect(barX, y, barW, barH, SSD1306_WHITE);
+    // Track bar (always draw so the user sees something)
+    _display.drawRect(0, y, barW, barH, SH110X_WHITE);
 
-    // Fill
-    int fillW = (int)((float)progressMs / durationMs * (barW - 2));
-    if (fillW > 0) {
-        _display.fillRect(barX + 1, y + 1, fillW, barH - 2, SSD1306_WHITE);
+    if (durationMs > 0) {
+        int fillW = (int)((float)progressMs / durationMs * (barW - 2));
+        if (fillW < 0) fillW = 0;
+        if (fillW > barW - 2) fillW = barW - 2;
+        if (fillW > 0) {
+            _display.fillRect(1, y + 1, fillW, barH - 2, SH110X_WHITE);
+        }
+        // Knob at fill endpoint
+        _display.fillCircle(max(2, 1 + fillW), y + 1, 2, SH110X_WHITE);
     }
 
-    // Knob
-    int knobX = barX + 1 + fillW;
-    _display.fillCircle(knobX, y + 1, 2, SSD1306_WHITE);
-
-    // Time
-    _display.setCursor(94, y - 1);
+    // Elapsed time — left-aligned below bar
+    _display.setCursor(0, y + 5);
     _display.print(formatTime(progressMs));
+
+    // Total duration — right-aligned below bar
+    if (durationMs > 0) {
+        String totalStr = formatTime(durationMs);
+        _display.setCursor(SCREEN_WIDTH - (int)(totalStr.length() * 6), y + 5);
+        _display.print(totalStr);
+    }
 }
 
 String GUIManager::formatTime(int ms) {
