@@ -653,6 +653,636 @@
   }
 </script>
 
+<!-- ── Witch ────────────────────────────────────────────────── -->
+<div class="section">
+  <div class="section-title">Witch</div>
+  <div class="stt-wrapper" id="wtc-wrapper">
+    <canvas id="wtc"></canvas>
+  </div>
+  <div id="wtc-state-label" style="font-size:13px;color:#aaa;letter-spacing:1px">STATE: ATTACK</div>
+  <div class="slider-row">
+    <span>Scale</span>
+    <input type="range" id="wtc-scale-slider" min="10" max="100" value="25" step="5">
+    <span id="wtc-scale-label">25%</span>
+  </div>
+</div>
+
+<script>
+  // ── Witch ──────────────────────────────────────────────────────────────
+  const WTC_FW  = 1280;
+  const WTC_FH  = 720;
+  const WTC_FPS = 24;
+  const WTC_TOTAL = 145;
+
+  const wtcCanvas = document.getElementById('wtc');
+  wtcCanvas.width  = WTC_FW;
+  wtcCanvas.height = WTC_FH;
+  const wtcCtx = wtcCanvas.getContext('2d');
+  wtcCtx.imageSmoothingEnabled = true;
+
+  const wtcImgs = [];
+  let wtcReady  = 0;
+  for (let i = 1; i <= WTC_TOTAL; i++) {
+    const img = new Image();
+    img.src = `Witch/witch-attacking/${String(i).padStart(4,'0')}.jpg`;
+    img.onload = () => { if (++wtcReady === WTC_TOTAL) requestAnimationFrame(wtcLoop); };
+    wtcImgs.push(img);
+  }
+
+  let wtcFrame   = 0;
+  let wtcElapsed = 0;
+  let wtcLast    = 0;
+
+  function applyWtcScale(pct) {
+    const s = pct / 100;
+    wtcCanvas.style.transform = `scale(${s})`;
+    wtcCanvas.style.transformOrigin = 'top left';
+    const wrapper = document.getElementById('wtc-wrapper');
+    wrapper.style.width  = Math.round(WTC_FW * s) + 'px';
+    wrapper.style.height = Math.round(WTC_FH * s) + 'px';
+    document.getElementById('wtc-scale-label').textContent = pct + '%';
+  }
+  applyWtcScale(25);
+
+  document.getElementById('wtc-scale-slider').addEventListener('input', e => {
+    applyWtcScale(Number(e.target.value));
+  });
+
+  function wtcLoop(ts) {
+    requestAnimationFrame(wtcLoop);
+    wtcElapsed += ts - wtcLast;
+    wtcLast     = ts;
+
+    if (wtcElapsed >= 1000 / WTC_FPS) {
+      wtcFrame    = (wtcFrame + 1) % WTC_TOTAL;
+      wtcElapsed -= 1000 / WTC_FPS;
+    }
+
+    if (wtcImgs[wtcFrame]?.complete)
+      wtcCtx.drawImage(wtcImgs[wtcFrame], 0, 0, WTC_FW, WTC_FH);
+  }
+</script>
+
+<!-- ── Vampire ───────────────────────────────────────────────── -->
+<div class="section">
+  <div class="section-title">Vampire</div>
+  <div class="stt-wrapper" id="vmp-wrapper">
+    <canvas id="vmp"></canvas>
+  </div>
+  <div id="vmp-state-label" style="font-size:13px;color:#aaa;letter-spacing:1px">STATE: ATTACK</div>
+  <div class="slider-row">
+    <span>Scale</span>
+    <input type="range" id="vmp-scale-slider" min="10" max="100" value="25" step="5">
+    <span id="vmp-scale-label">25%</span>
+  </div>
+</div>
+
+<script>
+  // ── Vampire ────────────────────────────────────────────────────────────
+  const VMP_FW  = 1280;
+  const VMP_FH  = 720;
+  const VMP_FPS = 24;
+  const VMP_TOTAL = 109;
+
+  const vmpCanvas = document.getElementById('vmp');
+  vmpCanvas.width  = VMP_FW;
+  vmpCanvas.height = VMP_FH;
+  const vmpCtx = vmpCanvas.getContext('2d');
+  vmpCtx.imageSmoothingEnabled = true;
+
+  const vmpImgs = [];
+  let vmpReady  = 0;
+  for (let i = 1; i <= VMP_TOTAL; i++) {
+    const img = new Image();
+    img.src = `Vampire/vampire-attacking/${String(i).padStart(4,'0')}.jpg`;
+    img.onload = () => { if (++vmpReady === VMP_TOTAL) requestAnimationFrame(vmpLoop); };
+    vmpImgs.push(img);
+  }
+
+  let vmpFrame   = 0;
+  let vmpElapsed = 0;
+  let vmpLast    = 0;
+
+  function applyVmpScale(pct) {
+    const s = pct / 100;
+    vmpCanvas.style.transform = `scale(${s})`;
+    vmpCanvas.style.transformOrigin = 'top left';
+    const wrapper = document.getElementById('vmp-wrapper');
+    wrapper.style.width  = Math.round(VMP_FW * s) + 'px';
+    wrapper.style.height = Math.round(VMP_FH * s) + 'px';
+    document.getElementById('vmp-scale-label').textContent = pct + '%';
+  }
+  applyVmpScale(25);
+
+  document.getElementById('vmp-scale-slider').addEventListener('input', e => {
+    applyVmpScale(Number(e.target.value));
+  });
+
+  function vmpLoop(ts) {
+    requestAnimationFrame(vmpLoop);
+    vmpElapsed += ts - vmpLast;
+    vmpLast     = ts;
+
+    if (vmpElapsed >= 1000 / VMP_FPS) {
+      vmpFrame    = (vmpFrame + 1) % VMP_TOTAL;
+      vmpElapsed -= 1000 / VMP_FPS;
+    }
+
+    if (vmpImgs[vmpFrame]?.complete)
+      vmpCtx.drawImage(vmpImgs[vmpFrame], 0, 0, VMP_FW, VMP_FH);
+  }
+</script>
+
+<!-- ── Ghost ──────────────────────────────────────────────────── -->
+<div class="section">
+  <div class="section-title">Ghost</div>
+  <div class="stt-wrapper" id="gst-wrapper">
+    <canvas id="gst"></canvas>
+  </div>
+  <div id="gst-state-label" style="font-size:13px;color:#aaa;letter-spacing:1px">STATE: ATTACK</div>
+  <div class="slider-row">
+    <span>Scale</span>
+    <input type="range" id="gst-scale-slider" min="10" max="100" value="25" step="5">
+    <span id="gst-scale-label">25%</span>
+  </div>
+</div>
+
+<script>
+  // ── Ghost ──────────────────────────────────────────────────────────────
+  const GST_FW  = 1280;
+  const GST_FH  = 720;
+  const GST_FPS = 24;
+  const GST_TOTAL = 192;
+
+  const gstCanvas = document.getElementById('gst');
+  gstCanvas.width  = GST_FW;
+  gstCanvas.height = GST_FH;
+  const gstCtx = gstCanvas.getContext('2d');
+  gstCtx.imageSmoothingEnabled = true;
+
+  const gstImgs = [];
+  let gstReady  = 0;
+  for (let i = 1; i <= GST_TOTAL; i++) {
+    const img = new Image();
+    img.src = `Ghost/ghost-attacking/${String(i).padStart(4,'0')}.jpg`;
+    img.onload = () => { if (++gstReady === GST_TOTAL) requestAnimationFrame(gstLoop); };
+    gstImgs.push(img);
+  }
+
+  let gstFrame   = 0;
+  let gstElapsed = 0;
+  let gstLast    = 0;
+
+  function applyGstScale(pct) {
+    const s = pct / 100;
+    gstCanvas.style.transform = `scale(${s})`;
+    gstCanvas.style.transformOrigin = 'top left';
+    const wrapper = document.getElementById('gst-wrapper');
+    wrapper.style.width  = Math.round(GST_FW * s) + 'px';
+    wrapper.style.height = Math.round(GST_FH * s) + 'px';
+    document.getElementById('gst-scale-label').textContent = pct + '%';
+  }
+  applyGstScale(25);
+
+  document.getElementById('gst-scale-slider').addEventListener('input', e => {
+    applyGstScale(Number(e.target.value));
+  });
+
+  function gstLoop(ts) {
+    requestAnimationFrame(gstLoop);
+    gstElapsed += ts - gstLast;
+    gstLast     = ts;
+
+    if (gstElapsed >= 1000 / GST_FPS) {
+      gstFrame    = (gstFrame + 1) % GST_TOTAL;
+      gstElapsed -= 1000 / GST_FPS;
+    }
+
+    if (gstImgs[gstFrame]?.complete)
+      gstCtx.drawImage(gstImgs[gstFrame], 0, 0, GST_FW, GST_FH);
+  }
+</script>
+
+<!-- ── Cutlass Man ───────────────────────────────────────────── -->
+<div class="section">
+  <div class="section-title">Cutlass Man</div>
+  <div class="stt-wrapper" id="ctm-wrapper">
+    <canvas id="ctm"></canvas>
+  </div>
+  <div id="ctm-state-label" style="font-size:13px;color:#aaa;letter-spacing:1px">STATE: ATTACK</div>
+  <div class="slider-row">
+    <span>Scale</span>
+    <input type="range" id="ctm-scale-slider" min="10" max="100" value="25" step="5">
+    <span id="ctm-scale-label">25%</span>
+  </div>
+</div>
+
+<script>
+  // ── Cutlass Man ────────────────────────────────────────────────────────
+  const CTM_FW  = 1280;
+  const CTM_FH  = 720;
+  const CTM_FPS = 24;
+  const CTM_TOTAL = 140;
+
+  const ctmCanvas = document.getElementById('ctm');
+  ctmCanvas.width  = CTM_FW;
+  ctmCanvas.height = CTM_FH;
+  const ctmCtx = ctmCanvas.getContext('2d');
+  ctmCtx.imageSmoothingEnabled = true;
+
+  const ctmImgs = [];
+  let ctmReady  = 0;
+  for (let i = 1; i <= CTM_TOTAL; i++) {
+    const img = new Image();
+    img.src = `Cutlass Man/cutlass-man-attacking/${String(i).padStart(4,'0')}.jpg`;
+    img.onload = () => { if (++ctmReady === CTM_TOTAL) requestAnimationFrame(ctmLoop); };
+    ctmImgs.push(img);
+  }
+
+  let ctmFrame   = 0;
+  let ctmElapsed = 0;
+  let ctmLast    = 0;
+
+  function applyCtmScale(pct) {
+    const s = pct / 100;
+    ctmCanvas.style.transform = `scale(${s})`;
+    ctmCanvas.style.transformOrigin = 'top left';
+    const wrapper = document.getElementById('ctm-wrapper');
+    wrapper.style.width  = Math.round(CTM_FW * s) + 'px';
+    wrapper.style.height = Math.round(CTM_FH * s) + 'px';
+    document.getElementById('ctm-scale-label').textContent = pct + '%';
+  }
+  applyCtmScale(25);
+
+  document.getElementById('ctm-scale-slider').addEventListener('input', e => {
+    applyCtmScale(Number(e.target.value));
+  });
+
+  function ctmLoop(ts) {
+    requestAnimationFrame(ctmLoop);
+    ctmElapsed += ts - ctmLast;
+    ctmLast     = ts;
+
+    if (ctmElapsed >= 1000 / CTM_FPS) {
+      ctmFrame    = (ctmFrame + 1) % CTM_TOTAL;
+      ctmElapsed -= 1000 / CTM_FPS;
+    }
+
+    if (ctmImgs[ctmFrame]?.complete)
+      ctmCtx.drawImage(ctmImgs[ctmFrame], 0, 0, CTM_FW, CTM_FH);
+  }
+</script>
+
+<!-- ── Blunderbuss Man ───────────────────────────────────────── -->
+<div class="section">
+  <div class="section-title">Blunderbuss Man</div>
+  <div class="stt-wrapper" id="bbm-wrapper">
+    <canvas id="bbm"></canvas>
+  </div>
+  <div id="bbm-state-label" style="font-size:13px;color:#aaa;letter-spacing:1px">STATE: ATTACK</div>
+  <div class="slider-row">
+    <span>Scale</span>
+    <input type="range" id="bbm-scale-slider" min="10" max="100" value="25" step="5">
+    <span id="bbm-scale-label">25%</span>
+  </div>
+</div>
+
+<script>
+  // ── Blunderbuss Man ────────────────────────────────────────────────────
+  const BBM_FW  = 1280;
+  const BBM_FH  = 720;
+  const BBM_FPS = 24;
+  const BBM_TOTAL = 143;
+
+  const bbmCanvas = document.getElementById('bbm');
+  bbmCanvas.width  = BBM_FW;
+  bbmCanvas.height = BBM_FH;
+  const bbmCtx = bbmCanvas.getContext('2d');
+  bbmCtx.imageSmoothingEnabled = true;
+
+  const bbmImgs = [];
+  let bbmReady  = 0;
+  for (let i = 1; i <= BBM_TOTAL; i++) {
+    const img = new Image();
+    img.src = `Blunderbuss Man/blunderbuss-man-attacking/${String(i).padStart(4,'0')}.jpg`;
+    img.onload = () => { if (++bbmReady === BBM_TOTAL) requestAnimationFrame(bbmLoop); };
+    bbmImgs.push(img);
+  }
+
+  let bbmFrame   = 0;
+  let bbmElapsed = 0;
+  let bbmLast    = 0;
+
+  function applyBbmScale(pct) {
+    const s = pct / 100;
+    bbmCanvas.style.transform = `scale(${s})`;
+    bbmCanvas.style.transformOrigin = 'top left';
+    const wrapper = document.getElementById('bbm-wrapper');
+    wrapper.style.width  = Math.round(BBM_FW * s) + 'px';
+    wrapper.style.height = Math.round(BBM_FH * s) + 'px';
+    document.getElementById('bbm-scale-label').textContent = pct + '%';
+  }
+  applyBbmScale(25);
+
+  document.getElementById('bbm-scale-slider').addEventListener('input', e => {
+    applyBbmScale(Number(e.target.value));
+  });
+
+  function bbmLoop(ts) {
+    requestAnimationFrame(bbmLoop);
+    bbmElapsed += ts - bbmLast;
+    bbmLast     = ts;
+
+    if (bbmElapsed >= 1000 / BBM_FPS) {
+      bbmFrame    = (bbmFrame + 1) % BBM_TOTAL;
+      bbmElapsed -= 1000 / BBM_FPS;
+    }
+
+    if (bbmImgs[bbmFrame]?.complete)
+      bbmCtx.drawImage(bbmImgs[bbmFrame], 0, 0, BBM_FW, BBM_FH);
+  }
+</script>
+
+<!-- ── Crossbow Man ──────────────────────────────────────────── -->
+<div class="section">
+  <div class="section-title">Crossbow Man</div>
+  <div class="stt-wrapper" id="cbm-wrapper">
+    <canvas id="cbm"></canvas>
+  </div>
+  <div id="cbm-state-label" style="font-size:13px;color:#aaa;letter-spacing:1px">STATE: ATTACK</div>
+  <div class="slider-row">
+    <span>Scale</span>
+    <input type="range" id="cbm-scale-slider" min="10" max="100" value="25" step="5">
+    <span id="cbm-scale-label">25%</span>
+  </div>
+</div>
+
+<script>
+  // ── Crossbow Man ───────────────────────────────────────────────────────
+  const CBM_FW  = 1280;
+  const CBM_FH  = 720;
+  const CBM_FPS = 24;
+  const CBM_TOTAL = 124;
+
+  const cbmCanvas = document.getElementById('cbm');
+  cbmCanvas.width  = CBM_FW;
+  cbmCanvas.height = CBM_FH;
+  const cbmCtx = cbmCanvas.getContext('2d');
+  cbmCtx.imageSmoothingEnabled = true;
+
+  const cbmImgs = [];
+  let cbmReady  = 0;
+  for (let i = 1; i <= CBM_TOTAL; i++) {
+    const img = new Image();
+    img.src = `Crossbow Man/crossbow-man-attacking/${String(i).padStart(4,'0')}.jpg`;
+    img.onload = () => { if (++cbmReady === CBM_TOTAL) requestAnimationFrame(cbmLoop); };
+    cbmImgs.push(img);
+  }
+
+  let cbmFrame   = 0;
+  let cbmElapsed = 0;
+  let cbmLast    = 0;
+
+  function applyCbmScale(pct) {
+    const s = pct / 100;
+    cbmCanvas.style.transform = `scale(${s})`;
+    cbmCanvas.style.transformOrigin = 'top left';
+    const wrapper = document.getElementById('cbm-wrapper');
+    wrapper.style.width  = Math.round(CBM_FW * s) + 'px';
+    wrapper.style.height = Math.round(CBM_FH * s) + 'px';
+    document.getElementById('cbm-scale-label').textContent = pct + '%';
+  }
+  applyCbmScale(25);
+
+  document.getElementById('cbm-scale-slider').addEventListener('input', e => {
+    applyCbmScale(Number(e.target.value));
+  });
+
+  function cbmLoop(ts) {
+    requestAnimationFrame(cbmLoop);
+    cbmElapsed += ts - cbmLast;
+    cbmLast     = ts;
+
+    if (cbmElapsed >= 1000 / CBM_FPS) {
+      cbmFrame    = (cbmFrame + 1) % CBM_TOTAL;
+      cbmElapsed -= 1000 / CBM_FPS;
+    }
+
+    if (cbmImgs[cbmFrame]?.complete)
+      cbmCtx.drawImage(cbmImgs[cbmFrame], 0, 0, CBM_FW, CBM_FH);
+  }
+</script>
+
+<!-- ── Sword Pirate ───────────────────────────────────────────── -->
+<div class="section">
+  <div class="section-title">Sword Pirate</div>
+  <div class="stt-wrapper" id="swp-wrapper">
+    <canvas id="swp"></canvas>
+  </div>
+  <div id="swp-state-label" style="font-size:13px;color:#aaa;letter-spacing:1px">STATE: ATTACK</div>
+  <div class="slider-row">
+    <span>Scale</span>
+    <input type="range" id="swp-scale-slider" min="10" max="100" value="25" step="5">
+    <span id="swp-scale-label">25%</span>
+  </div>
+</div>
+
+<script>
+  // ── Sword Pirate ───────────────────────────────────────────────────────
+  const SWP_FW  = 1280;
+  const SWP_FH  = 720;
+  const SWP_FPS = 24;
+  const SWP_TOTAL = 114;
+
+  const swpCanvas = document.getElementById('swp');
+  swpCanvas.width  = SWP_FW;
+  swpCanvas.height = SWP_FH;
+  const swpCtx = swpCanvas.getContext('2d');
+  swpCtx.imageSmoothingEnabled = true;
+
+  const swpImgs = [];
+  let swpReady  = 0;
+  for (let i = 1; i <= SWP_TOTAL; i++) {
+    const img = new Image();
+    img.src = `Sword Pirate/sword-pirate-attacking/${String(i).padStart(4,'0')}.jpg`;
+    img.onload = () => { if (++swpReady === SWP_TOTAL) requestAnimationFrame(swpLoop); };
+    swpImgs.push(img);
+  }
+
+  let swpFrame   = 0;
+  let swpElapsed = 0;
+  let swpLast    = 0;
+
+  function applySwpScale(pct) {
+    const s = pct / 100;
+    swpCanvas.style.transform = `scale(${s})`;
+    swpCanvas.style.transformOrigin = 'top left';
+    const wrapper = document.getElementById('swp-wrapper');
+    wrapper.style.width  = Math.round(SWP_FW * s) + 'px';
+    wrapper.style.height = Math.round(SWP_FH * s) + 'px';
+    document.getElementById('swp-scale-label').textContent = pct + '%';
+  }
+  applySwpScale(25);
+
+  document.getElementById('swp-scale-slider').addEventListener('input', e => {
+    applySwpScale(Number(e.target.value));
+  });
+
+  function swpLoop(ts) {
+    requestAnimationFrame(swpLoop);
+    swpElapsed += ts - swpLast;
+    swpLast     = ts;
+
+    if (swpElapsed >= 1000 / SWP_FPS) {
+      swpFrame    = (swpFrame + 1) % SWP_TOTAL;
+      swpElapsed -= 1000 / SWP_FPS;
+    }
+
+    if (swpImgs[swpFrame]?.complete)
+      swpCtx.drawImage(swpImgs[swpFrame], 0, 0, SWP_FW, SWP_FH);
+  }
+</script>
+
+<!-- ── Flintlock Pirate ──────────────────────────────────────── -->
+<div class="section">
+  <div class="section-title">Flintlock Pirate</div>
+  <div class="stt-wrapper" id="flp-wrapper">
+    <canvas id="flp"></canvas>
+  </div>
+  <div id="flp-state-label" style="font-size:13px;color:#aaa;letter-spacing:1px">STATE: ATTACK</div>
+  <div class="slider-row">
+    <span>Scale</span>
+    <input type="range" id="flp-scale-slider" min="10" max="100" value="25" step="5">
+    <span id="flp-scale-label">25%</span>
+  </div>
+</div>
+
+<script>
+  // ── Flintlock Pirate ───────────────────────────────────────────────────
+  const FLP_FW  = 1280;
+  const FLP_FH  = 720;
+  const FLP_FPS = 24;
+  const FLP_TOTAL = 146;
+
+  const flpCanvas = document.getElementById('flp');
+  flpCanvas.width  = FLP_FW;
+  flpCanvas.height = FLP_FH;
+  const flpCtx = flpCanvas.getContext('2d');
+  flpCtx.imageSmoothingEnabled = true;
+
+  const flpImgs = [];
+  let flpReady  = 0;
+  for (let i = 1; i <= FLP_TOTAL; i++) {
+    const img = new Image();
+    img.src = `Flintlock Pirate/flintlock-pirate-attacking/${String(i).padStart(4,'0')}.jpg`;
+    img.onload = () => { if (++flpReady === FLP_TOTAL) requestAnimationFrame(flpLoop); };
+    flpImgs.push(img);
+  }
+
+  let flpFrame   = 0;
+  let flpElapsed = 0;
+  let flpLast    = 0;
+
+  function applyFlpScale(pct) {
+    const s = pct / 100;
+    flpCanvas.style.transform = `scale(${s})`;
+    flpCanvas.style.transformOrigin = 'top left';
+    const wrapper = document.getElementById('flp-wrapper');
+    wrapper.style.width  = Math.round(FLP_FW * s) + 'px';
+    wrapper.style.height = Math.round(FLP_FH * s) + 'px';
+    document.getElementById('flp-scale-label').textContent = pct + '%';
+  }
+  applyFlpScale(25);
+
+  document.getElementById('flp-scale-slider').addEventListener('input', e => {
+    applyFlpScale(Number(e.target.value));
+  });
+
+  function flpLoop(ts) {
+    requestAnimationFrame(flpLoop);
+    flpElapsed += ts - flpLast;
+    flpLast     = ts;
+
+    if (flpElapsed >= 1000 / FLP_FPS) {
+      flpFrame    = (flpFrame + 1) % FLP_TOTAL;
+      flpElapsed -= 1000 / FLP_FPS;
+    }
+
+    if (flpImgs[flpFrame]?.complete)
+      flpCtx.drawImage(flpImgs[flpFrame], 0, 0, FLP_FW, FLP_FH);
+  }
+</script>
+
+<!-- ── Bomb Pirate ────────────────────────────────────────────── -->
+<div class="section">
+  <div class="section-title">Bomb Pirate</div>
+  <div class="stt-wrapper" id="bmp-wrapper">
+    <canvas id="bmp"></canvas>
+  </div>
+  <div id="bmp-state-label" style="font-size:13px;color:#aaa;letter-spacing:1px">STATE: ATTACK</div>
+  <div class="slider-row">
+    <span>Scale</span>
+    <input type="range" id="bmp-scale-slider" min="10" max="100" value="25" step="5">
+    <span id="bmp-scale-label">25%</span>
+  </div>
+</div>
+
+<script>
+  // ── Bomb Pirate ────────────────────────────────────────────────────────
+  const BMP_FW  = 1280;
+  const BMP_FH  = 720;
+  const BMP_FPS = 24;
+  const BMP_TOTAL = 164;
+
+  const bmpCanvas = document.getElementById('bmp');
+  bmpCanvas.width  = BMP_FW;
+  bmpCanvas.height = BMP_FH;
+  const bmpCtx = bmpCanvas.getContext('2d');
+  bmpCtx.imageSmoothingEnabled = true;
+
+  const bmpImgs = [];
+  let bmpReady  = 0;
+  for (let i = 1; i <= BMP_TOTAL; i++) {
+    const img = new Image();
+    img.src = `Bomb Pirate/bomb-pirate-attacking/${String(i).padStart(4,'0')}.jpg`;
+    img.onload = () => { if (++bmpReady === BMP_TOTAL) requestAnimationFrame(bmpLoop); };
+    bmpImgs.push(img);
+  }
+
+  let bmpFrame   = 0;
+  let bmpElapsed = 0;
+  let bmpLast    = 0;
+
+  function applyBmpScale(pct) {
+    const s = pct / 100;
+    bmpCanvas.style.transform = `scale(${s})`;
+    bmpCanvas.style.transformOrigin = 'top left';
+    const wrapper = document.getElementById('bmp-wrapper');
+    wrapper.style.width  = Math.round(BMP_FW * s) + 'px';
+    wrapper.style.height = Math.round(BMP_FH * s) + 'px';
+    document.getElementById('bmp-scale-label').textContent = pct + '%';
+  }
+  applyBmpScale(25);
+
+  document.getElementById('bmp-scale-slider').addEventListener('input', e => {
+    applyBmpScale(Number(e.target.value));
+  });
+
+  function bmpLoop(ts) {
+    requestAnimationFrame(bmpLoop);
+    bmpElapsed += ts - bmpLast;
+    bmpLast     = ts;
+
+    if (bmpElapsed >= 1000 / BMP_FPS) {
+      bmpFrame    = (bmpFrame + 1) % BMP_TOTAL;
+      bmpElapsed -= 1000 / BMP_FPS;
+    }
+
+    if (bmpImgs[bmpFrame]?.complete)
+      bmpCtx.drawImage(bmpImgs[bmpFrame], 0, 0, BMP_FW, BMP_FH);
+  }
+</script>
+
 <!-- ── Sword Man ─────────────────────────────────────────────── -->
 <div class="section">
   <div class="section-title">Sword Man</div>
