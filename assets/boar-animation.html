@@ -17,7 +17,6 @@
       gap: 20px;
     }
     canvas {
-      image-rendering: pixelated;
       border: 2px solid #444;
     }
     .controls { display: flex; gap: 12px; }
@@ -79,20 +78,18 @@
 </head>
 <body>
 
+<!-- ── Boar ────────────────────────────────────────────────────── -->
 <div class="section">
-<div class="section-title">Boar</div>
-<canvas id="c"></canvas>
-<div class="controls">
-  <button id="btn-idle"   class="active" onclick="setAnim('idle')">Idle</button>
-  <button id="btn-walk"   onclick="setAnim('walk')">Walk</button>
-  <button id="btn-attack" onclick="setAnim('attack')">Attack</button>
-</div>
-<div id="state-label">STATE: IDLE</div>
-<div class="slider-row">
-  <span>Scale</span>
-  <input type="range" id="scale-slider" min="1" max="12" value="4" step="1">
-  <span id="scale-label">4×</span>
-</div>
+  <div class="section-title">Boar</div>
+  <div class="stt-wrapper" id="boar-wrapper">
+    <canvas id="boar"></canvas>
+  </div>
+  <div id="boar-state-label" style="font-size:13px;color:#aaa;letter-spacing:1px">STATE: ATTACK</div>
+  <div class="slider-row">
+    <span>Scale</span>
+    <input type="range" id="boar-scale-slider" min="10" max="100" value="25" step="5">
+    <span id="boar-scale-label">25%</span>
+  </div>
 </div>
 
 <!-- ── Mammoth ──────────────────────────────────────────────── -->
@@ -101,15 +98,11 @@
   <div class="stt-wrapper" id="mam-wrapper">
     <canvas id="mam"></canvas>
   </div>
-  <div class="controls">
-    <button id="mam-btn-walk"   class="active" onclick="setMamAnim('walk')">Walk</button>
-    <button id="mam-btn-attack" onclick="setMamAnim('attack')">Attack</button>
-  </div>
-  <div id="mam-state-label" style="font-size:13px;color:#aaa;letter-spacing:1px">STATE: WALK</div>
+  <div id="mam-state-label" style="font-size:13px;color:#aaa;letter-spacing:1px">STATE: ATTACK</div>
   <div class="slider-row">
     <span>Scale</span>
-    <input type="range" id="mam-scale-slider" min="25" max="200" value="50" step="25">
-    <span id="mam-scale-label">50%</span>
+    <input type="range" id="mam-scale-slider" min="10" max="100" value="25" step="5">
+    <span id="mam-scale-label">25%</span>
   </div>
 </div>
 
@@ -119,11 +112,7 @@
   <div class="stt-wrapper" id="stt-wrapper">
     <canvas id="stt"></canvas>
   </div>
-  <div class="controls">
-    <button id="stt-btn-walk"   class="active" onclick="setSttAnim('walk')">Walk</button>
-    <button id="stt-btn-attack" onclick="setSttAnim('attack')">Attack</button>
-  </div>
-  <div id="stt-state-label">STATE: WALK</div>
+  <div id="stt-state-label" style="font-size:13px;color:#aaa;letter-spacing:1px">STATE: ATTACK</div>
   <div class="slider-row">
     <span>Scale</span>
     <input type="range" id="stt-scale-slider" min="10" max="100" value="25" step="5">
@@ -132,91 +121,60 @@
 </div>
 
 <script>
-  // ── Sprite sheet config ────────────────────────────────────────────────
-  // Each sheet: 32×32 px per frame, 4 direction rows (0=down,1=left,2=right,3=up)
-  const FRAME_W   = 32;
-  const FRAME_H   = 32;
-  const DIRECTION = 3;    // row 3 = facing right
-  let   scale     = 4;
+  // ── Boar ───────────────────────────────────────────────────────────────
+  const BOAR_FW  = 1280;
+  const BOAR_FH  = 720;
+  const BOAR_FPS = 24;
+  const BOAR_TOTAL = 109;
 
-  const ANIMS = {
-    idle:   { src: 'Boar/Boar_Idle_with_shadow.png',   frames: 4, fps: 6  },
-    walk:   { src: 'Boar/Boar_Walk_with_shadow.png',   frames: 6, fps: 10 },
-    attack: { src: 'Boar/Boar_Attack_with_shadow.png', frames: 5, fps: 12 },
-  };
+  const boarCanvas = document.getElementById('boar');
+  boarCanvas.width  = BOAR_FW;
+  boarCanvas.height = BOAR_FH;
+  const boarCtx = boarCanvas.getContext('2d');
+  boarCtx.imageSmoothingEnabled = true;
 
-  // ── Preload all sheets ─────────────────────────────────────────────────
-  const sheets = {};
-  let loaded = 0;
-  const total = Object.keys(ANIMS).length;
-
-  Object.entries(ANIMS).forEach(([name, anim]) => {
+  const boarImgs = [];
+  let boarReady  = 0;
+  for (let i = 1; i <= BOAR_TOTAL; i++) {
     const img = new Image();
-    img.src = anim.src;
-    img.onload = () => { if (++loaded === total) requestAnimationFrame(loop); };
-    sheets[name] = img;
-  });
-
-  // ── Canvas ────────────────────────────────────────────────────────────
-  const canvas = document.getElementById('c');
-  const ctx    = canvas.getContext('2d');
-  ctx.imageSmoothingEnabled = false;
-
-  function applyScale(s) {
-    scale          = s;
-    canvas.width   = FRAME_W * scale;
-    canvas.height  = FRAME_H * scale;
-    ctx.imageSmoothingEnabled = false; // reset after resize
-    document.getElementById('scale-label').textContent = s + '×';
+    img.src = `Boar/boar-attacking-png/${String(i).padStart(4,'0')}.png`;
+    img.onload = () => { if (++boarReady === BOAR_TOTAL) requestAnimationFrame(boarLoop); };
+    boarImgs.push(img);
   }
-  applyScale(scale);
 
-  document.getElementById('scale-slider').addEventListener('input', e => {
-    applyScale(Number(e.target.value));
+  let boarFrame   = 0;
+  let boarElapsed = 0;
+  let boarLast    = 0;
+
+  function applyBoarScale(pct) {
+    const s = pct / 100;
+    boarCanvas.style.transform = `scale(${s})`;
+    boarCanvas.style.transformOrigin = 'top left';
+    const wrapper = document.getElementById('boar-wrapper');
+    wrapper.style.width  = Math.round(BOAR_FW * s) + 'px';
+    wrapper.style.height = Math.round(BOAR_FH * s) + 'px';
+    document.getElementById('boar-scale-label').textContent = pct + '%';
+  }
+  applyBoarScale(25);
+
+  document.getElementById('boar-scale-slider').addEventListener('input', e => {
+    applyBoarScale(Number(e.target.value));
   });
 
-  // ── State ─────────────────────────────────────────────────────────────
-  let currentAnim = 'idle';
-  let frame       = 0;
-  let lastTime    = 0;
-  let elapsed     = 0;
+  function boarLoop(ts) {
+    requestAnimationFrame(boarLoop);
+    boarElapsed += ts - boarLast;
+    boarLast     = ts;
 
-  // ── Loop ──────────────────────────────────────────────────────────────
-  function loop(ts) {
-    requestAnimationFrame(loop);
-
-    const dt   = ts - lastTime;
-    lastTime   = ts;
-    elapsed   += dt;
-
-    const anim = ANIMS[currentAnim];
-    const frameDuration = 1000 / anim.fps;
-    if (elapsed >= frameDuration) {
-      frame   = (frame + 1) % anim.frames;
-      elapsed -= frameDuration;
+    if (boarElapsed >= 1000 / BOAR_FPS) {
+      boarFrame    = (boarFrame + 1) % BOAR_TOTAL;
+      boarElapsed -= 1000 / BOAR_FPS;
     }
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    ctx.drawImage(
-      sheets[currentAnim],
-      frame * FRAME_W,       // source x: step through columns
-      DIRECTION * FRAME_H,   // source y: pick the "right-facing" row
-      FRAME_W, FRAME_H,      // one clean 32×32 frame
-      0, 0,
-      FRAME_W * scale, FRAME_H * scale
-    );
-  }
-
-  // ── Controls ──────────────────────────────────────────────────────────
-  function setAnim(name) {
-    if (name === currentAnim) return;
-    currentAnim = name;
-    frame       = 0;
-    elapsed     = 0;
-    document.querySelectorAll('button').forEach(b => b.classList.remove('active'));
-    document.getElementById('btn-' + name).classList.add('active');
-    document.getElementById('state-label').textContent = 'STATE: ' + name.toUpperCase();
+    if (boarImgs[boarFrame]?.complete) {
+      boarCtx.clearRect(0, 0, BOAR_FW, BOAR_FH);
+      boarCtx.drawImage(boarImgs[boarFrame], 0, 0, BOAR_FW, BOAR_FH);
+    }
   }
 </script>
 
@@ -225,6 +183,7 @@
   const STT_FW  = 1280;
   const STT_FH  = 720;
   const STT_FPS = 24;
+  const STT_TOTAL = 171;
 
   const sttCanvas = document.getElementById('stt');
   sttCanvas.width  = STT_FW;
@@ -232,33 +191,18 @@
   const sttCtx = sttCanvas.getContext('2d');
   sttCtx.imageSmoothingEnabled = true;
 
-  let sttCurrentAnim = 'walk';
+  const sttImgs = [];
+  let sttReady  = 0;
+  for (let i = 1; i <= STT_TOTAL; i++) {
+    const img = new Image();
+    img.src = `Saber Tooth Tiger/saber-tooth-tiger-attacking-png/${String(i).padStart(4,'0')}.png`;
+    img.onload = () => { if (++sttReady === STT_TOTAL) requestAnimationFrame(sttLoop); };
+    sttImgs.push(img);
+  }
+
   let sttFrame   = 0;
   let sttElapsed = 0;
   let sttLast    = 0;
-  const sttSets  = {};
-
-  function loadSttSet(folder, count, start = 1) {
-    return new Promise(resolve => {
-      const imgs = [];
-      let done = 0;
-      for (let i = start; i < start + count; i++) {
-        const img = new Image();
-        img.src = `Saber Tooth Tiger/${folder}/${String(i).padStart(4,'0')}.jpg`;
-        img.onload = () => { if (++done === count) resolve(imgs); };
-        imgs.push(img);
-      }
-    });
-  }
-
-  Promise.all([
-    loadSttSet('saber-tooth-tiger-walking',  148, 1),
-    loadSttSet('saber-tooth-tiger-attacking', 175, 1),
-  ]).then(([walkImgs, attackImgs]) => {
-    sttSets.walk   = walkImgs;
-    sttSets.attack = attackImgs;
-    requestAnimationFrame(sttLoop);
-  });
 
   function applySttScale(pct) {
     const s = pct / 100;
@@ -271,16 +215,6 @@
   }
   applySttScale(25);
 
-  function setSttAnim(name) {
-    if (name === sttCurrentAnim) return;
-    sttCurrentAnim = name;
-    sttFrame   = 0;
-    sttElapsed = 0;
-    document.querySelectorAll('[id^="stt-btn-"]').forEach(b => b.classList.remove('active'));
-    document.getElementById('stt-btn-' + name).classList.add('active');
-    document.getElementById('stt-state-label').textContent = 'STATE: ' + name.toUpperCase();
-  }
-
   document.getElementById('stt-scale-slider').addEventListener('input', e => {
     applySttScale(Number(e.target.value));
   });
@@ -290,16 +224,15 @@
     sttElapsed += ts - sttLast;
     sttLast     = ts;
 
-    const imgs = sttSets[sttCurrentAnim];
-    if (!imgs) return;
-
     if (sttElapsed >= 1000 / STT_FPS) {
-      sttFrame    = (sttFrame + 1) % imgs.length;
+      sttFrame    = (sttFrame + 1) % STT_TOTAL;
       sttElapsed -= 1000 / STT_FPS;
     }
 
-    if (imgs[sttFrame]?.complete)
-      sttCtx.drawImage(imgs[sttFrame], 0, 0, STT_FW, STT_FH);
+    if (sttImgs[sttFrame]?.complete) {
+      sttCtx.clearRect(0, 0, STT_FW, STT_FH);
+      sttCtx.drawImage(sttImgs[sttFrame], 0, 0, STT_FW, STT_FH);
+    }
   }
 </script>
 
@@ -334,7 +267,7 @@
   let cmReady  = 0;
   for (let i = 1; i <= CM_TOTAL; i++) {
     const img = new Image();
-    img.src = `Club Man/club-man-attacking/${String(i).padStart(4,'0')}.jpg`;
+    img.src = `Club Man/club-man-attacking-png/${String(i).padStart(4,'0')}.png`;
     img.onload = () => { if (++cmReady === CM_TOTAL) requestAnimationFrame(cmLoop); };
     cmImgs.push(img);
   }
@@ -368,8 +301,10 @@
       cmElapsed -= 1000 / CM_FPS;
     }
 
-    if (cmImgs[cmFrame]?.complete)
+    if (cmImgs[cmFrame]?.complete) {
+      cmCtx.clearRect(0, 0, CM_FW, CM_FH);
       cmCtx.drawImage(cmImgs[cmFrame], 0, 0, CM_FW, CM_FH);
+    }
   }
 </script>
 
@@ -404,7 +339,7 @@
   let smReady  = 0;
   for (let i = 1; i <= SM_TOTAL; i++) {
     const img = new Image();
-    img.src = `Stone Man/stone-man-attacking/${String(i).padStart(4,'0')}.jpg`;
+    img.src = `Stone Man/stone-man-attacking-png/${String(i).padStart(4,'0')}.png`;
     img.onload = () => { if (++smReady === SM_TOTAL) requestAnimationFrame(smLoop); };
     smImgs.push(img);
   }
@@ -438,8 +373,10 @@
       smElapsed -= 1000 / SM_FPS;
     }
 
-    if (smImgs[smFrame]?.complete)
+    if (smImgs[smFrame]?.complete) {
+      smCtx.clearRect(0, 0, SM_FW, SM_FH);
       smCtx.drawImage(smImgs[smFrame], 0, 0, SM_FW, SM_FH);
+    }
   }
 </script>
 
@@ -474,7 +411,7 @@
   let spmReady  = 0;
   for (let i = 1; i <= SPM_TOTAL; i++) {
     const img = new Image();
-    img.src = `Spear Man/spear-man-attacking/${String(i).padStart(4,'0')}.jpg`;
+    img.src = `Spear Man/spear-man-attacking-png/${String(i).padStart(4,'0')}.png`;
     img.onload = () => { if (++spmReady === SPM_TOTAL) requestAnimationFrame(spmLoop); };
     spmImgs.push(img);
   }
@@ -508,8 +445,10 @@
       spmElapsed -= 1000 / SPM_FPS;
     }
 
-    if (spmImgs[spmFrame]?.complete)
+    if (spmImgs[spmFrame]?.complete) {
+      spmCtx.clearRect(0, 0, SPM_FW, SPM_FH);
       spmCtx.drawImage(spmImgs[spmFrame], 0, 0, SPM_FW, SPM_FH);
+    }
   }
 </script>
 
@@ -544,7 +483,7 @@
   let bwmReady  = 0;
   for (let i = 1; i <= BWM_TOTAL; i++) {
     const img = new Image();
-    img.src = `Bow Man/bow-man-attacking/${String(i).padStart(4,'0')}.jpg`;
+    img.src = `Bow Man/bow-man-attacking-png/${String(i).padStart(4,'0')}.png`;
     img.onload = () => { if (++bwmReady === BWM_TOTAL) requestAnimationFrame(bwmLoop); };
     bwmImgs.push(img);
   }
@@ -578,8 +517,10 @@
       bwmElapsed -= 1000 / BWM_FPS;
     }
 
-    if (bwmImgs[bwmFrame]?.complete)
+    if (bwmImgs[bwmFrame]?.complete) {
+      bwmCtx.clearRect(0, 0, BWM_FW, BWM_FH);
       bwmCtx.drawImage(bwmImgs[bwmFrame], 0, 0, BWM_FW, BWM_FH);
+    }
   }
 </script>
 
@@ -614,7 +555,7 @@
   let hmReady  = 0;
   for (let i = 1; i <= HM_TOTAL; i++) {
     const img = new Image();
-    img.src = `Horse Man/horse-man-attacking/${String(i).padStart(4,'0')}.jpg`;
+    img.src = `Horse Man/horse-man-attacking-png/${String(i).padStart(4,'0')}.png`;
     img.onload = () => { if (++hmReady === HM_TOTAL) requestAnimationFrame(hmLoop); };
     hmImgs.push(img);
   }
@@ -648,8 +589,10 @@
       hmElapsed -= 1000 / HM_FPS;
     }
 
-    if (hmImgs[hmFrame]?.complete)
+    if (hmImgs[hmFrame]?.complete) {
+      hmCtx.clearRect(0, 0, HM_FW, HM_FH);
       hmCtx.drawImage(hmImgs[hmFrame], 0, 0, HM_FW, HM_FH);
+    }
   }
 </script>
 
@@ -684,7 +627,7 @@
   let wtcReady  = 0;
   for (let i = 1; i <= WTC_TOTAL; i++) {
     const img = new Image();
-    img.src = `Witch/witch-attacking/${String(i).padStart(4,'0')}.jpg`;
+    img.src = `Witch/witch-attacking-png/${String(i).padStart(4,'0')}.png`;
     img.onload = () => { if (++wtcReady === WTC_TOTAL) requestAnimationFrame(wtcLoop); };
     wtcImgs.push(img);
   }
@@ -718,8 +661,10 @@
       wtcElapsed -= 1000 / WTC_FPS;
     }
 
-    if (wtcImgs[wtcFrame]?.complete)
+    if (wtcImgs[wtcFrame]?.complete) {
+      wtcCtx.clearRect(0, 0, WTC_FW, WTC_FH);
       wtcCtx.drawImage(wtcImgs[wtcFrame], 0, 0, WTC_FW, WTC_FH);
+    }
   }
 </script>
 
@@ -754,7 +699,7 @@
   let vmpReady  = 0;
   for (let i = 1; i <= VMP_TOTAL; i++) {
     const img = new Image();
-    img.src = `Vampire/vampire-attacking/${String(i).padStart(4,'0')}.jpg`;
+    img.src = `Vampire/vampire-attacking-png/${String(i).padStart(4,'0')}.png`;
     img.onload = () => { if (++vmpReady === VMP_TOTAL) requestAnimationFrame(vmpLoop); };
     vmpImgs.push(img);
   }
@@ -788,8 +733,10 @@
       vmpElapsed -= 1000 / VMP_FPS;
     }
 
-    if (vmpImgs[vmpFrame]?.complete)
+    if (vmpImgs[vmpFrame]?.complete) {
+      vmpCtx.clearRect(0, 0, VMP_FW, VMP_FH);
       vmpCtx.drawImage(vmpImgs[vmpFrame], 0, 0, VMP_FW, VMP_FH);
+    }
   }
 </script>
 
@@ -824,7 +771,7 @@
   let gstReady  = 0;
   for (let i = 1; i <= GST_TOTAL; i++) {
     const img = new Image();
-    img.src = `Ghost/ghost-attacking/${String(i).padStart(4,'0')}.jpg`;
+    img.src = `Ghost/ghost-attacking-png/${String(i).padStart(4,'0')}.png`;
     img.onload = () => { if (++gstReady === GST_TOTAL) requestAnimationFrame(gstLoop); };
     gstImgs.push(img);
   }
@@ -858,8 +805,10 @@
       gstElapsed -= 1000 / GST_FPS;
     }
 
-    if (gstImgs[gstFrame]?.complete)
+    if (gstImgs[gstFrame]?.complete) {
+      gstCtx.clearRect(0, 0, GST_FW, GST_FH);
       gstCtx.drawImage(gstImgs[gstFrame], 0, 0, GST_FW, GST_FH);
+    }
   }
 </script>
 
@@ -894,7 +843,7 @@
   let ctmReady  = 0;
   for (let i = 1; i <= CTM_TOTAL; i++) {
     const img = new Image();
-    img.src = `Cutlass Man/cutlass-man-attacking/${String(i).padStart(4,'0')}.jpg`;
+    img.src = `Cutlass Man/cutlass-man-attacking-png/${String(i).padStart(4,'0')}.png`;
     img.onload = () => { if (++ctmReady === CTM_TOTAL) requestAnimationFrame(ctmLoop); };
     ctmImgs.push(img);
   }
@@ -928,8 +877,10 @@
       ctmElapsed -= 1000 / CTM_FPS;
     }
 
-    if (ctmImgs[ctmFrame]?.complete)
+    if (ctmImgs[ctmFrame]?.complete) {
+      ctmCtx.clearRect(0, 0, CTM_FW, CTM_FH);
       ctmCtx.drawImage(ctmImgs[ctmFrame], 0, 0, CTM_FW, CTM_FH);
+    }
   }
 </script>
 
@@ -964,7 +915,7 @@
   let bbmReady  = 0;
   for (let i = 1; i <= BBM_TOTAL; i++) {
     const img = new Image();
-    img.src = `Blunderbuss Man/blunderbuss-man-attacking/${String(i).padStart(4,'0')}.jpg`;
+    img.src = `Blunderbuss Man/blunderbuss-man-attacking-png/${String(i).padStart(4,'0')}.png`;
     img.onload = () => { if (++bbmReady === BBM_TOTAL) requestAnimationFrame(bbmLoop); };
     bbmImgs.push(img);
   }
@@ -998,8 +949,10 @@
       bbmElapsed -= 1000 / BBM_FPS;
     }
 
-    if (bbmImgs[bbmFrame]?.complete)
+    if (bbmImgs[bbmFrame]?.complete) {
+      bbmCtx.clearRect(0, 0, BBM_FW, BBM_FH);
       bbmCtx.drawImage(bbmImgs[bbmFrame], 0, 0, BBM_FW, BBM_FH);
+    }
   }
 </script>
 
@@ -1034,7 +987,7 @@
   let cbmReady  = 0;
   for (let i = 1; i <= CBM_TOTAL; i++) {
     const img = new Image();
-    img.src = `Crossbow Man/crossbow-man-attacking/${String(i).padStart(4,'0')}.jpg`;
+    img.src = `Crossbow Man/crossbow-man-attacking-png/${String(i).padStart(4,'0')}.png`;
     img.onload = () => { if (++cbmReady === CBM_TOTAL) requestAnimationFrame(cbmLoop); };
     cbmImgs.push(img);
   }
@@ -1068,8 +1021,10 @@
       cbmElapsed -= 1000 / CBM_FPS;
     }
 
-    if (cbmImgs[cbmFrame]?.complete)
+    if (cbmImgs[cbmFrame]?.complete) {
+      cbmCtx.clearRect(0, 0, CBM_FW, CBM_FH);
       cbmCtx.drawImage(cbmImgs[cbmFrame], 0, 0, CBM_FW, CBM_FH);
+    }
   }
 </script>
 
@@ -1104,7 +1059,7 @@
   let swpReady  = 0;
   for (let i = 1; i <= SWP_TOTAL; i++) {
     const img = new Image();
-    img.src = `Sword Pirate/sword-pirate-attacking/${String(i).padStart(4,'0')}.jpg`;
+    img.src = `Sword Pirate/sword-pirate-attacking-png/${String(i).padStart(4,'0')}.png`;
     img.onload = () => { if (++swpReady === SWP_TOTAL) requestAnimationFrame(swpLoop); };
     swpImgs.push(img);
   }
@@ -1138,8 +1093,10 @@
       swpElapsed -= 1000 / SWP_FPS;
     }
 
-    if (swpImgs[swpFrame]?.complete)
+    if (swpImgs[swpFrame]?.complete) {
+      swpCtx.clearRect(0, 0, SWP_FW, SWP_FH);
       swpCtx.drawImage(swpImgs[swpFrame], 0, 0, SWP_FW, SWP_FH);
+    }
   }
 </script>
 
@@ -1174,7 +1131,7 @@
   let flpReady  = 0;
   for (let i = 1; i <= FLP_TOTAL; i++) {
     const img = new Image();
-    img.src = `Flintlock Pirate/flintlock-pirate-attacking/${String(i).padStart(4,'0')}.jpg`;
+    img.src = `Flintlock Pirate/flintlock-pirate-attacking-png/${String(i).padStart(4,'0')}.png`;
     img.onload = () => { if (++flpReady === FLP_TOTAL) requestAnimationFrame(flpLoop); };
     flpImgs.push(img);
   }
@@ -1208,8 +1165,10 @@
       flpElapsed -= 1000 / FLP_FPS;
     }
 
-    if (flpImgs[flpFrame]?.complete)
+    if (flpImgs[flpFrame]?.complete) {
+      flpCtx.clearRect(0, 0, FLP_FW, FLP_FH);
       flpCtx.drawImage(flpImgs[flpFrame], 0, 0, FLP_FW, FLP_FH);
+    }
   }
 </script>
 
@@ -1244,7 +1203,7 @@
   let bmpReady  = 0;
   for (let i = 1; i <= BMP_TOTAL; i++) {
     const img = new Image();
-    img.src = `Bomb Pirate/bomb-pirate-attacking/${String(i).padStart(4,'0')}.jpg`;
+    img.src = `Bomb Pirate/bomb-pirate-attacking-png/${String(i).padStart(4,'0')}.png`;
     img.onload = () => { if (++bmpReady === BMP_TOTAL) requestAnimationFrame(bmpLoop); };
     bmpImgs.push(img);
   }
@@ -1278,8 +1237,10 @@
       bmpElapsed -= 1000 / BMP_FPS;
     }
 
-    if (bmpImgs[bmpFrame]?.complete)
+    if (bmpImgs[bmpFrame]?.complete) {
+      bmpCtx.clearRect(0, 0, BMP_FW, BMP_FH);
       bmpCtx.drawImage(bmpImgs[bmpFrame], 0, 0, BMP_FW, BMP_FH);
+    }
   }
 </script>
 
@@ -1314,7 +1275,7 @@
   let swmReady  = 0;
   for (let i = 1; i <= SWM_TOTAL; i++) {
     const img = new Image();
-    img.src = `Sword Man/sword-man-attacking/${String(i).padStart(4,'0')}.jpg`;
+    img.src = `Sword Man/sword-man-attacking-png/${String(i).padStart(4,'0')}.png`;
     img.onload = () => { if (++swmReady === SWM_TOTAL) requestAnimationFrame(swmLoop); };
     swmImgs.push(img);
   }
@@ -1348,16 +1309,19 @@
       swmElapsed -= 1000 / SWM_FPS;
     }
 
-    if (swmImgs[swmFrame]?.complete)
+    if (swmImgs[swmFrame]?.complete) {
+      swmCtx.clearRect(0, 0, SWM_FW, SWM_FH);
       swmCtx.drawImage(swmImgs[swmFrame], 0, 0, SWM_FW, SWM_FH);
+    }
   }
 </script>
 
 <script>
   // ── Mammoth ────────────────────────────────────────────────────────────
-  const MAM_FW  = 768;
-  const MAM_FH  = 448;
-  const MAM_FPS = 12;
+  const MAM_FW  = 1280;
+  const MAM_FH  = 720;
+  const MAM_FPS = 24;
+  const MAM_TOTAL = 129;
 
   const mamCanvas = document.getElementById('mam');
   mamCanvas.width  = MAM_FW;
@@ -1365,43 +1329,18 @@
   const mamCtx = mamCanvas.getContext('2d');
   mamCtx.imageSmoothingEnabled = true;
 
-  function loadMamSet(folder, count) {
-    return new Promise(resolve => {
-      const imgs = [];
-      let done = 0;
-      for (let i = 1; i <= count; i++) {
-        const img = new Image();
-        img.src = `Mammoth/${folder}/ezgif-frame-${String(i).padStart(3,'0')}.png`;
-        img.onload = () => { if (++done === count) resolve(imgs); };
-        imgs.push(img);
-      }
-    });
+  const mamImgs = [];
+  let mamReady  = 0;
+  for (let i = 1; i <= MAM_TOTAL; i++) {
+    const img = new Image();
+    img.src = `Mammoth/mammoth-attacking-png/${String(i).padStart(4,'0')}.png`;
+    img.onload = () => { if (++mamReady === MAM_TOTAL) requestAnimationFrame(mamLoop); };
+    mamImgs.push(img);
   }
 
-  const mamSets = {};
-  let mamCurrentAnim = 'walk';
   let mamFrame   = 0;
   let mamElapsed = 0;
   let mamLast    = 0;
-
-  Promise.all([
-    loadMamSet('mammoth_walking',   21),
-    loadMamSet('mammoth_attacking', 22),
-  ]).then(([walkImgs, attackImgs]) => {
-    mamSets.walk   = walkImgs;
-    mamSets.attack = attackImgs;
-    requestAnimationFrame(mamLoop);
-  });
-
-  function setMamAnim(name) {
-    if (name === mamCurrentAnim) return;
-    mamCurrentAnim = name;
-    mamFrame   = 0;
-    mamElapsed = 0;
-    document.querySelectorAll('[id^="mam-btn-"]').forEach(b => b.classList.remove('active'));
-    document.getElementById('mam-btn-' + name).classList.add('active');
-    document.getElementById('mam-state-label').textContent = 'STATE: ' + name.toUpperCase();
-  }
 
   function applyMamScale(pct) {
     const s = pct / 100;
@@ -1412,7 +1351,7 @@
     wrapper.style.height = Math.round(MAM_FH * s) + 'px';
     document.getElementById('mam-scale-label').textContent = pct + '%';
   }
-  applyMamScale(50);
+  applyMamScale(25);
 
   document.getElementById('mam-scale-slider').addEventListener('input', e => {
     applyMamScale(Number(e.target.value));
@@ -1423,16 +1362,15 @@
     mamElapsed += ts - mamLast;
     mamLast     = ts;
 
-    const imgs = mamSets[mamCurrentAnim];
-    if (!imgs) return;
-
     if (mamElapsed >= 1000 / MAM_FPS) {
-      mamFrame    = (mamFrame + 1) % imgs.length;
+      mamFrame    = (mamFrame + 1) % MAM_TOTAL;
       mamElapsed -= 1000 / MAM_FPS;
     }
 
-    if (imgs[mamFrame]?.complete)
-      mamCtx.drawImage(imgs[mamFrame], 0, 0, MAM_FW, MAM_FH);
+    if (mamImgs[mamFrame]?.complete) {
+      mamCtx.clearRect(0, 0, MAM_FW, MAM_FH);
+      mamCtx.drawImage(mamImgs[mamFrame], 0, 0, MAM_FW, MAM_FH);
+    }
   }
 </script>
 </body>
