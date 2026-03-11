@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1920">
+  <title>Towers of Time</title>
+
+  <!-- Styles (order matters) -->
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/map.css">
+  <link rel="stylesheet" href="css/hud.css">
+  <link rel="stylesheet" href="css/overlay.css">
+</head>
+<body>
+
+  <!-- Game wrapper: scaled to fit viewport -->
+  <div id="game-wrapper">
+    <canvas id="game-canvas" width="1920" height="1080"></canvas>
+    <div id="hud"></div>
+  </div>
+
+  <!-- Scripts (order matters — each module references globals from earlier scripts) -->
+  <script src="js/events.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/path.js"></script>
+  <script src="js/assets.js"></script>
+  <script src="js/renderer.js"></script>
+  <script src="js/town.js"></script>
+  <script src="js/resources.js"></script>
+  <script src="js/projectiles.js"></script>
+  <script src="js/towers.js"></script>
+  <script src="js/barricades.js"></script>
+  <script src="js/enemies.js"></script>
+  <script src="js/waves.js"></script>
+  <script src="js/people.js"></script>
+  <script src="js/supply.js"></script>
+  <script src="js/abilities.js"></script>
+  <script src="js/effects.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/overlay.js"></script>
+  <script src="js/popups.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/main.js"></script>
+
+</body>
+</html>
