@@ -1,0 +1,116 @@
+.card {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+@media (max-width: 1024px) {
+  .card {
+    grid-column: auto;
+    grid-row: auto;
+  }
+}
+
+.empty {
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 40px 0;
+}
+
+.chartWrap {
+  margin: 0 -8px;
+}
+
+.dayList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 12px;
+}
+
+.dayRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dayName {
+  width: 34px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.dayIcon {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+}
+
+.dayBar {
+  flex: 1;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+
+.dayBarFill {
+  position: absolute;
+  height: 100%;
+  background: linear-gradient(90deg, #60A5FA, #F59E0B);
+  border-radius: 3px;
+  min-width: 8px;
+  transition: width 0.5s ease, margin-left 0.5s ease;
+}
+
+.dayLow {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  width: 38px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.dayHigh {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  width: 38px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.tooltip {
+  background: rgba(15, 20, 40, 0.9);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 12px 16px;
+  min-width: 140px;
+}
+
+.tooltipTitle {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.tooltipRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  line-height: 1.6;
+}
+
+.tooltipRow span:first-child {
+  color: var(--text-secondary);
+}
