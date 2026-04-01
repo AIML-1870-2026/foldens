@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NEO WATCH — Near-Earth Object Surveillance Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Rajdhani:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:         #03050a;
+      --surface:    #0a0e1a;
+      --surface-2:  #111827;
+      --border:     #1e2d45;
+      --accent:     #00d4ff;
+      --accent-2:   #ff4444;
+      --accent-3:   #f59e0b;
+      --text:       #e2e8f0;
+      --text-muted: #64748b;
+      --glow-cyan:  0 0 20px rgba(0,212,255,0.4);
+      --glow-red:   0 0 20px rgba(255,68,68,0.4);
+    }
+    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+    html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;font-size:16px;overflow-x:hidden}
+    body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.04) 3px,rgba(0,0,0,0.04) 4px);pointer-events:none;z-index:9999}
+    #starfield{position:fixed;inset:0;z-index:0;pointer-events:none}
+
+    /* HEADER */
+    header{position:fixed;top:0;left:0;right:0;height:64px;background:var(--surface);border-bottom:1px solid var(--accent);box-shadow:var(--glow-cyan);display:flex;align-items:center;justify-content:space-between;padding:0 2rem;z-index:100}
+    .header-logo{font-family:'Orbitron',sans-serif;font-size:1.4rem;color:var(--accent);text-shadow:var(--glow-cyan);letter-spacing:.1em}
+    .header-sub{font-size:.75rem;color:var(--text-muted);letter-spacing:.05em;margin-top:2px}
+    #utc-clock{font-family:'Courier New',monospace;font-size:1rem;color:var(--accent);letter-spacing:.1em}
+
+    /* TABS */
+    .tab-bar{position:fixed;top:64px;left:0;right:0;display:flex;background:var(--surface);border-bottom:1px solid var(--border);z-index:99}
+    .tab-btn{flex:1;padding:.75rem 1rem;background:none;border:none;border-bottom:3px solid transparent;color:var(--text-muted);font-family:'Orbitron',sans-serif;font-size:.62rem;letter-spacing:.1em;cursor:pointer;transition:color .2s,border-color .2s}
+    .tab-btn:hover{color:var(--text)}
+    .tab-btn.active{color:#fff;border-bottom-color:var(--accent);text-shadow:var(--glow-cyan)}
+
+    /* MAIN */
+    main{position:relative;z-index:1;margin-top:112px;padding:1.5rem;min-height:calc(100vh - 112px)}
+    .tab-panel{display:none}
+    .tab-panel.active{display:block}
+
+    /* SPINNER */
+    .spinner-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4rem;gap:1.5rem}
+    .spinner{width:60px;height:60px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite;box-shadow:var(--glow-cyan)}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .spinner-label{font-family:'Orbitron',sans-serif;font-size:.7rem;color:var(--accent);letter-spacing:.15em;animation:pulse 1.5s ease-in-out infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+    /* ERROR */
+    .error-card{border:1px solid var(--accent-2);background:var(--surface);padding:1.5rem;border-radius:8px;color:var(--accent-2);font-family:'Orbitron',sans-serif;font-size:.75rem;letter-spacing:.1em;box-shadow:var(--glow-red);max-width:500px;margin:2rem auto}
+
+    /* HERO STATS */
+    .hero-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:2rem}
+    .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1.25rem;text-align:center}
+    .stat-value{font-family:'Orbitron',sans-serif;font-size:2rem;color:var(--accent);text-shadow:var(--glow-cyan);display:block;line-height:1;margin-bottom:.5rem}
+    .stat-value.danger{color:var(--accent-2);text-shadow:var(--glow-red)}
+    .stat-label{font-size:.75rem;color:var(--text-muted);letter-spacing:.08em;text-transform:uppercase}
+
+    /* CARD GRID */
+    .card-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1.25rem}
+    .asteroid-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;transition:transform .2s,border-color .2s,box-shadow .2s}
+    .asteroid-card:hover{transform:scale(1.02);border-color:var(--accent);box-shadow:var(--glow-cyan)}
+    .asteroid-card.hazardous{border-color:var(--accent-2);box-shadow:var(--glow-red)}
+    .asteroid-card.hazardous:hover{box-shadow:0 0 30px rgba(255,68,68,.6)}
+    .card-image-wrap{position:relative;width:100%;height:160px;background:var(--surface-2);overflow:hidden}
+    .card-image-wrap img{width:100%;height:100%;object-fit:cover}
+    .img-gradient{position:absolute;bottom:0;left:0;right:0;height:60%;background:linear-gradient(to top,var(--surface),transparent)}
+    .asteroid-blob{width:100%;height:100%}
+    .card-body{padding:1rem}
+    .card-designation{font-family:'Orbitron',sans-serif;font-size:.7rem;color:var(--accent);letter-spacing:.1em}
+    .card-name{font-size:1rem;font-weight:600;margin:.25rem 0 .5rem}
+    .hazard-badge{display:inline-block;background:rgba(255,68,68,.15);border:1px solid var(--accent-2);color:var(--accent-2);font-family:'Orbitron',sans-serif;font-size:.6rem;padding:.25rem .5rem;border-radius:4px;margin-bottom:.75rem;letter-spacing:.1em}
+    .card-data{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.75rem}
+    .data-label{font-size:.65rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em}
+    .data-value{font-family:'Courier New',monospace;font-size:.9rem;color:var(--text)}
+    .data-value.close{color:var(--accent-2)}
+    .view-detail-btn{background:none;border:1px solid var(--accent);color:var(--accent);font-family:'Orbitron',sans-serif;font-size:.6rem;padding:.4rem .8rem;border-radius:4px;cursor:pointer;letter-spacing:.1em;transition:background .2s,box-shadow .2s}
+    .view-detail-btn:hover{background:rgba(0,212,255,.1);box-shadow:var(--glow-cyan)}
+    .card-detail{display:none;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)}
+    .card-detail.open{display:block}
+    .card-detail pre{font-family:'Courier New',monospace;font-size:.7rem;color:var(--text-muted);white-space:pre-wrap;word-break:break-all;max-height:200px;overflow-y:auto}
+
+    /* THREAT */
+    .threat-banner{background:rgba(255,68,68,.1);border:1px solid var(--accent-2);border-radius:8px;padding:1rem 1.5rem;font-family:'Orbitron',sans-serif;font-size:.75rem;color:var(--accent-2);letter-spacing:.1em;text-align:center;margin-bottom:1.5rem;box-shadow:var(--glow-red)}
+    .threat-controls{display:flex;gap:1rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap}
+    .threat-search{background:var(--surface-2);border:1px solid var(--border);color:var(--text);padding:.5rem .75rem;border-radius:4px;font-family:'Rajdhani',sans-serif;font-size:.9rem;outline:none;flex:1;min-width:200px}
+    .threat-search:focus{border-color:var(--accent)}
+    .sort-btns{display:flex;gap:.5rem;flex-wrap:wrap}
+    .sort-btn{background:var(--surface-2);border:1px solid var(--border);color:var(--text-muted);font-family:'Orbitron',sans-serif;font-size:.6rem;padding:.4rem .75rem;border-radius:4px;cursor:pointer;letter-spacing:.08em;transition:all .2s}
+    .sort-btn.active,.sort-btn:hover{border-color:var(--accent);color:var(--accent)}
+
+    /* TABLE */
+    .data-table-wrap{overflow-x:auto}
+    .data-table{width:100%;border-collapse:collapse;font-size:.85rem}
+    .data-table th{font-family:'Orbitron',sans-serif;font-size:.6rem;color:var(--text-muted);letter-spacing:.1em;padding:.75rem .5rem;text-align:left;border-bottom:1px solid var(--border);cursor:pointer;white-space:nowrap;user-select:none}
+    .data-table th:hover{color:var(--accent)}
+    .data-table td{padding:.75rem .5rem;border-bottom:1px solid rgba(30,45,69,.5);vertical-align:middle}
+    .data-table tr{cursor:pointer;transition:background .15s}
+    .data-table tbody tr:hover td{background:rgba(0,212,255,.05)}
+    .data-table tr.expanded td{background:rgba(0,212,255,.08)}
+    .expand-row td{padding:0 .5rem .75rem;font-size:.8rem;color:var(--text-muted)}
+    .countdown{font-family:'Courier New',monospace;color:var(--accent);font-size:.85rem}
+    .prob-value{font-family:'Orbitron',sans-serif;font-size:.8rem}
+    .prob-value.low{color:#22c55e}
+    .prob-value.mid{color:var(--accent-3)}
+    .prob-value.high{color:var(--accent-2)}
+    .palermo-bar-wrap{display:flex;align-items:center;gap:.5rem;min-width:120px}
+    .palermo-bar-bg{flex:1;height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden}
+    .palermo-bar-fill{height:100%;background:var(--accent);border-radius:3px}
+    .palermo-val{font-family:'Courier New',monospace;font-size:.75rem;color:var(--text-muted);min-width:42px}
+    .torino-badge{display:inline-block;padding:.2rem .5rem;border-radius:4px;font-family:'Orbitron',sans-serif;font-size:.65rem;font-weight:700}
+
+    /* ARCHIVE */
+    .filter-bar{display:flex;gap:1rem;align-items:flex-end;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1.25rem;margin-bottom:1.5rem}
+    .filter-group{display:flex;flex-direction:column;gap:.3rem}
+    .filter-label{font-size:.65rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;font-family:'Orbitron',sans-serif}
+    .filter-input{background:var(--surface-2);border:1px solid var(--border);color:var(--text);padding:.4rem .6rem;border-radius:4px;font-family:'Rajdhani',sans-serif;font-size:.9rem;outline:none}
+    .filter-input:focus{border-color:var(--accent)}
+    .apply-btn{background:rgba(0,212,255,.1);border:1px solid var(--accent);color:var(--accent);font-family:'Orbitron',sans-serif;font-size:.65rem;padding:.5rem 1rem;border-radius:4px;cursor:pointer;letter-spacing:.1em;transition:background .2s;align-self:flex-end}
+    .apply-btn:hover{background:rgba(0,212,255,.2)}
+    .chart-wrap{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1rem;margin-bottom:1.5rem;height:320px}
+    .archive-table-wrap{max-height:400px;overflow-y:auto}
+
+    /* SCALE */
+    .asteroid-pills{display:flex;gap:.5rem;overflow-x:auto;padding-bottom:.5rem;margin-bottom:1.5rem}
+    .asteroid-pills::-webkit-scrollbar{height:4px}
+    .asteroid-pills::-webkit-scrollbar-track{background:var(--surface)}
+    .asteroid-pills::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+    .asteroid-pill{background:var(--surface);border:1px solid var(--border);color:var(--text-muted);font-family:'Orbitron',sans-serif;font-size:.6rem;padding:.4rem .8rem;border-radius:20px;cursor:pointer;white-space:nowrap;letter-spacing:.08em;transition:all .2s;flex-shrink:0}
+    .asteroid-pill:hover,.asteroid-pill.active{border-color:var(--accent);color:var(--accent);background:rgba(0,212,255,.1)}
+    .scale-main{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem}
+    .scale-image-panel{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+    .scale-img-wrap{position:relative;height:220px}
+    .scale-img-wrap img{width:100%;height:100%;object-fit:cover}
+    .scale-info{padding:1rem}
+    .scale-asteroid-name{font-family:'Orbitron',sans-serif;font-size:.85rem;color:var(--accent);margin-bottom:.5rem}
+    .scale-diameter{font-family:'Courier New',monospace;font-size:1.1rem}
+    .comparison-panel{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1.25rem}
+    .landmark-select-wrap{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem}
+    .landmark-btn{background:var(--surface-2);border:1px solid var(--border);color:var(--text-muted);font-family:'Orbitron',sans-serif;font-size:.55rem;padding:.3rem .6rem;border-radius:4px;cursor:pointer;letter-spacing:.08em;transition:all .2s}
+    .landmark-btn.active,.landmark-btn:hover{border-color:var(--accent);color:var(--accent)}
+    .slider-container{position:relative;width:100%;height:200px;overflow:hidden;border-radius:8px;background:var(--surface-2);cursor:ew-resize;user-select:none}
+    .slider-svg{position:absolute;inset:0;width:100%;height:100%}
+    .slider-divider{position:absolute;top:0;bottom:0;width:3px;background:var(--accent);box-shadow:var(--glow-cyan);cursor:ew-resize;z-index:10;transform:translateX(-50%)}
+    .slider-label{text-align:center;font-family:'Rajdhani',sans-serif;font-size:.95rem;color:var(--text-muted);margin-top:.75rem;line-height:1.5}
+    .scale-ratio{font-family:'Orbitron',sans-serif;font-size:1rem;color:var(--accent)}
+    .speed-panel{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1.25rem}
+    .speed-title{font-family:'Orbitron',sans-serif;font-size:.75rem;color:var(--text-muted);letter-spacing:.1em;margin-bottom:1rem}
+    .speed-row{display:flex;align-items:center;gap:1rem;margin-bottom:.75rem}
+    .speed-name{font-size:.85rem;color:var(--text-muted);width:160px;flex-shrink:0}
+    .speed-bar-wrap{flex:1;height:12px;background:var(--surface-2);border-radius:6px;overflow:hidden}
+    .speed-bar-fill{height:100%;border-radius:6px;background:linear-gradient(90deg,var(--accent),rgba(0,212,255,.3));transition:width 1.5s ease-out}
+    .speed-mult{font-family:'Orbitron',sans-serif;font-size:.8rem;color:var(--accent);min-width:60px;text-align:right}
+
+    /* GLOBE */
+    .fab-globe{position:fixed;bottom:2rem;right:2rem;background:rgba(0,212,255,.15);border:1px solid var(--accent);color:var(--accent);font-family:'Orbitron',sans-serif;font-size:.65rem;padding:.75rem 1.25rem;border-radius:30px;cursor:pointer;letter-spacing:.1em;box-shadow:var(--glow-cyan);transition:all .2s;z-index:200}
+    .fab-globe:hover{background:rgba(0,212,255,.25);box-shadow:0 0 30px rgba(0,212,255,.6)}
+    .globe-panel{position:fixed;bottom:0;left:0;right:0;height:80vh;background:var(--bg);border-top:2px solid var(--accent);box-shadow:0 -10px 40px rgba(0,212,255,.2);transform:translateY(100%);transition:transform .4s cubic-bezier(.4,0,.2,1);z-index:500}
+    .globe-panel.open{transform:translateY(0)}
+    .globe-header{display:flex;align-items:center;justify-content:space-between;padding:.75rem 1.5rem;border-bottom:1px solid var(--border)}
+    .globe-title{font-family:'Orbitron',sans-serif;font-size:.75rem;color:var(--accent);letter-spacing:.1em}
+    .globe-close{background:none;border:1px solid var(--border);color:var(--text-muted);font-family:'Orbitron',sans-serif;font-size:.6rem;padding:.35rem .75rem;border-radius:4px;cursor:pointer;letter-spacing:.08em}
+    .globe-close:hover{border-color:var(--accent-2);color:var(--accent-2)}
+    #globe-container{width:100%;height:calc(80vh - 50px)}
+
+    /* RESPONSIVE */
+    @media(max-width:768px){
+      .card-grid{grid-template-columns:1fr}
+      .hero-stats{grid-template-columns:1fr}
+      .scale-main{grid-template-columns:1fr}
+      main{padding:1rem;margin-top:128px}
+      .filter-bar{flex-direction:column}
+    }
+    @media(max-width:480px){
+      .tab-bar{display:grid;grid-template-columns:1fr 1fr}
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="starfield"></canvas>
+
+<header>
+  <div>
+    <div class="header-logo">⬡ NEO WATCH</div>
+    <div class="header-sub">Near-Earth Object Surveillance Dashboard</div>
+  </div>
+  <div id="utc-clock">--:--:-- UTC</div>
+</header>
+
+<nav class="tab-bar">
+  <button class="tab-btn active" data-tab="flybys">FLYBYS</button>
+  <button class="tab-btn" data-tab="threat">THREAT WATCHLIST</button>
+  <button class="tab-btn" data-tab="archive">ARCHIVE</button>
+  <button class="tab-btn" data-tab="scale">SCALE EXPLORER</button>
+</nav>
+
+<main>
+  <div id="tab-flybys" class="tab-panel active">
+    <div id="flybys-content"><div class="spinner-wrap"><div class="spinner"></div><div class="spinner-label">ACQUIRING DATA...</div></div></div>
+  </div>
+  <div id="tab-threat" class="tab-panel">
+    <div id="threat-content"><div class="spinner-wrap"><div class="spinner"></div><div class="spinner-label">ACQUIRING DATA...</div></div></div>
+  </div>
+  <div id="tab-archive" class="tab-panel">
+    <div id="archive-content"><div class="spinner-wrap"><div class="spinner"></div><div class="spinner-label">ACQUIRING DATA...</div></div></div>
+  </div>
+  <div id="tab-scale" class="tab-panel">
+    <div id="scale-content"><div class="spinner-wrap"><div class="spinner"></div><div class="spinner-label">ACQUIRING DATA...</div></div></div>
+  </div>
+</main>
+
+<button class="fab-globe" id="globe-fab">🌐 LAUNCH GLOBE</button>
+
+<div class="globe-panel" id="globe-panel">
+  <div class="globe-header">
+    <div class="globe-title">🌐 NEAR-EARTH OBJECT ORBITAL VISUALIZATION</div>
+    <button class="globe-close" id="globe-close">✕ CLOSE GLOBE</button>
+  </div>
+  <div id="globe-container"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<script src="//unpkg.com/globe.gl"></script>
+<script>
+// ============================================================
+// CONSTANTS
+// ============================================================
+const NASA_API_KEY = '5maq8VAenLbOk08JBJI5DKnCS6BSaCXqa9otWrVK';
+
+const LANDMARKS = {
+  'Football Field': { size: 91,   unit: 'm', axis: 'length' },
+  'Eiffel Tower':   { size: 330,  unit: 'm', axis: 'height' },
+  'Empire State':   { size: 443,  unit: 'm', axis: 'height' },
+  'Mt. Everest':    { size: 8849, unit: 'm', axis: 'height' },
+  'City Block':     { size: 80,   unit: 'm', axis: 'length' },
+};
+const SPEED_REFS = {
+  'Speed of Sound': 0.343,
+  'Rifle Bullet':   0.9,
+  'Commercial Jet': 0.25,
+};
+const AU_TO_LD = 389.17;
+const AU_TO_KM = 1.496e8;
+
+// ============================================================
+// STAR FIELD
+// ============================================================
+(function () {
+  const canvas = document.getElementById('starfield');
+  const ctx = canvas.getContext('2d');
+  let W, H, stars = [], mx = 0, my = 0;
+  function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+  function init() {
+    resize();
+    stars = Array.from({ length: 200 }, () => ({
+      x: Math.random() * W, y: Math.random() * H,
+      r: Math.random() * 1.4 + 0.3,
+      parallax: Math.random() * 0.018 + 0.004,
+    }));
+  }
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    stars.forEach(s => {
+      const px = ((s.x + (mx - W / 2) * s.parallax) % W + W) % W;
+      const py = ((s.y + (my - H / 2) * s.parallax) % H + H) % H;
+      ctx.beginPath();
+      ctx.arc(px, py, s.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(226,232,240,${0.35 + s.r * 0.25})`;
+      ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+  document.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; });
+  window.addEventListener('resize', init);
+  init(); draw();
+})();
+
+// ============================================================
+// UTC CLOCK
+// ============================================================
+function updateClock() {
+  const n = new Date();
+  const p = v => String(v).padStart(2, '0');
+  document.getElementById('utc-clock').textContent =
+    `${p(n.getUTCHours())}:${p(n.getUTCMinutes())}:${p(n.getUTCSeconds())} UTC`;
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+// ============================================================
+// TAB SWITCHING
+// ============================================================
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ============================================================
+// HELPERS
+// ============================================================
+function spinner() {
+  return '<div class="spinner-wrap"><div class="spinner"></div><div class="spinner-label">ACQUIRING DATA...</div></div>';
+}
+function errorCard(api) {
+  return `<div class="error-card">⚠ SIGNAL LOST — ${api} unreachable. Check console.</div>`;
+}
+function fmt(n, d = 2) { return Number(n).toFixed(d); }
+function auToLd(au) { return (parseFloat(au) * AU_TO_LD).toFixed(2); }
+
+// Seeded procedural blob SVG
+function blobSvg(seed) {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = Math.imul(31, h) + seed.charCodeAt(i) | 0;
+  const rng = () => { h ^= h << 13; h ^= h >> 17; h ^= h << 5; return (h >>> 0) / 4294967296; };
+  const pts = 10, cx = 50, cy = 50, base = 26;
+  const angles = Array.from({ length: pts }, (_, i) => (i / pts) * Math.PI * 2);
+  const radii  = angles.map(() => base * (0.65 + rng() * 0.7));
+  let d = angles.map((a, i) => `${i ? 'L' : 'M'}${cx + Math.cos(a) * radii[i]},${cy + Math.sin(a) * radii[i]}`).join('') + 'Z';
+  return `<svg class="asteroid-blob" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <rect width="100" height="100" fill="#0a0e1a"/>
+    <path d="${d}" fill="#1a2535" stroke="#2a3f5f" stroke-width="1.2"/>
+  </svg>`;
+}
+
+function torinoBadge(v) {
+  const n = parseInt(v) || 0;
+  let bg = '#374151', color = '#9ca3af';
+  if (n >= 8)      { bg = '#7f1d1d'; color = '#f87171'; }
+  else if (n >= 4) { bg = '#78350f'; color = '#f59e0b'; }
+  else if (n >= 1) { bg = '#713f12'; color = '#fde68a'; }
+  return `<span class="torino-badge" style="background:${bg};color:${color}">${n}</span>`;
+}
+
+function palermoBar(ps) {
+  const val = parseFloat(ps) || -10;
+  const pct = Math.max(0, Math.min(100, ((val + 10) / 10) * 100));
+  const col = val >= 0 ? '#ff4444' : val >= -2 ? '#f59e0b' : '#00d4ff';
+  return `<div class="palermo-bar-wrap">
+    <div class="palermo-bar-bg"><div class="palermo-bar-fill" style="width:${pct}%;background:${col}"></div></div>
+    <div class="palermo-val">${fmt(val, 1)}</div>
+  </div>`;
+}
+
+function probClass(ip) {
+  const p = parseFloat(ip) * 100;
+  if (p > 0.1) return 'high';
+  if (p > 0.001) return 'mid';
+  return 'low';
+}
+
+function countdownStr(dateStr) {
+  if (!dateStr) return '—';
+  // SBDB format can be "2027-Jan-01" etc, try to normalize
+  const target = new Date(dateStr.replace(/-([A-Za-z]{3})-/g, (_, m) => {
+    const months = {Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
+    return '-' + (months[m] || '01') + '-';
+  }));
+  const diff = target - Date.now();
+  if (isNaN(diff) || diff <= 0) return 'PASSED';
+  const d = Math.floor(diff / 86400000);
+  const h = Math.floor((diff % 86400000) / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  const s = Math.floor((diff % 60000) / 1000);
+  const p = v => String(v).padStart(2, '0');
+  return `${String(d).padStart(3,'0')}:${p(h)}:${p(m)}:${p(s)}`;
+}
+
+// ============================================================
+// NASA IMAGE LIBRARY — lazy via IntersectionObserver
+// ============================================================
+const imgObserver = new IntersectionObserver(entries => {
+  entries.forEach(entry => {
+    if (!entry.isIntersecting) return;
+    const wrap = entry.target;
+    imgObserver.unobserve(wrap);
+    const q = decodeURIComponent(wrap.dataset.query || '');
+    const seed = wrap.dataset.seed || q;
+    fetch(`https://images-api.nasa.gov/search?q=${encodeURIComponent(q)}&media_type=image&page_size=1`)
+      .then(r => r.json())
+      .then(j => {
+        const href = j.collection?.items?.[0]?.links?.[0]?.href;
+        if (href) wrap.innerHTML = `<img src="${href}" alt="${q}" loading="lazy"><div class="img-gradient"></div>`;
+      })
+      .catch(() => {});
+  });
+}, { rootMargin: '200px' });
+
+function observeImages() {
+  document.querySelectorAll('.card-image-wrap[data-query]').forEach(el => imgObserver.observe(el));
+}
+
+// ============================================================
+// API FETCH FUNCTIONS
+// ============================================================
+function fetchNeoWs() {
+  const today = new Date();
+  const start = today.toISOString().slice(0, 10);
+  const end = new Date(today.getTime() + 7 * 86400000).toISOString().slice(0, 10);
+  return fetch(`https://api.nasa.gov/neo/rest/v1/feed?start_date=${start}&end_date=${end}&api_key=${NASA_API_KEY}`)
+    .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+}
+function fetchSentry() {
+  return fetch('https://ssd-api.jpl.nasa.gov/sentry.api?ps-min=-10')
+    .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+}
+function fetchSBDB(opts = {}) {
+  const p = new URLSearchParams({
+    'dist-max': opts.distMax || '0.2',
+    'date-min': opts.dateMin || '1900-01-01',
+    'date-max': opts.dateMax || '2100-01-01',
+    sort: 'date', limit: 500,
+  });
+  return fetch(`https://ssd-api.jpl.nasa.gov/cad.api?${p}`)
+    .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+}
+
+// ============================================================
+// TAB 1 — FLYBYS
+// ============================================================
+let neowsData = null;
+
+function renderFlybys(data) {
+  neowsData = data;
+  const all = Object.values(data.near_earth_objects).flat().map(a => {
+    const ca = a.close_approach_data?.[0] || {};
+    return {
+      ...a,
+      _missAu: parseFloat(ca.miss_distance?.astronomical || '9999'),
+      _missLd: parseFloat(ca.miss_distance?.lunar || '9999'),
+      _vel: parseFloat(ca.relative_velocity?.kilometers_per_second || '0'),
+      _date: ca.close_approach_date || '',
+    };
+  }).sort((a, b) => a._missAu - b._missAu);
+
+  const fastest = Math.max(...all.map(a => a._vel));
+  const closest = all[0]?._missAu || 0;
+
+  document.getElementById('flybys-content').innerHTML = `
+    <div class="hero-stats">
+      <div class="stat-card">
+        <span class="stat-value">${all.length}</span>
+        <div class="stat-label">Asteroids This Week</div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-value ${closest < 0.05 ? 'danger' : ''}">${fmt(closest, 4)} AU</span>
+        <div class="stat-label">Closest Approach</div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-value">${fmt(fastest, 2)} km/s</span>
+        <div class="stat-label">Fastest Object</div>
+      </div>
+    </div>
+    <div class="card-grid">${all.map(asteroidCard).join('')}</div>`;
+  observeImages();
+}
+
+function asteroidCard(a) {
+  const h = a.is_potentially_hazardous_asteroid;
+  const ld = fmt(a._missLd, 2);
+  const dMin = fmt(a.estimated_diameter?.meters?.estimated_diameter_min || 0, 0);
+  const dMax = fmt(a.estimated_diameter?.meters?.estimated_diameter_max || 0, 0);
+  const name  = a.name || a.designation || a.id;
+  const desig = a.designation || a.id;
+  const km = (a._missAu * AU_TO_KM).toLocaleString(undefined, { maximumFractionDigits: 0 });
+  return `
+    <div class="asteroid-card${h ? ' hazardous' : ''}" id="card-${a.id}">
+      <div class="card-image-wrap" data-query="${encodeURIComponent(desig)}" data-seed="${a.id}">
+        ${blobSvg(a.id)}
+      </div>
+      <div class="card-body">
+        <div class="card-designation">${desig}</div>
+        <div class="card-name">${name}</div>
+        ${h ? '<div class="hazard-badge">⚠ POTENTIALLY HAZARDOUS</div>' : ''}
+        <div class="card-data">
+          <div><div class="data-label">Approach Date</div><div class="data-value">${a._date}</div></div>
+          <div><div class="data-label">Miss Distance</div><div class="data-value ${a._missLd < 5 ? 'close' : ''}">${ld} LD</div></div>
+          <div><div class="data-label">Distance (km)</div><div class="data-value">${km}</div></div>
+          <div><div class="data-label">Diameter</div><div class="data-value">${dMin}–${dMax} m</div></div>
+          <div><div class="data-label">Velocity</div><div class="data-value">${fmt(a._vel, 2)} km/s</div></div>
+        </div>
+        <button class="view-detail-btn" onclick="toggleDetail('${a.id}')">VIEW DETAIL</button>
+        <div class="card-detail" id="detail-${a.id}">
+          <pre>${JSON.stringify(a, null, 2)}</pre>
+        </div>
+      </div>
+    </div>`;
+}
+
+function toggleDetail(id) {
+  document.getElementById('detail-' + id)?.classList.toggle('open');
+}
+
+// ============================================================
+// TAB 2 — THREAT WATCHLIST
+// ============================================================
+let sentryRows = [], sentrySort = 'prob', sentryAsc = false;
+let cdTimers = [];
+
+function renderThreat(data) {
+  sentryRows = data.data || [];
+  buildThreatUI();
+}
+
+function buildThreatUI() {
+  const sorted = sortSentry(sentryRows, sentrySort, sentryAsc);
+  document.getElementById('threat-content').innerHTML = `
+    <div class="threat-banner">${sentryRows.length} OBJECTS CURRENTLY TRACKED WITH NON-ZERO IMPACT PROBABILITY</div>
+    <div class="threat-controls">
+      <input class="threat-search" id="threat-q" type="text" placeholder="Search designation..." oninput="filterThreat()">
+      <div class="sort-btns">
+        <button class="sort-btn ${sentrySort==='prob'?'active':''}" onclick="setSentrySort('prob')">PROBABILITY</button>
+        <button class="sort-btn ${sentrySort==='energy'?'active':''}" onclick="setSentrySort('energy')">ENERGY</button>
+        <button class="sort-btn ${sentrySort==='date'?'active':''}" onclick="setSentrySort('date')">DATE</button>
+      </div>
+    </div>
+    <div class="data-table-wrap">
+      <table class="data-table">
+        <thead><tr>
+          <th onclick="setSentrySort('des')">DESIGNATION</th>
+          <th>COUNTDOWN</th>
+          <th onclick="setSentrySort('prob')">IMPACT PROB %</th>
+          <th onclick="setSentrySort('energy')">ENERGY (Mt TNT)</th>
+          <th onclick="setSentrySort('diameter')">DIAMETER (km)</th>
+          <th>PALERMO SCALE</th>
+          <th>TORINO</th>
+          <th>YEAR RANGE</th>
+        </tr></thead>
+        <tbody id="threat-tbody">${sorted.map(threatRow).join('')}</tbody>
+      </table>
+    </div>`;
+  startCd();
+}
+
+function threatRow(o, i) {
+  const prob = parseFloat(o.ip) || 0;
+  const probStr = (prob * 100).toExponential(2);
+  const energy = parseFloat(o.energy) || 0;
+  const diam = parseFloat(o.diameter) || 0;
+  const range = (o.range || '').split('-');
+  const yr1 = range[0] || '—', yr2 = range[1] || '—';
+  const impDate = o.date || '';
+  return `
+    <tr id="trow-${i}" onclick="toggleThreat(${i})">
+      <td><span style="font-family:Orbitron,sans-serif;font-size:.7rem;color:var(--accent)">${o.des || '—'}</span></td>
+      <td><span class="countdown" id="cd-${i}" data-date="${impDate}">${countdownStr(impDate)}</span></td>
+      <td><span class="prob-value ${probClass(o.ip)}">${probStr}%</span></td>
+      <td style="font-family:'Courier New',monospace;font-size:.8rem">${energy > 0 ? energy.toExponential(2) : '—'}</td>
+      <td style="font-family:'Courier New',monospace;font-size:.8rem">${diam > 0 ? fmt(diam, 3) : '—'}</td>
+      <td>${palermoBar(o.ps_cum)}</td>
+      <td>${torinoBadge(o.ts_max)}</td>
+      <td style="font-family:'Courier New',monospace;font-size:.8rem">${yr1}–${yr2}</td>
+    </tr>
+    <tr id="texp-${i}" style="display:none">
+      <td colspan="8" style="padding:0 .5rem .75rem">
+        <div style="background:var(--surface-2);border-radius:4px;padding:.5rem;max-height:150px;overflow-y:auto">
+          <pre style="font-size:.7rem;white-space:pre-wrap;color:var(--text-muted)">${JSON.stringify(o, null, 2)}</pre>
+        </div>
+      </td>
+    </tr>`;
+}
+
+function toggleThreat(i) {
+  const row = document.getElementById('trow-' + i);
+  const exp = document.getElementById('texp-' + i);
+  if (!exp) return;
+  const open = exp.style.display !== 'none';
+  exp.style.display = open ? 'none' : 'table-row';
+  row?.classList.toggle('expanded', !open);
+}
+
+function sortSentry(arr, key, asc) {
+  return [...arr].sort((a, b) => {
+    let va, vb;
+    if      (key === 'prob')     { va = parseFloat(a.ip)||0;       vb = parseFloat(b.ip)||0; }
+    else if (key === 'energy')   { va = parseFloat(a.energy)||0;   vb = parseFloat(b.energy)||0; }
+    else if (key === 'date')     { va = new Date(a.date||0);        vb = new Date(b.date||0); }
+    else if (key === 'diameter') { va = parseFloat(a.diameter)||0; vb = parseFloat(b.diameter)||0; }
+    else if (key === 'des')      { return asc ? (a.des||'').localeCompare(b.des||'') : (b.des||'').localeCompare(a.des||''); }
+    else return 0;
+    return asc ? va - vb : vb - va;
+  });
+}
+
+function setSentrySort(k) {
+  sentryAsc = sentrySort === k ? !sentryAsc : false;
+  sentrySort = k;
+  buildThreatUI();
+}
+
+function filterThreat() {
+  const q = (document.getElementById('threat-q')?.value || '').toLowerCase();
+  const filtered = sentryRows.filter(o => (o.des || '').toLowerCase().includes(q));
+  document.getElementById('threat-tbody').innerHTML = sortSentry(filtered, sentrySort, sentryAsc).map(threatRow).join('');
+  startCd();
+}
+
+function startCd() {
+  cdTimers.forEach(clearInterval);
+  cdTimers = [];
+  document.querySelectorAll('.countdown[data-date]').forEach(el => {
+    const d = el.dataset.date;
+    if (!d) return;
+    cdTimers.push(setInterval(() => { el.textContent = countdownStr(d); }, 1000));
+  });
+}
+
+// ============================================================
+// TAB 3 — ARCHIVE
+// ============================================================
+let archiveChart = null;
+let archivePts = [];
+
+function renderArchive(data) {
+  const fields = data.fields || [];
+  const rows   = data.data   || [];
+  const fi = n => fields.indexOf(n);
+  archivePts = rows.map(r => ({
+    des:  r[fi('des')]  || '—',
+    date: r[fi('cd')]   || '',
+    dist: parseFloat(r[fi('dist')]     || 0),
+    vrel: parseFloat(r[fi('v_rel')]    || 0),
+    diam: parseFloat(r[fi('diameter')] || 0),
+  }));
+  buildArchiveLayout();
+  buildArchiveChart(archivePts);
+  buildArchiveTable(archivePts);
+}
+
+function buildArchiveLayout() {
+  document.getElementById('archive-content').innerHTML = `
+    <div class="filter-bar">
+      <div class="filter-group">
+        <label class="filter-label">Date Min</label>
+        <input class="filter-input" type="date" id="arc-dmin" value="1900-01-01">
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">Date Max</label>
+        <input class="filter-input" type="date" id="arc-dmax" value="2100-01-01">
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">Max Dist (AU) <span id="arc-dist-lbl" style="color:var(--accent)">0.20</span></label>
+        <input class="filter-input" type="range" id="arc-dist" min="0.01" max="0.5" step="0.01" value="0.2"
+          oninput="document.getElementById('arc-dist-lbl').textContent=parseFloat(this.value).toFixed(2)" style="padding:0;margin-top:4px">
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">Min Diameter</label>
+        <select class="filter-input" id="arc-diam">
+          <option value="0">Any</option>
+          <option value="0.01">&gt;10m</option>
+          <option value="0.1">&gt;100m</option>
+          <option value="1">&gt;1km</option>
+        </select>
+      </div>
+      <button class="apply-btn" id="apply-filter">APPLY</button>
+    </div>
+    <div class="chart-wrap"><canvas id="archive-chart"></canvas></div>
+    <div class="archive-table-wrap">
+      <table class="data-table">
+        <thead><tr>
+          <th>DESIGNATION</th><th>DATE</th><th>MISS DIST (LD)</th><th>VELOCITY (km/s)</th><th>DIAMETER (km)</th>
+        </tr></thead>
+        <tbody id="archive-tbody"></tbody>
+      </table>
+    </div>`;
+  document.getElementById('apply-filter').addEventListener('click', () => {
+    const dateMin = document.getElementById('arc-dmin').value || '1900-01-01';
+    const dateMax = document.getElementById('arc-dmax').value || '2100-01-01';
+    const distMax = document.getElementById('arc-dist').value || '0.2';
+    const minDiam = parseFloat(document.getElementById('arc-diam').value) || 0;
+    document.getElementById('archive-content').innerHTML = spinner();
+    fetchSBDB({ dateMin, dateMax, distMax }).then(d => {
+      renderArchive(d);
+      if (minDiam > 0) {
+        archivePts = archivePts.filter(p => p.diam >= minDiam);
+        buildArchiveChart(archivePts);
+        buildArchiveTable(archivePts);
+      }
+    }).catch(() => {
+      document.getElementById('archive-content').innerHTML = errorCard('SBDB Close-Approach API');
+    });
+  });
+}
+
+function buildArchiveChart(pts) {
+  if (archiveChart) { archiveChart.destroy(); archiveChart = null; }
+  const ctx = document.getElementById('archive-chart')?.getContext('2d');
+  if (!ctx) return;
+  const now = new Date();
+
+  // Parse SBDB date format "2024-Jan-01 12:00"
+  function parseSbdbDate(s) {
+    if (!s) return null;
+    const cleaned = s.replace(/-([A-Za-z]{3})-/, (_, m) => {
+      const map = {Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
+      return '-' + (map[m] || '01') + '-';
+    });
+    return new Date(cleaned);
+  }
+
+  const scatter = pts.map((p, i) => {
+    const d = parseSbdbDate(p.date);
+    if (!d || isNaN(d)) return null;
+    const ld = p.dist * AU_TO_LD;
+    const past = d < now;
+    let color;
+    if (p.diam >= 1)     color = past ? 'rgba(255,68,68,0.4)'  : 'rgba(255,68,68,1)';
+    else if (p.diam >= 0.1) color = past ? 'rgba(245,158,11,0.4)' : 'rgba(245,158,11,1)';
+    else                  color = past ? 'rgba(100,116,139,0.4)' : 'rgba(100,116,139,0.8)';
+    return { x: d, y: ld, color, idx: i, label: p.des, date: p.date, diam: p.diam, vrel: p.vrel };
+  }).filter(Boolean);
+
+  // Moon reference line as a dataset
+  const dateRange = scatter.length ? [scatter[0].x, scatter[scatter.length-1].x] : [new Date('1900-01-01'), new Date('2100-01-01')];
+
+  archiveChart = new Chart(ctx, {
+    data: {
+      datasets: [
+        {
+          type: 'scatter',
+          label: 'Approaches',
+          data: scatter.map(p => ({ x: p.x, y: p.y })),
+          backgroundColor: scatter.map(p => p.color),
+          pointRadius: 4,
+          pointHoverRadius: 6,
+        },
+        {
+          type: 'line',
+          label: '🌙 MOON (1 LD)',
+          data: [{ x: dateRange[0], y: 1 }, { x: dateRange[1], y: 1 }],
+          borderColor: 'rgba(0,212,255,0.5)',
+          borderWidth: 1,
+          borderDash: [6, 4],
+          pointRadius: 0,
+          fill: false,
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx2 => {
+              if (ctx2.datasetIndex === 1) return '🌙 Moon orbit (1 LD)';
+              const p = scatter[ctx2.dataIndex];
+              if (!p) return '';
+              return [`${p.label}`, `${p.date}`, `${fmt(p.y, 2)} LD`, `Ø ${p.diam > 0 ? fmt(p.diam * 1000, 0) + 'm' : '?'}`];
+            }
+          }
+        }
+      },
+      scales: {
+        x: { type: 'time', time: { unit: 'year' }, grid: { color: 'rgba(30,45,69,.4)' }, ticks: { color: '#64748b', font: { family: 'Rajdhani' } } },
+        y: { title: { display: true, text: 'Miss Distance (LD)', color: '#64748b', font: { family: 'Rajdhani' } }, grid: { color: 'rgba(30,45,69,.4)' }, ticks: { color: '#64748b', font: { family: 'Rajdhani' } } }
+      },
+      onClick(e, elements) {
+        if (!elements.length || elements[0].datasetIndex !== 0) return;
+        const i = elements[0].index;
+        const row = document.getElementById('arc-row-' + scatter[i].idx);
+        document.querySelectorAll('#archive-tbody tr').forEach(r => r.style.background = '');
+        if (row) { row.style.background = 'rgba(0,212,255,.15)'; row.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+      }
+    }
+  });
+}
+
+function buildArchiveTable(pts) {
+  const tbody = document.getElementById('archive-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = pts.map((p, i) => `
+    <tr id="arc-row-${i}" style="transition:background .2s" onclick="highlightArcDot(${i})">
+      <td style="font-family:Orbitron,sans-serif;font-size:.7rem;color:var(--accent)">${p.des}</td>
+      <td style="font-family:'Courier New',monospace;font-size:.8rem">${p.date}</td>
+      <td style="font-family:'Courier New',monospace;font-size:.8rem">${fmt(p.dist * AU_TO_LD, 2)}</td>
+      <td style="font-family:'Courier New',monospace;font-size:.8rem">${fmt(p.vrel, 2)}</td>
+      <td style="font-family:'Courier New',monospace;font-size:.8rem">${p.diam > 0 ? fmt(p.diam * 1000, 0) + ' m' : '—'}</td>
+    </tr>`).join('');
+}
+
+function highlightArcDot(idx) {
+  document.querySelectorAll('#archive-tbody tr').forEach(r => r.style.background = '');
+  const row = document.getElementById('arc-row-' + idx);
+  if (row) { row.style.background = 'rgba(0,212,255,.15)'; row.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+}
+
+// ============================================================
+// TAB 4 — SCALE EXPLORER
+// ============================================================
+let scaleAsteroids = [], scaleIdx = 0, scaleLandmark = 'Eiffel Tower';
+let sliderPct = 50, sliderDragging = false;
+
+function renderScale(data) {
+  scaleAsteroids = Object.values(data.near_earth_objects).flat().map(a => {
+    const ca = a.close_approach_data?.[0] || {};
+    const dMin = a.estimated_diameter?.meters?.estimated_diameter_min || 0;
+    const dMax = a.estimated_diameter?.meters?.estimated_diameter_max || 0;
+    return {
+      ...a,
+      _vel: parseFloat(ca.relative_velocity?.kilometers_per_second || '0'),
+      _dMin: dMin, _dMax: dMax, _dAvg: (dMin + dMax) / 2,
+      _name: a.name || a.designation || a.id,
+      _desig: a.designation || a.id,
+    };
+  }).filter(a => a._dAvg > 0);
+
+  if (!scaleAsteroids.length) {
+    document.getElementById('scale-content').innerHTML = errorCard('NeoWs — no diameter data');
+    return;
+  }
+  buildScaleLayout();
+  renderScaleView();
+}
+
+function buildScaleLayout() {
+  const pills = scaleAsteroids.map((a, i) =>
+    `<button class="asteroid-pill${i===scaleIdx?' active':''}" onclick="selectScale(${i})">${a._name}</button>`
+  ).join('');
+  document.getElementById('scale-content').innerHTML =
+    `<div class="asteroid-pills">${pills}</div><div id="scale-view"></div>`;
+}
+
+function selectScale(i) {
+  scaleIdx = i;
+  document.querySelectorAll('.asteroid-pill').forEach((p, j) => p.classList.toggle('active', j === i));
+  renderScaleView();
+}
+
+function renderScaleView() {
+  const a = scaleAsteroids[scaleIdx];
+  if (!a) return;
+  const lm = LANDMARKS[scaleLandmark];
+  const diam = a._dAvg;
+  const lmBtns = Object.keys(LANDMARKS).map(k =>
+    `<button class="landmark-btn${k===scaleLandmark?' active':''}" onclick="setScaleLandmark('${k}')">${k}</button>`
+  ).join('');
+
+  let ratioText;
+  if (diam > lm.size)
+    ratioText = `This asteroid is <span class="scale-ratio">${(diam/lm.size).toFixed(1)}×</span> the size of ${scaleLandmark}`;
+  else
+    ratioText = `${scaleLandmark} is <span class="scale-ratio">${(lm.size/diam).toFixed(1)}×</span> larger than this asteroid`;
+
+  const speedRows = Object.entries(SPEED_REFS).map(([name, kmps]) => {
+    const mult = a._vel / kmps;
+    const pct  = Math.min(100, (mult / 80) * 100);
+    return `<div class="speed-row">
+      <div class="speed-name">${name}</div>
+      <div class="speed-bar-wrap"><div class="speed-bar-fill" id="spb-${name.replace(/\s/g,'-')}" style="width:0%"></div></div>
+      <div class="speed-mult">${mult.toFixed(1)}×</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('scale-view').innerHTML = `
+    <div class="scale-main">
+      <div class="scale-image-panel">
+        <div class="scale-img-wrap card-image-wrap" data-query="${encodeURIComponent(a._desig)}" data-seed="${a.id}">
+          ${blobSvg(a.id)}
+        </div>
+        <div class="scale-info">
+          <div class="scale-asteroid-name">${a._name}</div>
+          <div class="scale-diameter">${fmt(a._dMin,0)}–${fmt(a._dMax,0)} m estimated diameter</div>
+        </div>
+      </div>
+      <div class="comparison-panel">
+        <div class="landmark-select-wrap">${lmBtns}</div>
+        <div class="slider-container" id="scale-slider"
+          onmousedown="sliderDragStart(event)" ontouchstart="sliderDragStart(event)">
+          ${buildSliderSvg(diam, lm)}
+          <div class="slider-divider" id="scale-divider" style="left:${sliderPct}%"></div>
+        </div>
+        <div class="slider-label">${ratioText}</div>
+      </div>
+    </div>
+    <div class="speed-panel">
+      <div class="speed-title">VELOCITY COMPARISON — ${fmt(a._vel, 2)} km/s</div>
+      ${speedRows}
+    </div>`;
+
+  observeImages();
+
+  // Animate speed bars after a tick
+  requestAnimationFrame(() => {
+    Object.entries(SPEED_REFS).forEach(([name, kmps]) => {
+      const mult = a._vel / kmps;
+      const pct  = Math.min(100, (mult / 80) * 100);
+      const el = document.getElementById('spb-' + name.replace(/\s/g, '-'));
+      if (el) el.style.width = pct + '%';
+    });
+  });
+}
+
+function buildSliderSvg(asteroidM, lm) {
+  const maxH = 160;
+  const scale = Math.max(lm.size, asteroidM);
+  const astPx = Math.max(4, (asteroidM / scale) * maxH);
+  const lmPx  = Math.max(4, (lm.size  / scale) * maxH);
+  return `<svg class="slider-svg" viewBox="0 0 400 200" xmlns="http://www.w3.org/2000/svg">
+    <rect width="200" height="200" fill="#0a0e1a"/>
+    <circle cx="100" cy="${200 - astPx/2 - 10}" r="${astPx/2}" fill="#1a2535" stroke="#00d4ff" stroke-width="1.5"/>
+    <text x="100" y="15" text-anchor="middle" fill="#64748b" font-size="9" font-family="Orbitron,sans-serif">ASTEROID</text>
+    <text x="100" y="196" text-anchor="middle" fill="#00d4ff" font-size="9" font-family="Courier New,monospace">${fmt(asteroidM,0)}m</text>
+    <rect x="200" y="0" width="200" height="200" fill="#0a0e1a"/>
+    <rect x="170" y="${200 - lmPx - 10}" width="60" height="${lmPx}" fill="#1a2535" stroke="#f59e0b" stroke-width="1.5"/>
+    <text x="300" y="15" text-anchor="middle" fill="#64748b" font-size="9" font-family="Orbitron,sans-serif">LANDMARK</text>
+    <text x="300" y="196" text-anchor="middle" fill="#f59e0b" font-size="9" font-family="Courier New,monospace">${lm.size}m</text>
+    <line x1="200" y1="0" x2="200" y2="200" stroke="rgba(30,45,69,.6)" stroke-width="1" stroke-dasharray="4,4"/>
+  </svg>`;
+}
+
+function setScaleLandmark(name) { scaleLandmark = name; renderScaleView(); }
+
+function sliderDragStart(e) {
+  sliderDragging = true;
+  updateSlider(e.touches ? e.touches[0] : e);
+  e.preventDefault();
+}
+document.addEventListener('mousemove', e => { if (sliderDragging) updateSlider(e); });
+document.addEventListener('touchmove', e => { if (sliderDragging) updateSlider(e.touches[0]); }, { passive: true });
+document.addEventListener('mouseup',  () => { sliderDragging = false; });
+document.addEventListener('touchend', () => { sliderDragging = false; });
+
+function updateSlider(e) {
+  const c = document.getElementById('scale-slider');
+  if (!c) return;
+  const rect = c.getBoundingClientRect();
+  sliderPct = Math.max(5, Math.min(95, ((e.clientX - rect.left) / rect.width) * 100));
+  const div = document.getElementById('scale-divider');
+  if (div) div.style.left = sliderPct + '%';
+}
+
+// ============================================================
+// GLOBE
+// ============================================================
+let globeReady = false;
+
+document.getElementById('globe-fab').addEventListener('click', () => {
+  document.getElementById('globe-panel').classList.add('open');
+  if (!globeReady) { globeReady = true; initGlobe(); }
+});
+document.getElementById('globe-close').addEventListener('click', () => {
+  document.getElementById('globe-panel').classList.remove('open');
+});
+
+function initGlobe() {
+  const container = document.getElementById('globe-container');
+  const asteroids = neowsData ? Object.values(neowsData.near_earth_objects).flat() : [];
+
+  const arcs = asteroids.map(a => {
+    const ca = a.close_approach_data?.[0] || {};
+    const ld = parseFloat(ca.miss_distance?.lunar || 10);
+    const haz = a.is_potentially_hazardous_asteroid;
+    const color = haz ? '#ff4444' : ld < 5 ? '#f59e0b' : '#00d4ff';
+    return {
+      startLat: (Math.random() - 0.5) * 30,
+      startLng: Math.random() * 360 - 180,
+      endLat: (Math.random() - 0.5) * 20,
+      endLng: Math.random() * 360 - 180,
+      color, label: `${a.name} — ${fmt(ld,2)} LD`,
+    };
+  });
+
+  const rings = asteroids.map(a => {
+    const ca = a.close_approach_data?.[0] || {};
+    const ld = parseFloat(ca.miss_distance?.lunar || 10);
+    const haz = a.is_potentially_hazardous_asteroid;
+    return {
+      lat: (Math.random()-0.5)*20, lng: Math.random()*360-180,
+      maxR: Math.max(2, Math.min(35, ld * 1.5)),
+      propagationSpeed: 0.4 + Math.random() * 0.3,
+      repeatPeriod: 2000 + Math.random() * 2000,
+      color: haz ? ['rgba(255,68,68,0)', 'rgba(255,68,68,1)'] : ld < 5
+        ? ['rgba(245,158,11,0)', 'rgba(245,158,11,1)']
+        : ['rgba(0,212,255,0)', 'rgba(0,212,255,1)'],
+    };
+  });
+
+  try {
+    const globe = Globe()(container)
+      .globeImageUrl('//unpkg.com/three-globe/example/img/earth-blue-marble.jpg')
+      .backgroundColor('#03050a')
+      .atmosphereColor('#00d4ff')
+      .atmosphereAltitude(0.15)
+      .arcsData(arcs)
+      .arcColor('color')
+      .arcDashLength(0.4)
+      .arcDashGap(0.2)
+      .arcDashAnimateTime(3000)
+      .arcStroke(0.5)
+      .arcLabel('label')
+      .ringsData(rings)
+      .ringColor('color')
+      .ringMaxRadius('maxR')
+      .ringPropagationSpeed('propagationSpeed')
+      .ringRepeatPeriod('repeatPeriod');
+    globe.controls().autoRotate = true;
+    globe.controls().autoRotateSpeed = 0.5;
+  } catch (err) {
+    container.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);font-family:Orbitron,sans-serif;font-size:.75rem">GLOBE UNAVAILABLE — WebGL required</div>`;
+    console.warn('Globe.gl error:', err);
+  }
+}
+
+// ============================================================
+// INIT — parallel API calls
+// ============================================================
+Promise.allSettled([fetchNeoWs(), fetchSentry(), fetchSBDB()])
+  .then(([neoRes, senRes, sbRes]) => {
+    if (neoRes.status === 'fulfilled') {
+      renderFlybys(neoRes.value);
+      renderScale(neoRes.value);
+    } else {
+      console.error('NeoWs:', neoRes.reason);
+      document.getElementById('flybys-content').innerHTML = errorCard('NeoWs — NASA Asteroids API');
+      document.getElementById('scale-content').innerHTML  = errorCard('NeoWs — NASA Asteroids API');
+    }
+    if (senRes.status === 'fulfilled') {
+      renderThreat(senRes.value);
+    } else {
+      console.error('Sentry:', senRes.reason);
+      document.getElementById('threat-content').innerHTML = errorCard('Sentry — JPL Impact Risk API');
+    }
+    if (sbRes.status === 'fulfilled') {
+      renderArchive(sbRes.value);
+    } else {
+      console.error('SBDB:', sbRes.reason);
+      document.getElementById('archive-content').innerHTML = errorCard('SBDB — Close-Approach API');
+    }
+  });
+</script>
+</body>
+</html>
