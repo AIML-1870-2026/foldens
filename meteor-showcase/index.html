@@ -309,8 +309,8 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 function spinner() {
   return '<div class="spinner-wrap"><div class="spinner"></div><div class="spinner-label">ACQUIRING DATA...</div></div>';
 }
-function errorCard(api) {
-  return `<div class="error-card">⚠ SIGNAL LOST — ${api} unreachable. Check console.</div>`;
+function errorCard(api, detail = '') {
+  return `<div class="error-card">⚠ SIGNAL LOST — ${api} unreachable.${detail ? '<br><span style="font-size:.65rem;opacity:.7">' + detail + '</span>' : ''}</div>`;
 }
 function fmt(n, d = 2) { return Number(n).toFixed(d); }
 function auToLd(au) { return (parseFloat(au) * AU_TO_LD).toFixed(2); }
@@ -408,18 +408,20 @@ function fetchNeoWs() {
     .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
 }
 function fetchSentry() {
-  return fetch('https://ssd-api.jpl.nasa.gov/sentry.api?ps-min=-10')
-    .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+  // No ps-min filter — fetch all monitored objects (default ~1900 records)
+  return fetch('https://ssd-api.jpl.nasa.gov/sentry.api')
+    .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); });
 }
 function fetchSBDB(opts = {}) {
   const p = new URLSearchParams({
     'dist-max': opts.distMax || '0.2',
     'date-min': opts.dateMin || '1900-01-01',
     'date-max': opts.dateMax || '2100-01-01',
-    sort: 'date', limit: 500,
+    sort: 'date',
+    'limit-max': 500,
   });
   return fetch(`https://ssd-api.jpl.nasa.gov/cad.api?${p}`)
-    .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+    .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); });
 }
 
 // ============================================================
@@ -505,7 +507,15 @@ let sentryRows = [], sentrySort = 'prob', sentryAsc = false;
 let cdTimers = [];
 
 function renderThreat(data) {
-  sentryRows = data.data || [];
+  const fields = data.fields || [];
+  const raw = data.data || [];
+  // Sentry v2 returns array-of-arrays; map each row to a named object
+  sentryRows = raw.map(row => {
+    if (!Array.isArray(row)) return row; // already an object
+    const obj = {};
+    fields.forEach((f, i) => { obj[f] = row[i]; });
+    return obj;
+  });
   buildThreatUI();
 }
 
@@ -1019,20 +1029,20 @@ Promise.allSettled([fetchNeoWs(), fetchSentry(), fetchSBDB()])
       renderScale(neoRes.value);
     } else {
       console.error('NeoWs:', neoRes.reason);
-      document.getElementById('flybys-content').innerHTML = errorCard('NeoWs — NASA Asteroids API');
-      document.getElementById('scale-content').innerHTML  = errorCard('NeoWs — NASA Asteroids API');
+      document.getElementById('flybys-content').innerHTML = errorCard('NeoWs — NASA Asteroids API', String(neoRes.reason));
+      document.getElementById('scale-content').innerHTML  = errorCard('NeoWs — NASA Asteroids API', String(neoRes.reason));
     }
     if (senRes.status === 'fulfilled') {
       renderThreat(senRes.value);
     } else {
       console.error('Sentry:', senRes.reason);
-      document.getElementById('threat-content').innerHTML = errorCard('Sentry — JPL Impact Risk API');
+      document.getElementById('threat-content').innerHTML = errorCard('Sentry — JPL Impact Risk API', String(senRes.reason));
     }
     if (sbRes.status === 'fulfilled') {
       renderArchive(sbRes.value);
     } else {
       console.error('SBDB:', sbRes.reason);
-      document.getElementById('archive-content').innerHTML = errorCard('SBDB — Close-Approach API');
+      document.getElementById('archive-content').innerHTML = errorCard('SBDB — Close-Approach API', String(sbRes.reason));
     }
   });
 </script>
