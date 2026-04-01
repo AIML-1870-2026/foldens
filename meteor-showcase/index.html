@@ -421,7 +421,7 @@ function fetchSBDB(opts = {}) {
     'date-min': opts.dateMin || '1900-01-01',
     'date-max': opts.dateMax || '2100-01-01',
     sort: 'date',
-    'limit-max': 500,
+    limit: 500,
   });
   const url = CORS + encodeURIComponent(`https://ssd-api.jpl.nasa.gov/cad.api?${p}`);
   return fetch(url)
