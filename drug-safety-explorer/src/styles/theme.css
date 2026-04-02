@@ -1,0 +1,162 @@
+/* RxLens — Clinical Dark Theme */
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=Instrument+Serif:ital@0;1&display=swap');
+
+:root {
+  /* Core palette */
+  --bg-deep:        #0a0d12;
+  --bg-surface:     #0f1318;
+  --bg-card:        #141920;
+  --bg-card-hover:  #1a2030;
+  --bg-elevated:    #1e2535;
+
+  /* Borders */
+  --border-subtle:  rgba(255,255,255,0.06);
+  --border-dim:     rgba(255,255,255,0.10);
+  --border-bright:  rgba(255,255,255,0.18);
+
+  /* Accent - Teal */
+  --teal:           #00e5c8;
+  --teal-dim:       rgba(0,229,200,0.15);
+  --teal-glow:      rgba(0,229,200,0.35);
+
+  /* Accent - Amber */
+  --amber:          #f59e0b;
+  --amber-dim:      rgba(245,158,11,0.15);
+  --amber-glow:     rgba(245,158,11,0.35);
+
+  /* Risk colors */
+  --risk-green:     #22c55e;
+  --risk-green-dim: rgba(34,197,94,0.15);
+  --risk-amber:     #f59e0b;
+  --risk-amber-dim: rgba(245,158,11,0.15);
+  --risk-red:       #ef4444;
+  --risk-red-dim:   rgba(239,68,68,0.15);
+
+  /* Text */
+  --text-primary:   #e8edf5;
+  --text-secondary: #8b95a8;
+  --text-muted:     #555f70;
+  --text-teal:      #00e5c8;
+  --text-amber:     #f59e0b;
+
+  /* Typography */
+  --font-mono:   'DM Mono', 'Courier New', monospace;
+  --font-serif:  'Instrument Serif', Georgia, serif;
+
+  /* Spacing */
+  --radius-sm:  6px;
+  --radius-md:  10px;
+  --radius-lg:  16px;
+  --radius-xl:  24px;
+
+  /* Z-index scale */
+  --z-base:    10;
+  --z-overlay: 20;
+  --z-drawer:  30;
+  --z-modal:   40;
+  --z-toast:   50;
+
+  /* Shadows */
+  --shadow-card:   0 1px 3px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.3);
+  --shadow-teal:   0 0 20px rgba(0,229,200,0.2), 0 0 60px rgba(0,229,200,0.08);
+  --shadow-amber:  0 0 20px rgba(245,158,11,0.2), 0 0 60px rgba(245,158,11,0.08);
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background-color: var(--bg-deep);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  line-height: 1.6;
+  min-height: 100vh;
+
+  /* Subtle grid texture */
+  background-image:
+    linear-gradient(rgba(0,229,200,0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,229,200,0.015) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-surface);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-dim);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-bright);
+}
+
+/* Focus styles */
+:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+button {
+  cursor: pointer;
+  font-family: var(--font-mono);
+}
+
+input, select {
+  font-family: var(--font-mono);
+}
+
+/* Frosted glass card */
+.glass-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  backdrop-filter: blur(12px);
+}
+
+/* Glow pulse animation */
+@keyframes pulse-teal {
+  0%, 100% { box-shadow: 0 0 8px rgba(0,229,200,0.3); }
+  50%       { box-shadow: 0 0 20px rgba(0,229,200,0.6); }
+}
+
+@keyframes pulse-red {
+  0%, 100% { opacity: 0.6; }
+  50%       { opacity: 1; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
