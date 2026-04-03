@@ -3,3 +3,4 @@ dist/
 .env
 .env.local
 .vite/
+# built output (assets/ and index.html) are committed by CI
