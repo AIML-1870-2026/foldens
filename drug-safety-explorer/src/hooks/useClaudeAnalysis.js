@@ -1,11 +1,8 @@
 import { useState, useCallback } from 'react'
 
-const GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key=${GEMINI_KEY}`
-
 /**
- * Hook for calling Gemini API to analyze a drug stack.
- * Returns { analyze, result, isLoading, error, streamText }
+ * Generates an AI-style risk summary from structured data already fetched —
+ * no API key required, no external calls.
  */
 export function useClaudeAnalysis() {
   const [result, setResult]         = useState(null)
@@ -14,98 +11,126 @@ export function useClaudeAnalysis() {
   const [streamText, setStreamText] = useState('')
 
   const analyze = useCallback(async ({ drugs, interactions, topEvents }) => {
-    if (!GEMINI_KEY) {
-      setError('No Gemini API key set. Add VITE_GEMINI_API_KEY to .env')
-      return
-    }
-
     setIsLoading(true)
     setError(null)
     setResult(null)
     setStreamText('')
 
-    const drugSummaries = drugs.map(d => {
-      const events = (topEvents[d.generic] ?? [])
-        .slice(0, 5)
-        .map(e => e.term)
-        .join(', ')
-      return `- ${d.display} (${d.generic}): top reactions: ${events || 'none found'}`
-    }).join('\n')
+    // Simulate async processing
+    await sleep(400)
 
-    const interactionSummaries = interactions
-      .filter(ix => ix.total >= 20)
-      .slice(0, 8)
-      .map(ix => `- ${ix.drugA} + ${ix.drugB}: score ${ix.total}/100, ${ix.riskLevel?.label ?? 'unknown'} risk`)
-      .join('\n')
+    const highPairs     = interactions.filter(ix => ix.total >= 60)
+    const moderatePairs = interactions.filter(ix => ix.total >= 30 && ix.total < 60)
+    const maxScore      = interactions.length ? Math.max(...interactions.map(ix => ix.total)) : 0
 
-    const prompt = `You are a clinical pharmacology assistant. Analyze this medication stack:
+    const overallRiskLevel =
+      highPairs.length > 0    ? 'high'     :
+      moderatePairs.length > 0 ? 'moderate' : 'low'
 
-DRUGS:
-${drugSummaries}
+    const compositeScore = interactions.length
+      ? Math.round(
+          interactions.reduce((s, ix) => s + ix.total, 0) / interactions.length * 0.6 +
+          maxScore * 0.4
+        )
+      : 0
 
-INTERACTION SCORES (0-100):
-${interactionSummaries || 'No significant interactions detected.'}
+    // Build top concerns from pair scores + top events
+    const topConcerns = []
 
-Respond ONLY with valid JSON — no markdown, no code fences — matching exactly this shape:
-{
-  "overallRiskLevel": "low" | "moderate" | "high",
-  "compositeScore": <number 0-100>,
-  "topConcerns": [
-    { "title": "...", "description": "...", "severity": "low"|"moderate"|"high", "drugs": ["..."] }
-  ],
-  "stackSummary": "<plain English paragraph, 2-4 sentences>",
-  "recommendations": ["...", "...", "..."]
-}
-
-topConcerns: up to 4 items, most important first.
-recommendations: 3-5 actionable items for a patient or caregiver.`
-
-    try {
-      const res = await fetch(GEMINI_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.2,
-            maxOutputTokens: 1024,
-          },
-        }),
+    for (const ix of [...interactions].sort((a, b) => b.total - a.total).slice(0, 3)) {
+      if (ix.total < 10) continue
+      const severity = ix.total >= 60 ? 'high' : ix.total >= 30 ? 'moderate' : 'low'
+      const rxDesc = ix.rxnormData?.description
+      topConcerns.push({
+        title: `${shortName(ix.displayA || ix.drugA)} + ${shortName(ix.displayB || ix.drugB)} Interaction`,
+        description: rxDesc
+          ? rxDesc
+          : `Co-administration reports detected. Risk score ${ix.total}/100. Monitor closely if taken together.`,
+        severity,
+        drugs: [ix.drugA, ix.drugB],
       })
-
-      if (!res.ok) {
-        const errBody = await res.text()
-        throw new Error(`Gemini API ${res.status}: ${errBody}`)
-      }
-
-      const data = await res.json()
-      const raw = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '{}'
-
-      let parsed
-      try {
-        parsed = JSON.parse(raw)
-      } catch {
-        const match = raw.match(/\{[\s\S]*\}/)
-        parsed = match ? JSON.parse(match[0]) : {}
-      }
-
-      setResult(parsed)
-
-      // Stream the summary text character by character
-      const summary = parsed.stackSummary ?? ''
-      let i = 0
-      const interval = setInterval(() => {
-        i++
-        setStreamText(summary.slice(0, i))
-        if (i >= summary.length) clearInterval(interval)
-      }, 18)
-
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setIsLoading(false)
     }
+
+    // Cross-drug adverse event patterns
+    const termCounts = {}
+    for (const drug of drugs) {
+      for (const e of (topEvents[drug.generic] ?? []).slice(0, 5)) {
+        termCounts[e.term] = (termCounts[e.term] ?? 0) + 1
+      }
+    }
+    const crossTerms = Object.entries(termCounts)
+      .filter(([, n]) => n >= Math.min(2, drugs.length))
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 2)
+
+    for (const [term] of crossTerms) {
+      topConcerns.push({
+        title: `Shared Adverse Effect: ${titleCase(term)}`,
+        description: `"${titleCase(term)}" appears across multiple drugs in your stack. Combined exposure may increase this risk.`,
+        severity: 'moderate',
+        drugs: drugs.map(d => d.generic),
+      })
+    }
+
+    // Stack summary
+    const drugNames = drugs.map(d => shortName(d.display)).join(', ')
+    let stackSummary = `Your ${drugs.length}-drug stack (${drugNames}) has a composite risk score of ${compositeScore}/100. `
+
+    if (highPairs.length > 0) {
+      const p = highPairs[0]
+      stackSummary += `The most significant concern is the ${shortName(p.displayA || p.drugA)} + ${shortName(p.displayB || p.drugB)} combination, which carries a high interaction score. `
+    } else if (moderatePairs.length > 0) {
+      stackSummary += `${moderatePairs.length} drug pair${moderatePairs.length > 1 ? 's' : ''} show moderate interaction potential. `
+    } else {
+      stackSummary += `No high-severity interactions were detected between these drugs. `
+    }
+
+    stackSummary += `Always inform your healthcare provider about all medications you take, including over-the-counter drugs and supplements.`
+
+    // Recommendations
+    const recommendations = [
+      'Share this complete medication list with your pharmacist or prescribing physician.',
+    ]
+    if (highPairs.length > 0) {
+      recommendations.push(`Ask your doctor specifically about the ${shortName(highPairs[0].displayA || highPairs[0].drugA)} + ${shortName(highPairs[0].displayB || highPairs[0].drugB)} combination before continuing both.`)
+    }
+    if (crossTerms.length > 0) {
+      recommendations.push(`Monitor for ${titleCase(crossTerms[0][0])} — this side effect appears in multiple drugs in your stack.`)
+    }
+    recommendations.push('Do not stop or adjust any medication without consulting a healthcare professional.')
+    recommendations.push('Keep an updated medication list in your wallet or phone in case of emergencies.')
+
+    const parsed = {
+      overallRiskLevel,
+      compositeScore,
+      topConcerns: topConcerns.slice(0, 4),
+      stackSummary,
+      recommendations,
+    }
+
+    setResult(parsed)
+
+    // Stream summary text character by character
+    let i = 0
+    const interval = setInterval(() => {
+      i++
+      setStreamText(stackSummary.slice(0, i))
+      if (i >= stackSummary.length) clearInterval(interval)
+    }, 16)
+
   }, [])
 
   return { analyze, result, isLoading, error, streamText }
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)) }
+
+function shortName(display) {
+  if (!display) return ''
+  return display.split('(')[0].trim().split(' ')[0]
+}
+
+function titleCase(str) {
+  if (!str) return ''
+  return str.toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
 }

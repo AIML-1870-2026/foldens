@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   root: 'src',
+  envDir: '..',
   base: '/foldens/drug-safety-explorer/',
   build: {
     outDir: '..',       // outputs to drug-safety-explorer/
