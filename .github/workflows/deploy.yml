@@ -5,7 +5,6 @@ on:
     branches: [main]
     paths:
       - 'drug-safety-explorer/src/**'
-      - 'drug-safety-explorer/index.html'
       - 'drug-safety-explorer/vite.config.js'
       - 'drug-safety-explorer/package*.json'
   workflow_dispatch:
@@ -34,11 +33,6 @@ jobs:
           VITE_OPENFDA_API_KEY: ${{ secrets.VITE_OPENFDA_API_KEY }}
           VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
         run: npm run build
-
-      - name: Copy built files into repo
-        run: |
-          cp -r drug-safety-explorer/dist/assets drug-safety-explorer/assets
-          cp drug-safety-explorer/dist/index.html drug-safety-explorer/index.html
 
       - name: Commit and push built output
         run: |
