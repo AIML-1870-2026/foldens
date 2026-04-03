@@ -1,5 +1,6 @@
 assets/
 !weather-app/assets/
+!drug-safety-explorer/assets/
 __pycache__/
 *.pyc
 node_modules/
