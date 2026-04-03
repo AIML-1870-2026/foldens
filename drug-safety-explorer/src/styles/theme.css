@@ -153,6 +153,19 @@ input, select {
   to { transform: rotate(360deg); }
 }
 
+/* Mobile responsive */
+@media (max-width: 960px) {
+  .rxlens-dashboard-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 600px) {
+  .rxlens-hero { padding: 32px 16px 24px !important; }
+  .rxlens-preview { padding: 8px 16px 32px !important; }
+  .rxlens-dashboard { padding: 0 16px 40px !important; }
+}
+
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
