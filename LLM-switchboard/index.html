@@ -579,6 +579,69 @@
   .schema-summary { margin-top: 10px; font-size: 11px; color: var(--text-secondary); padding-top: 8px; border-top: 1px solid var(--border); font-style: italic; }
   .schema-invalid { color: var(--red); font-size: 12px; font-style: italic; }
 
+  /* Structured response card */
+  .struct-card {
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .struct-field {
+    display: flex; flex-direction: column; gap: 3px;
+    padding: 10px 12px; border-radius: var(--radius-sm);
+    background: rgba(0,0,0,0.2); border: 1px solid var(--border);
+  }
+  .struct-key {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.09em;
+    text-transform: uppercase; color: var(--text-tertiary);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .struct-value {
+    font-size: 14px; color: var(--text); line-height: 1.6;
+    font-family: 'IBM Plex Sans', sans-serif;
+  }
+  .struct-value.number {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--blue-bright); font-size: 18px; font-weight: 500;
+  }
+  .struct-value.bool-true {
+    display: inline-flex; align-items: center; gap: 5px;
+    color: var(--green); font-size: 12px; font-weight: 600;
+  }
+  .struct-value.bool-false {
+    display: inline-flex; align-items: center; gap: 5px;
+    color: var(--text-secondary); font-size: 12px; font-weight: 600;
+  }
+  .struct-pill {
+    display: inline-block; padding: 3px 10px; border-radius: 20px;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
+    text-transform: capitalize;
+  }
+  .struct-pill.beginner  { background: rgba(48,209,88,0.12);  color: var(--green);  border: 1px solid rgba(48,209,88,0.25); }
+  .struct-pill.intermediate { background: rgba(255,214,10,0.12); color: var(--yellow); border: 1px solid rgba(255,214,10,0.25); }
+  .struct-pill.advanced  { background: rgba(255,69,58,0.12);  color: var(--red);    border: 1px solid rgba(255,69,58,0.25); }
+  .struct-pill.low       { background: rgba(255,69,58,0.12);  color: var(--red);    border: 1px solid rgba(255,69,58,0.25); }
+  .struct-pill.medium    { background: rgba(255,214,10,0.12); color: var(--yellow); border: 1px solid rgba(255,214,10,0.25); }
+  .struct-pill.high      { background: rgba(48,209,88,0.12);  color: var(--green);  border: 1px solid rgba(48,209,88,0.25); }
+  .struct-pill.default   { background: var(--blue-dim); color: var(--blue-bright); border: 1px solid rgba(10,132,255,0.25); }
+  .struct-list {
+    display: flex; flex-direction: column; gap: 5px; margin: 0; padding: 0; list-style: none;
+  }
+  .struct-list li {
+    display: flex; gap: 8px; align-items: flex-start;
+    font-size: 13.5px; color: var(--text); line-height: 1.55;
+  }
+  .struct-list li::before {
+    content: ''; width: 5px; height: 5px; border-radius: 50%;
+    background: var(--blue); flex-shrink: 0; margin-top: 7px;
+  }
+  .struct-raw-toggle {
+    margin-top: 8px; font-size: 11px; color: var(--text-tertiary);
+    cursor: pointer; display: inline-flex; align-items: center; gap: 4px;
+    background: none; border: none; padding: 0; font-family: inherit;
+    transition: color var(--transition);
+  }
+  .struct-raw-toggle:hover { color: var(--text-secondary); }
+  .struct-raw { display: none; margin-top: 8px; }
+  .struct-raw.open { display: block; }
+
   /* ── MODAL ── */
   #modal-overlay {
     position: fixed; inset: 0; z-index: 100;
@@ -1427,18 +1490,10 @@ function displayResult(panelId, result, elapsed, isError = false) {
 
   const text = result.text;
   if (state.mode === 'structured') {
-    // Try to pretty-render JSON
     try {
       const parsed = JSON.parse(text);
       contentEl.innerHTML = '';
-      const pre = document.createElement('pre');
-      const code = document.createElement('code');
-      code.className = 'language-json';
-      code.textContent = JSON.stringify(parsed, null, 2);
-      pre.appendChild(code);
-      contentEl.appendChild(pre);
-      hljs.highlightElement(code);
-      // Schema validation report
+      contentEl.appendChild(renderStructuredCard(parsed, text));
       runSchemaReport(panelId, parsed);
     } catch {
       contentEl.textContent = text;
@@ -1493,6 +1548,81 @@ Flow:  Browser → Your Server → api.anthropic.com ✓
 Alternatively, use a proxy service or the Anthropic SDK in a Node.js environment.`,
     usage: {}
   };
+}
+
+// ── STRUCTURED CARD RENDERER ──────────────────────────────────────────────────
+
+const ENUM_PILLS = new Set(['beginner','intermediate','advanced','low','medium','high']);
+
+function renderStructuredCard(obj, rawText) {
+  const wrap = document.createElement('div');
+  wrap.className = 'struct-card';
+
+  for (const [key, val] of Object.entries(obj)) {
+    const field = document.createElement('div');
+    field.className = 'struct-field';
+
+    const keyEl = document.createElement('div');
+    keyEl.className = 'struct-key';
+    keyEl.textContent = key.replace(/_/g, ' ');
+    field.appendChild(keyEl);
+
+    const valEl = document.createElement('div');
+    valEl.className = 'struct-value';
+
+    if (Array.isArray(val)) {
+      const ul = document.createElement('ul');
+      ul.className = 'struct-list';
+      val.forEach(item => {
+        const li = document.createElement('li');
+        li.textContent = String(item);
+        ul.appendChild(li);
+      });
+      field.appendChild(ul);
+    } else if (typeof val === 'boolean') {
+      valEl.className = `struct-value ${val ? 'bool-true' : 'bool-false'}`;
+      valEl.textContent = val ? '✓ Yes' : '✗ No';
+      field.appendChild(valEl);
+    } else if (typeof val === 'number') {
+      valEl.className = 'struct-value number';
+      valEl.textContent = val;
+      field.appendChild(valEl);
+    } else if (typeof val === 'string' && ENUM_PILLS.has(val.toLowerCase())) {
+      const pill = document.createElement('span');
+      const cls = val.toLowerCase();
+      pill.className = `struct-pill ${cls}`;
+      pill.textContent = val;
+      valEl.appendChild(pill);
+      field.appendChild(valEl);
+    } else {
+      valEl.textContent = String(val);
+      field.appendChild(valEl);
+    }
+
+    wrap.appendChild(field);
+  }
+
+  // Raw JSON toggle
+  const toggle = document.createElement('button');
+  toggle.className = 'struct-raw-toggle';
+  toggle.innerHTML = '{ } View raw JSON';
+  const rawWrap = document.createElement('div');
+  rawWrap.className = 'struct-raw';
+  const pre = document.createElement('pre');
+  const code = document.createElement('code');
+  code.className = 'language-json';
+  code.textContent = JSON.stringify(obj, null, 2);
+  pre.appendChild(code);
+  rawWrap.appendChild(pre);
+  toggle.addEventListener('click', () => {
+    const open = rawWrap.classList.toggle('open');
+    toggle.innerHTML = open ? '{ } Hide raw JSON' : '{ } View raw JSON';
+    if (open) hljs.highlightElement(code);
+  });
+  wrap.appendChild(toggle);
+  wrap.appendChild(rawWrap);
+
+  return wrap;
 }
 
 // ── SCHEMA REPORT ─────────────────────────────────────────────────────────────
