@@ -52,6 +52,111 @@ html, body {
 }
 #api-banner.visible { display: block; }
 
+/* ── KEY SETUP SECTION ── */
+#key-section {
+  display: none;
+  margin-bottom: 20px;
+  padding: 16px;
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+  border-radius: 8px;
+}
+#key-section.visible { display: block; }
+
+.key-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.key-input-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.key-input-row input {
+  flex: 1;
+  padding: 9px 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.key-input-row input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+.key-input-row input::placeholder { color: var(--text-muted); font-size: 11px; }
+
+.key-apply-btn {
+  padding: 9px 14px;
+  background: var(--accent);
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+.key-apply-btn:hover { background: var(--accent-hover); }
+
+.key-upload-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.key-upload-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  background: var(--bg-elevated);
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+.key-upload-label:hover { border-color: var(--accent); color: var(--accent); }
+#key-file-input { display: none; }
+
+.key-status {
+  font-size: 11px;
+  color: var(--text-muted);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.key-status.ok { color: var(--success); }
+.key-status.err { color: var(--error); }
+
+.key-loaded-indicator {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--success);
+  margin-top: 8px;
+}
+.key-loaded-indicator.visible { display: flex; }
+
 /* ── TOPBAR ── */
 #topbar {
   display: flex;
@@ -656,6 +761,30 @@ footer {
   <section class="panel" id="form-panel" aria-label="Review configuration">
     <div class="panel-title">Configure Review</div>
 
+    <!-- API Key Setup (shown when .env not available) -->
+    <div id="key-section">
+      <div class="key-section-title">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+        OpenAI API Key
+      </div>
+      <div class="key-input-row">
+        <input type="password" id="key-paste-input" placeholder="Paste sk-… key here" autocomplete="off" spellcheck="false">
+        <button class="key-apply-btn" id="key-apply-btn" type="button">Apply</button>
+      </div>
+      <div class="key-upload-row">
+        <label class="key-upload-label" for="key-file-input">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Upload .env or .csv
+        </label>
+        <input type="file" id="key-file-input" accept=".env,.csv,text/plain,text/csv">
+        <span class="key-status" id="key-file-status">No file selected</span>
+      </div>
+      <div class="key-loaded-indicator" id="key-loaded-indicator">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Key loaded — ready to generate
+      </div>
+    </div>
+
     <div class="field">
       <label for="product-name">Product Name</label>
       <input type="text" id="product-name" placeholder="e.g. Sony WH-1000XM5 Headphones" autocomplete="off">
@@ -841,6 +970,12 @@ const clearHistBtn = document.getElementById('clear-history-btn');
 const confirmOverlay = document.getElementById('confirm-overlay');
 const confirmCancel  = document.getElementById('confirm-cancel');
 const confirmOk      = document.getElementById('confirm-ok');
+const keySection        = document.getElementById('key-section');
+const keyPasteInput     = document.getElementById('key-paste-input');
+const keyApplyBtn       = document.getElementById('key-apply-btn');
+const keyFileInput      = document.getElementById('key-file-input');
+const keyFileStatus     = document.getElementById('key-file-status');
+const keyLoadedIndicator= document.getElementById('key-loaded-indicator');
 
 // ── .ENV LOADING ──────────────────────────────────────────────────────────────
 
@@ -862,10 +997,81 @@ async function loadEnv() {
     }
     if (!apiKey) throw new Error('key missing');
   } catch {
-    apiBanner.classList.add('visible');
+    keySection.classList.add('visible');
   }
   validateForm();
 }
+
+// ── KEY SETUP ─────────────────────────────────────────────────────────────────
+
+function applyKey(raw) {
+  const trimmed = raw.trim().replace(/^["']|["']$/g, '');
+  if (!trimmed.startsWith('sk-')) {
+    keyFileStatus.textContent = 'Key must start with sk-';
+    keyFileStatus.className = 'key-status err';
+    return false;
+  }
+  apiKey = trimmed;
+  keyLoadedIndicator.classList.add('visible');
+  keyFileStatus.textContent = '';
+  apiBanner.classList.remove('visible');
+  validateForm();
+  return true;
+}
+
+function parseKeyFromText(text) {
+  // .env style: OPENAI_API_KEY=sk-...
+  for (const line of text.split('\n')) {
+    const t = line.trim();
+    if (!t || t.startsWith('#')) continue;
+    const eq = t.indexOf('=');
+    if (eq < 0) continue;
+    const k = t.slice(0, eq).trim();
+    const v = t.slice(eq + 1).trim().replace(/^["']|["']$/g, '');
+    if (/OPENAI.*KEY/i.test(k) && v) return v;
+  }
+  // CSV style: check each cell for sk- prefix
+  for (const line of text.split('\n')) {
+    const cells = line.split(',');
+    for (const cell of cells) {
+      const c = cell.trim().replace(/^["']|["']$/g, '');
+      if (c.startsWith('sk-')) return c;
+    }
+  }
+  return null;
+}
+
+keyApplyBtn.addEventListener('click', () => {
+  const val = keyPasteInput.value.trim();
+  if (!val) return;
+  if (applyKey(val)) keyPasteInput.value = '';
+});
+
+keyPasteInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') keyApplyBtn.click();
+});
+
+keyFileInput.addEventListener('change', () => {
+  const file = keyFileInput.files[0];
+  if (!file) return;
+  keyFileStatus.textContent = `Reading ${file.name}…`;
+  keyFileStatus.className = 'key-status';
+  const reader = new FileReader();
+  reader.onload = e => {
+    const found = parseKeyFromText(e.target.result);
+    if (found) {
+      if (applyKey(found)) {
+        keyFileStatus.textContent = `Key loaded from ${file.name}`;
+        keyFileStatus.className = 'key-status ok';
+      }
+    } else {
+      keyFileStatus.textContent = 'No OPENAI_API_KEY found in file';
+      keyFileStatus.className = 'key-status err';
+    }
+    keyFileInput.value = '';
+  };
+  reader.readAsText(file);
+});
 
 // ── SLIDER ────────────────────────────────────────────────────────────────────
 
