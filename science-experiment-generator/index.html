@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🧪 Science Experiment Generator</title>
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800&family=DM+Sans:wght@400;500&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet" />
+
+  <!-- Marked.js for markdown → HTML -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+  <style>
+    /* ───────── CSS Variables ───────── */
+    :root {
+      --clay-bg: #f5efe6;
+      --clay-surface: #ffffff;
+      --clay-blue: #6cb4f5;
+      --clay-blue-dark: #4a9de0;
+      --clay-green: #7de8b0;
+      --clay-green-dark: #52c98a;
+      --clay-yellow: #fde68a;
+      --clay-yellow-dark: #f5cc40;
+      --clay-red: #fca5a5;
+      --clay-red-dark: #f07070;
+      --clay-purple: #c4b5fd;
+      --clay-purple-dark: #a78bfa;
+      --clay-shadow: rgba(0,0,0,0.12);
+      --clay-text: #1e1b2e;
+      --clay-muted: #6b7280;
+    }
+
+    /* ───────── Reset ───────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ───────── Background — lab notebook dot grid ───────── */
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background-color: var(--clay-bg);
+      background-image: radial-gradient(circle, #c9b99a 1px, transparent 1px);
+      background-size: 24px 24px;
+      color: var(--clay-text);
+      min-height: 100vh;
+      padding: 32px 16px 64px;
+    }
+
+    /* ───────── Layout ───────── */
+    .app-wrapper {
+      max-width: 680px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* ───────── Header ───────── */
+    .app-header {
+      text-align: center;
+    }
+    .app-header h1 {
+      font-family: 'Nunito', sans-serif;
+      font-weight: 800;
+      font-size: 2.4rem;
+      color: var(--clay-text);
+      line-height: 1.1;
+    }
+    .app-header p {
+      margin-top: 6px;
+      font-size: 1rem;
+      color: var(--clay-muted);
+      font-weight: 500;
+    }
+
+    /* ───────── Clay Card ───────── */
+    .clay-card {
+      background: var(--clay-surface);
+      border-radius: 28px;
+      padding: 28px;
+      box-shadow:
+        0 8px 0px rgba(0,0,0,0.10),
+        0 4px 24px rgba(0,0,0,0.08);
+    }
+
+    /* ───────── API Key Section ───────── */
+    .key-card {
+      background: var(--clay-yellow);
+      border-radius: 28px;
+      padding: 20px 24px;
+      box-shadow:
+        0 6px 0px var(--clay-yellow-dark),
+        0 4px 24px rgba(0,0,0,0.08);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .key-card.hidden { display: none; }
+    .key-card h3 {
+      font-family: 'Nunito', sans-serif;
+      font-weight: 800;
+      font-size: 1rem;
+    }
+    .key-card p { font-size: 0.875rem; color: #5a4a00; }
+
+    .key-input-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .key-input-row input {
+      flex: 1;
+      min-width: 200px;
+      padding: 10px 14px;
+      border-radius: 16px;
+      border: none;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      background: rgba(255,255,255,0.7);
+      box-shadow: inset 0 2px 6px rgba(0,0,0,0.06);
+      outline: none;
+      transition: box-shadow 0.2s;
+    }
+    .key-input-row input:focus {
+      box-shadow: inset 0 2px 6px rgba(0,0,0,0.06), 0 0 0 3px var(--clay-blue);
+    }
+    .key-btn {
+      padding: 10px 20px;
+      border-radius: 16px;
+      border: none;
+      background: var(--clay-text);
+      color: #fff;
+      font-family: 'Nunito', sans-serif;
+      font-weight: 700;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: transform 0.1s, box-shadow 0.1s;
+      box-shadow: 0 4px 0px rgba(0,0,0,0.25);
+    }
+    .key-btn:active { transform: translateY(3px); box-shadow: 0 1px 0px rgba(0,0,0,0.25); }
+
+    .key-file-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .key-file-row label {
+      font-size: 0.8rem;
+      color: #5a4a00;
+      font-weight: 500;
+    }
+    .key-file-row input[type="file"] {
+      font-size: 0.8rem;
+      color: #5a4a00;
+    }
+
+    .key-status {
+      font-size: 0.8rem;
+      font-weight: 500;
+      padding: 6px 12px;
+      border-radius: 10px;
+      display: none;
+    }
+    .key-status.ok  { background: var(--clay-green); color: #0a4a2a; display: block; }
+    .key-status.err { background: var(--clay-red);   color: #7a0000; display: block; }
+
+    /* ───────── Form Card ───────── */
+    .form-card { display: flex; flex-direction: column; gap: 18px; }
+
+    label.field-label {
+      font-family: 'Nunito', sans-serif;
+      font-weight: 700;
+      font-size: 0.95rem;
+      display: block;
+      margin-bottom: 8px;
+    }
+
+    select {
+      width: 100%;
+      padding: 12px 16px;
+      border-radius: 20px;
+      border: 2px solid transparent;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 1rem;
+      background: var(--clay-bg);
+      color: var(--clay-text);
+      box-shadow: inset 0 2px 6px rgba(0,0,0,0.06);
+      outline: none;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7280' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 16px center;
+      padding-right: 40px;
+      cursor: pointer;
+      transition: box-shadow 0.2s, border-color 0.2s;
+    }
+    select:focus {
+      box-shadow: inset 0 2px 6px rgba(0,0,0,0.06), 0 0 0 3px var(--clay-blue);
+      border-color: var(--clay-blue);
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 110px;
+      padding: 14px 16px;
+      border-radius: 20px;
+      border: 2px solid transparent;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 1rem;
+      background: var(--clay-bg);
+      color: var(--clay-text);
+      box-shadow: inset 0 2px 6px rgba(0,0,0,0.06);
+      outline: none;
+      resize: vertical;
+      transition: box-shadow 0.2s, border-color 0.2s;
+    }
+    textarea:focus {
+      box-shadow: inset 0 2px 6px rgba(0,0,0,0.06), 0 0 0 3px var(--clay-blue);
+      border-color: var(--clay-blue);
+    }
+    textarea.shake {
+      animation: shake 0.4s ease;
+      border-color: var(--clay-red);
+    }
+
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      20% { transform: translateX(-6px); }
+      40% { transform: translateX(6px); }
+      60% { transform: translateX(-4px); }
+      80% { transform: translateX(4px); }
+    }
+
+    .field-hint {
+      font-size: 0.8rem;
+      color: var(--clay-muted);
+      margin-top: 5px;
+    }
+    .field-hint.error { color: var(--clay-red-dark); font-weight: 500; }
+
+    /* ───────── Generate Button ───────── */
+    .generate-btn {
+      width: 100%;
+      padding: 16px 24px;
+      border-radius: 24px;
+      border: none;
+      background: var(--clay-blue);
+      color: #fff;
+      font-family: 'Nunito', sans-serif;
+      font-weight: 800;
+      font-size: 1.15rem;
+      cursor: pointer;
+      box-shadow: 0 8px 0px var(--clay-blue-dark), 0 4px 20px rgba(108,180,245,0.4);
+      transition: transform 0.1s, box-shadow 0.1s, background 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+    .generate-btn:active:not(:disabled) {
+      transform: translateY(3px);
+      box-shadow: 0 4px 0px var(--clay-blue-dark), 0 2px 10px rgba(108,180,245,0.3);
+    }
+    .generate-btn:disabled {
+      background: #b0cfe8;
+      box-shadow: 0 4px 0px #8aaec8;
+      cursor: not-allowed;
+    }
+
+    /* Loading spinner */
+    .spinner {
+      width: 20px; height: 20px;
+      border: 3px solid rgba(255,255,255,0.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: none;
+    }
+    .spinner.active { display: block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ───────── Result Card ───────── */
+    #result-area { display: none; }
+    #result-area.visible { display: block; }
+
+    .result-card {
+      opacity: 0;
+      transform: translateY(30px) scale(0.97);
+      transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+    }
+    .result-card.revealed {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+
+    /* Result header */
+    .result-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .result-title {
+      font-family: 'Nunito', sans-serif;
+      font-weight: 800;
+      font-size: 1.4rem;
+      line-height: 1.2;
+      flex: 1;
+    }
+    .result-actions {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    /* Badge chips */
+    .badges {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 5px 12px;
+      border-radius: 50px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      font-family: 'Nunito', sans-serif;
+    }
+    .badge-time   { background: var(--clay-blue);   color: #fff; }
+    .badge-begin  { background: var(--clay-green);  color: #0a4a2a; }
+    .badge-inter  { background: var(--clay-blue);   color: #fff; }
+    .badge-adv    { background: var(--clay-purple); color: #2e0080; }
+    .badge-grade  { background: var(--clay-yellow); color: #5a4000; }
+
+    /* Action buttons */
+    .action-btn {
+      padding: 8px 14px;
+      border-radius: 14px;
+      border: none;
+      font-family: 'Nunito', sans-serif;
+      font-weight: 700;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+    .action-btn:active { transform: translateY(2px); }
+    .btn-copy  { background: var(--clay-purple); color: #2e0080; box-shadow: 0 3px 0px var(--clay-purple-dark); }
+    .btn-print { background: var(--clay-green);  color: #0a4a2a; box-shadow: 0 3px 0px var(--clay-green-dark); }
+
+    /* Safety block */
+    .safety-block {
+      background: var(--clay-yellow);
+      border-radius: 20px;
+      padding: 16px 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 0px var(--clay-yellow-dark);
+    }
+    .safety-block h4 {
+      font-family: 'Nunito', sans-serif;
+      font-weight: 800;
+      font-size: 0.95rem;
+      margin-bottom: 6px;
+    }
+    .safety-block p, .safety-block li {
+      font-size: 0.9rem;
+      line-height: 1.5;
+      color: #5a4000;
+    }
+
+    /* Markdown output */
+    .experiment-body {
+      line-height: 1.7;
+    }
+    .experiment-body h2 { display: none; } /* title already shown in header */
+    .experiment-body h3 {
+      font-family: 'Nunito', sans-serif;
+      font-weight: 800;
+      font-size: 1.05rem;
+      margin: 20px 0 8px;
+      color: var(--clay-text);
+    }
+    .experiment-body p  { margin-bottom: 10px; font-size: 0.95rem; }
+    .experiment-body ul, .experiment-body ol {
+      padding-left: 22px;
+      margin-bottom: 12px;
+    }
+    .experiment-body li { margin-bottom: 4px; font-size: 0.95rem; }
+    .experiment-body strong { font-weight: 600; }
+    .experiment-body em { font-style: italic; color: var(--clay-muted); }
+    .experiment-body hr { display: none; }
+
+    /* Substitutions block */
+    .sub-block {
+      background: var(--clay-green);
+      border-radius: 20px;
+      padding: 16px 20px;
+      margin-top: 20px;
+      box-shadow: 0 4px 0px var(--clay-green-dark);
+    }
+    .sub-block h3 {
+      font-family: 'Nunito', sans-serif;
+      font-weight: 800;
+      font-size: 0.95rem;
+      margin-bottom: 8px;
+      color: #0a4a2a !important;
+    }
+    .sub-block ul { padding-left: 18px; }
+    .sub-block li { font-size: 0.9rem; color: #0a4a2a; margin-bottom: 4px; }
+
+    /* Print button area */
+    .print-row {
+      margin-top: 24px;
+      text-align: center;
+    }
+    .btn-print-lg {
+      padding: 12px 28px;
+      border-radius: 20px;
+      border: none;
+      background: var(--clay-green);
+      color: #0a4a2a;
+      font-family: 'Nunito', sans-serif;
+      font-weight: 800;
+      font-size: 1rem;
+      cursor: pointer;
+      box-shadow: 0 6px 0px var(--clay-green-dark);
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+    .btn-print-lg:active { transform: translateY(3px); box-shadow: 0 2px 0px var(--clay-green-dark); }
+
+    /* ───────── Error Card ───────── */
+    .error-card {
+      background: var(--clay-red);
+      border-radius: 24px;
+      padding: 20px 24px;
+      box-shadow: 0 6px 0px var(--clay-red-dark), 0 4px 24px rgba(0,0,0,0.08);
+    }
+    .error-card h3 {
+      font-family: 'Nunito', sans-serif;
+      font-weight: 800;
+      font-size: 1rem;
+      margin-bottom: 6px;
+      color: #7a0000;
+    }
+    .error-card p { font-size: 0.9rem; color: #7a0000; }
+
+    /* ───────── Skeleton loading ───────── */
+    .skeleton-card {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .skel {
+      border-radius: 12px;
+      background: linear-gradient(90deg, #e8ddd0 25%, #f0e8de 50%, #e8ddd0 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s ease-in-out infinite;
+    }
+    .skel-title  { height: 28px; width: 65%; }
+    .skel-badges { height: 22px; width: 45%; }
+    .skel-line   { height: 14px; width: 100%; }
+    .skel-line.short { width: 75%; }
+    @keyframes shimmer {
+      0%   { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    /* ───────── Blob canvas ───────── */
+    #blob-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    /* ───────── Print styles ───────── */
+    @media print {
+      body {
+        background: #fff;
+        background-image: none;
+        padding: 0;
+        font-size: 12pt;
+      }
+      .app-header, .key-card, .form-card, .print-row, .result-actions, .action-btn { display: none !important; }
+      #result-area { display: block !important; }
+      .clay-card {
+        box-shadow: none;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+      }
+      .print-header { display: block !important; }
+      .result-card { opacity: 1 !important; transform: none !important; }
+    }
+    .print-header {
+      display: none;
+      margin-bottom: 16px;
+      font-size: 11pt;
+      color: #555;
+    }
+    .print-header strong { color: #000; }
+  </style>
+</head>
+<body>
+  <canvas id="blob-canvas"></canvas>
+  <div class="app-wrapper">
+
+    <!-- Header -->
+    <header class="app-header">
+      <h1>🧪 Science Experiment Generator</h1>
+      <p>Science from what you have</p>
+    </header>
+
+    <!-- API Key Card -->
+    <div class="key-card" id="key-card">
+      <h3>🔑 API Key Required</h3>
+      <p>Paste your OpenAI API key below, or upload a <code>.env</code> / <code>.csv</code> file containing <code>OPENAI_API_KEY=sk-…</code></p>
+      <div class="key-input-row">
+        <input type="password" id="key-paste" placeholder="sk-…" autocomplete="off" />
+        <button class="key-btn" id="key-paste-btn">Set Key</button>
+      </div>
+      <div class="key-file-row">
+        <label for="key-file">Or upload .env / .csv:</label>
+        <input type="file" id="key-file" accept=".env,.csv,.txt" />
+      </div>
+      <div class="key-status" id="key-status"></div>
+    </div>
+
+    <!-- Form Card -->
+    <div class="clay-card form-card">
+
+      <div>
+        <label class="field-label" for="grade">📚 Grade Level</label>
+        <select id="grade">
+          <option value="K–2 (Early Elementary)">K–2 — Early Elementary</option>
+          <option value="3–5 (Elementary)" selected>3–5 — Elementary</option>
+          <option value="6–8 (Middle School)">6–8 — Middle School</option>
+          <option value="9–12 (High School)">9–12 — High School</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="field-label" for="supplies">🧴 Available Supplies</label>
+        <textarea id="supplies" placeholder="e.g. baking soda, vinegar, food coloring, balloons, water"></textarea>
+        <p class="field-hint" id="supplies-hint">Separate items with commas</p>
+      </div>
+
+      <button class="generate-btn" id="generate-btn">
+        <div class="spinner" id="spinner"></div>
+        <span id="btn-label">⚗️ Generate Experiment</span>
+      </button>
+
+    </div>
+
+    <!-- Result Area -->
+    <div id="result-area">
+      <div class="clay-card result-card" id="result-card">
+
+        <!-- Print header (only visible when printing) -->
+        <div class="print-header" id="print-header"></div>
+
+        <!-- Skeleton placeholder -->
+        <div id="skeleton" class="skeleton-card">
+          <div class="skel skel-title"></div>
+          <div class="skel skel-badges"></div>
+          <div class="skel skel-line"></div>
+          <div class="skel skel-line short"></div>
+          <div class="skel skel-line"></div>
+          <div class="skel skel-line short"></div>
+          <div class="skel skel-line"></div>
+        </div>
+
+        <!-- Populated experiment content -->
+        <div id="experiment-content" style="display:none;">
+
+          <div class="result-header">
+            <div class="result-title" id="exp-title">Experiment</div>
+            <div class="result-actions">
+              <button class="action-btn btn-copy" id="copy-btn">📋 Copy</button>
+            </div>
+          </div>
+
+          <div class="badges" id="exp-badges"></div>
+
+          <div class="safety-block" id="safety-block" style="display:none;">
+            <h4>⚠️ Safety Notes</h4>
+            <div id="safety-content"></div>
+          </div>
+
+          <div class="experiment-body" id="exp-body"></div>
+
+          <div class="sub-block" id="sub-block" style="display:none;">
+            <h3>💡 Supply Substitutions</h3>
+            <div id="sub-content"></div>
+          </div>
+
+          <div class="print-row">
+            <button class="btn-print-lg" id="print-btn">🖨️ Print / Save as PDF</button>
+          </div>
+
+        </div>
+
+        <!-- Error display -->
+        <div id="error-content" style="display:none;">
+          <div class="error-card">
+            <h3 id="error-title">Something went wrong</h3>
+            <p id="error-msg"></p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div><!-- /app-wrapper -->
+
+  <script>
+  // ─────────────────────────────────────────────
+  //  STATE
+  // ─────────────────────────────────────────────
+  let apiKey = null;
+  let rawMarkdown = '';
+
+  const LOADING_MESSAGES = [
+    'Mixing reagents…',
+    'Consulting the lab…',
+    'Checking safety protocols…',
+    'Writing up your procedure…',
+    'Almost there — nearly done!'
+  ];
+
+  const SYSTEM_PROMPT = `You are a K-12 science education expert. Generate safe, engaging, hands-on science experiments appropriate for the given grade level using only the supplies listed. Format your response in markdown with these exact sections:
+
+## [Experiment Title]
+**Estimated Time:** X minutes
+**Difficulty:** Beginner / Intermediate / Advanced
+
+### ⚠️ Safety Notes
+[Grade-appropriate safety warnings]
+
+### Hypothesis
+### Materials Needed
+### Procedure
+### Expected Results
+### The Science Behind It
+### 💡 Supply Substitutions
+[Suggest 2–3 substitutions for listed supplies if alternatives exist]
+### Extension Challenge
+[One optional harder challenge for advanced students]`;
+
+  // ─────────────────────────────────────────────
+  //  DOM REFS
+  // ─────────────────────────────────────────────
+  const keyCard      = document.getElementById('key-card');
+  const keyPasteInput= document.getElementById('key-paste');
+  const keyPasteBtn  = document.getElementById('key-paste-btn');
+  const keyFileInput = document.getElementById('key-file');
+  const keyStatus    = document.getElementById('key-status');
+
+  const gradeSelect  = document.getElementById('grade');
+  const suppliesTA   = document.getElementById('supplies');
+  const suppliesHint = document.getElementById('supplies-hint');
+  const generateBtn  = document.getElementById('generate-btn');
+  const spinner      = document.getElementById('spinner');
+  const btnLabel     = document.getElementById('btn-label');
+
+  const resultArea   = document.getElementById('result-area');
+  const resultCard   = document.getElementById('result-card');
+  const skeleton     = document.getElementById('skeleton');
+  const expContent   = document.getElementById('experiment-content');
+  const errorContent = document.getElementById('error-content');
+
+  const expTitle     = document.getElementById('exp-title');
+  const expBadges    = document.getElementById('exp-badges');
+  const safetyBlock  = document.getElementById('safety-block');
+  const safetyContent= document.getElementById('safety-content');
+  const expBody      = document.getElementById('exp-body');
+  const subBlock     = document.getElementById('sub-block');
+  const subContent   = document.getElementById('sub-content');
+  const copyBtn      = document.getElementById('copy-btn');
+  const printBtn     = document.getElementById('print-btn');
+  const printHeader  = document.getElementById('print-header');
+  const errorTitle   = document.getElementById('error-title');
+  const errorMsg     = document.getElementById('error-msg');
+
+  // ─────────────────────────────────────────────
+  //  API KEY LOADING
+  // ─────────────────────────────────────────────
+  function parseEnvContent(text) {
+    const match = text.match(/OPENAI_API_KEY\s*=\s*["']?(sk-[^\s"'\r\n]+)["']?/);
+    return match ? match[1].trim() : null;
+  }
+
+  function setKey(key) {
+    if (!key || !key.startsWith('sk-') || key.length < 20) {
+      showKeyStatus('Invalid key format — must start with sk-', false);
+      return;
+    }
+    apiKey = key;
+    showKeyStatus('✅ API key loaded!', true);
+    setTimeout(() => { keyCard.classList.add('hidden'); }, 1200);
+  }
+
+  function showKeyStatus(msg, ok) {
+    keyStatus.textContent = msg;
+    keyStatus.className = 'key-status ' + (ok ? 'ok' : 'err');
+  }
+
+  keyPasteBtn.addEventListener('click', () => setKey(keyPasteInput.value.trim()));
+  keyPasteInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') setKey(keyPasteInput.value.trim()); });
+
+  keyFileInput.addEventListener('change', () => {
+    const file = keyFileInput.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target.result;
+      const key = parseEnvContent(text);
+      if (key) {
+        setKey(key);
+      } else {
+        // Try CSV: look for any sk- value in the file
+        const csvMatch = text.match(/sk-[A-Za-z0-9\-_]+/);
+        if (csvMatch) {
+          setKey(csvMatch[0]);
+        } else {
+          showKeyStatus('Could not find OPENAI_API_KEY in file', false);
+        }
+      }
+    };
+    reader.readAsText(file);
+  });
+
+  // Try loading .env automatically on page load
+  fetch('.env')
+    .then(r => r.ok ? r.text() : null)
+    .then(text => {
+      if (!text) return;
+      const key = parseEnvContent(text);
+      if (key && key.startsWith('sk-') && key.length >= 20) {
+        apiKey = key;
+        keyCard.classList.add('hidden');
+      }
+    })
+    .catch(() => {/* .env not present — that's fine */});
+
+  // ─────────────────────────────────────────────
+  //  LOADING ANIMATION
+  // ─────────────────────────────────────────────
+  let loadingInterval = null;
+  let loadingMsgIdx = 0;
+
+  function startLoading() {
+    generateBtn.disabled = true;
+    spinner.classList.add('active');
+    loadingMsgIdx = 0;
+    btnLabel.textContent = LOADING_MESSAGES[0];
+    loadingInterval = setInterval(() => {
+      loadingMsgIdx = (loadingMsgIdx + 1) % LOADING_MESSAGES.length;
+      btnLabel.textContent = LOADING_MESSAGES[loadingMsgIdx];
+    }, 1800);
+  }
+
+  function stopLoading() {
+    generateBtn.disabled = false;
+    spinner.classList.remove('active');
+    clearInterval(loadingInterval);
+    btnLabel.textContent = '⚗️ Generate Experiment';
+  }
+
+  // ─────────────────────────────────────────────
+  //  RESULT RENDERING
+  // ─────────────────────────────────────────────
+  function showSkeleton() {
+    resultArea.style.display = 'block';
+    resultArea.classList.add('visible');
+    skeleton.style.display = 'flex';
+    expContent.style.display = 'none';
+    errorContent.style.display = 'none';
+    resultCard.classList.remove('revealed');
+    resultArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function showError(title, msg) {
+    skeleton.style.display = 'none';
+    expContent.style.display = 'none';
+    errorContent.style.display = 'block';
+    errorTitle.textContent = title;
+    errorMsg.textContent = msg;
+    setTimeout(() => resultCard.classList.add('revealed'), 50);
+  }
+
+  function renderExperiment(markdown) {
+    rawMarkdown = markdown;
+
+    // ── Extract title from first ## heading
+    const titleMatch = markdown.match(/^##\s+(.+)/m);
+    const title = titleMatch ? titleMatch[1].replace(/\[|\]/g, '') : 'Your Experiment';
+    expTitle.textContent = '🧪 ' + title;
+
+    // ── Extract Estimated Time and Difficulty
+    const timeMatch  = markdown.match(/\*\*Estimated Time:\*\*\s*(.+)/i);
+    const diffMatch  = markdown.match(/\*\*Difficulty:\*\*\s*(.+)/i);
+    const grade      = gradeSelect.value;
+    expBadges.innerHTML = '';
+
+    if (timeMatch) {
+      const b = document.createElement('span');
+      b.className = 'badge badge-time';
+      b.textContent = '⏱ ' + timeMatch[1].trim();
+      expBadges.appendChild(b);
+    }
+    if (diffMatch) {
+      const diff = diffMatch[1].trim();
+      const b = document.createElement('span');
+      b.className = 'badge ' + difficultyClass(diff);
+      b.textContent = '⭐ ' + diff;
+      expBadges.appendChild(b);
+    }
+    const gb = document.createElement('span');
+    gb.className = 'badge badge-grade';
+    gb.textContent = '📚 ' + grade;
+    expBadges.appendChild(gb);
+
+    // ── Extract Safety Notes section
+    const safetyMatch = markdown.match(/###\s+⚠️\s*Safety Notes?\s*\n([\s\S]*?)(?=###|$)/i);
+    if (safetyMatch && safetyMatch[1].trim()) {
+      safetyContent.innerHTML = marked.parse(safetyMatch[1].trim());
+      safetyBlock.style.display = 'block';
+    } else {
+      safetyBlock.style.display = 'none';
+    }
+
+    // ── Extract Supply Substitutions section
+    const subMatch = markdown.match(/###\s+💡\s*Supply Substitutions?\s*\n([\s\S]*?)(?=###|$)/i);
+    if (subMatch && subMatch[1].trim()) {
+      subContent.innerHTML = marked.parse(subMatch[1].trim());
+      subBlock.style.display = 'block';
+    } else {
+      subBlock.style.display = 'none';
+    }
+
+    // ── Build main body: strip title, time/diff lines, safety, and substitutions sections
+    let body = markdown;
+    // Remove the first ## heading
+    body = body.replace(/^##\s+.+\n?/m, '');
+    // Remove Estimated Time and Difficulty lines
+    body = body.replace(/\*\*Estimated Time:\*\*.*\n?/i, '');
+    body = body.replace(/\*\*Difficulty:\*\*.*\n?/i, '');
+    // Remove Safety Notes section
+    body = body.replace(/###\s+⚠️\s*Safety Notes?\s*\n[\s\S]*?(?=###|$)/i, '');
+    // Remove Supply Substitutions section
+    body = body.replace(/###\s+💡\s*Supply Substitutions?\s*\n[\s\S]*?(?=###|$)/i, '');
+
+    expBody.innerHTML = marked.parse(body.trim());
+
+    // ── Print header
+    const now = new Date();
+    printHeader.innerHTML = `<strong>${title}</strong> &nbsp;|&nbsp; ${grade} &nbsp;|&nbsp; Generated ${now.toLocaleDateString()}`;
+
+    // ── Reveal
+    skeleton.style.display = 'none';
+    errorContent.style.display = 'none';
+    expContent.style.display = 'block';
+    setTimeout(() => resultCard.classList.add('revealed'), 50);
+  }
+
+  function difficultyClass(diff) {
+    const d = diff.toLowerCase();
+    if (d.includes('beginner'))     return 'badge-begin';
+    if (d.includes('intermediate')) return 'badge-inter';
+    if (d.includes('advanced'))     return 'badge-adv';
+    return 'badge-inter';
+  }
+
+  // ─────────────────────────────────────────────
+  //  GENERATE
+  // ─────────────────────────────────────────────
+  generateBtn.addEventListener('click', async () => {
+    // Validate API key
+    if (!apiKey) {
+      keyCard.classList.remove('hidden');
+      keyPasteInput.focus();
+      showKeyStatus('Please set your API key before generating', false);
+      return;
+    }
+
+    // Validate supplies
+    const supplies = suppliesTA.value.trim();
+    if (!supplies) {
+      suppliesTA.classList.remove('shake');
+      void suppliesTA.offsetWidth; // reflow to restart animation
+      suppliesTA.classList.add('shake');
+      suppliesHint.textContent = 'Please enter at least one supply';
+      suppliesHint.className = 'field-hint error';
+      suppliesTA.addEventListener('input', () => {
+        suppliesHint.textContent = 'Separate items with commas';
+        suppliesHint.className = 'field-hint';
+        suppliesTA.classList.remove('shake');
+      }, { once: true });
+      return;
+    }
+
+    const grade = gradeSelect.value;
+    const userPrompt = `Grade Level: ${grade}\nAvailable Supplies: ${supplies}\n\nGenerate a science experiment using these supplies for this grade level.`;
+
+    startLoading();
+    showSkeleton();
+
+    try {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: SYSTEM_PROMPT },
+            { role: 'user',   content: userPrompt }
+          ],
+          max_tokens: 1200,
+          temperature: 0.8
+        })
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        const errMsg = errData?.error?.message || `HTTP ${response.status}`;
+        throw new Error(errMsg);
+      }
+
+      const data = await response.json();
+      const content = data?.choices?.[0]?.message?.content;
+      if (!content) throw new Error('Empty response from API');
+
+      renderExperiment(content);
+
+    } catch (err) {
+      const msg = err.message || 'Unknown error';
+      if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
+        showError("Couldn't reach the lab", "Check your connection and try again.");
+      } else if (msg.includes('401') || msg.toLowerCase().includes('api key') || msg.toLowerCase().includes('authentication')) {
+        showError('Invalid API Key', 'The API key was rejected. Please check and re-enter your key.');
+        apiKey = null;
+        keyCard.classList.remove('hidden');
+      } else {
+        showError('API Error', msg);
+      }
+    } finally {
+      stopLoading();
+    }
+  });
+
+  // ─────────────────────────────────────────────
+  //  COPY TO CLIPBOARD
+  // ─────────────────────────────────────────────
+  copyBtn.addEventListener('click', async () => {
+    if (!rawMarkdown) return;
+    try {
+      await navigator.clipboard.writeText(rawMarkdown);
+      copyBtn.textContent = '✅ Copied!';
+      copyBtn.style.background = 'var(--clay-green)';
+      copyBtn.style.color = '#0a4a2a';
+      setTimeout(() => {
+        copyBtn.textContent = '📋 Copy';
+        copyBtn.style.background = '';
+        copyBtn.style.color = '';
+      }, 2000);
+    } catch {
+      copyBtn.textContent = '❌ Failed';
+      setTimeout(() => { copyBtn.textContent = '📋 Copy'; }, 2000);
+    }
+  });
+
+  // ─────────────────────────────────────────────
+  //  PRINT / SAVE AS PDF
+  // ─────────────────────────────────────────────
+  printBtn.addEventListener('click', () => window.print());
+
+  // ─────────────────────────────────────────────
+  //  SUPPLIES textarea auto-grow
+  // ─────────────────────────────────────────────
+  suppliesTA.addEventListener('input', () => {
+    suppliesTA.style.height = 'auto';
+    suppliesTA.style.height = suppliesTA.scrollHeight + 'px';
+  });
+
+  // ─────────────────────────────────────────────
+  //  BACKGROUND BLOBS
+  // ─────────────────────────────────────────────
+  (function() {
+    const canvas = document.getElementById('blob-canvas');
+    const ctx    = canvas.getContext('2d');
+
+    let W, H, mouse = { x: -999, y: -999 };
+
+    function resize() {
+      W = canvas.width  = window.innerWidth;
+      H = canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    window.addEventListener('mousemove', e => {
+      mouse.x = e.clientX;
+      mouse.y = e.clientY;
+    });
+    window.addEventListener('mouseleave', () => {
+      mouse.x = -999; mouse.y = -999;
+    });
+
+    // Blob colors — clay palette, semi-opaque
+    const COLORS = ['#6cb4f5','#7de8b0','#fde68a','#fca5a5','#c4b5fd','#6cb4f5','#7de8b0'];
+
+    class Blob {
+      constructor(color) {
+        this.color  = color;
+        this.r      = 60 + Math.random() * 90;
+        this.nPts   = 7 + Math.floor(Math.random() * 4);
+        this.baseX  = Math.random() * window.innerWidth;
+        this.baseY  = Math.random() * window.innerHeight;
+        this.cx     = this.baseX;
+        this.cy     = this.baseY;
+        this.oPhase = Math.random() * Math.PI * 2;
+        this.oSpeed = 0.00025 + Math.random() * 0.0004;
+        this.oRadX  = 80  + Math.random() * 200;
+        this.oRadY  = 60  + Math.random() * 150;
+        // Per-point oscillation
+        this.pts = Array.from({ length: this.nPts }, () => ({
+          phase: Math.random() * Math.PI * 2,
+          speed: 0.0008 + Math.random() * 0.0015,
+          amp:   this.r * (0.18 + Math.random() * 0.28)
+        }));
+      }
+
+      update(t) {
+        // Gentle elliptical orbit
+        this.cx = this.baseX + Math.cos(t * this.oSpeed + this.oPhase) * this.oRadX;
+        this.cy = this.baseY + Math.sin(t * this.oSpeed * 0.65 + this.oPhase + 1) * this.oRadY;
+
+        // Mouse repulsion — push base position away
+        const dx   = this.baseX - mouse.x;
+        const dy   = this.baseY - mouse.y;
+        const dist = Math.hypot(dx, dy);
+        const influence = 220;
+        if (dist < influence && dist > 0) {
+          const force = ((influence - dist) / influence) ** 2 * 4;
+          this.baseX += (dx / dist) * force;
+          this.baseY += (dy / dist) * force;
+        }
+
+        // Soft boundary — drift back toward screen
+        const pad = this.r * 0.5;
+        this.baseX += (Math.max(pad, Math.min(W - pad, this.baseX)) - this.baseX) * 0.012;
+        this.baseY += (Math.max(pad, Math.min(H - pad, this.baseY)) - this.baseY) * 0.012;
+      }
+
+      draw(t) {
+        // Build morph points
+        const pts = [];
+        for (let i = 0; i < this.nPts; i++) {
+          const angle = (i / this.nPts) * Math.PI * 2;
+          const p = this.pts[i];
+          const r = this.r + Math.sin(t * p.speed + p.phase) * p.amp;
+          pts.push({
+            x: this.cx + Math.cos(angle) * r,
+            y: this.cy + Math.sin(angle) * r
+          });
+        }
+
+        // Draw smooth closed curve through midpoints (quadratic bezier)
+        ctx.beginPath();
+        for (let i = 0; i < pts.length; i++) {
+          const cur  = pts[i];
+          const next = pts[(i + 1) % pts.length];
+          const mx   = (cur.x + next.x) / 2;
+          const my   = (cur.y + next.y) / 2;
+          if (i === 0) ctx.moveTo(mx, my);
+          ctx.quadraticCurveTo(cur.x, cur.y, mx, my);
+        }
+        ctx.closePath();
+
+        // Radial gradient fill
+        const grad = ctx.createRadialGradient(this.cx, this.cy, 0, this.cx, this.cy, this.r * 1.6);
+        grad.addColorStop(0, this.color + '66');
+        grad.addColorStop(0.5, this.color + '33');
+        grad.addColorStop(1, this.color + '00');
+        ctx.fillStyle = grad;
+        ctx.fill();
+      }
+    }
+
+    const blobs = COLORS.map(c => new Blob(c));
+
+    function frame(t) {
+      ctx.clearRect(0, 0, W, H);
+      blobs.forEach(b => { b.update(t); b.draw(t); });
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  })();
+  </script>
+</body>
+</html>
