@@ -6,19 +6,19 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
   group: pages
   cancel-in-progress: true
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: actions/setup-node@v4
         with:
@@ -32,34 +32,18 @@ jobs:
           npm ci
           npm run build
 
-      - name: Assemble site
+      - name: Commit built files
         run: |
-          mkdir _site
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Copy all plain-HTML projects and root files as-is,
-          # skipping source folders, build artifacts, and hidden dirs
-          rsync -a \
-            --exclude='.git' \
-            --exclude='.github' \
-            --exclude='node_modules' \
-            --exclude='_site' \
-            --exclude='temp' \
-            --exclude='ai-blackjack-agent' \
-            . _site/
+          # Stage the compiled output inside ai-blackjack-agent/
+          git add ai-blackjack-agent/index.html ai-blackjack-agent/assets/ --force
 
-          # Drop the built Vite output into the right subfolder
-          cp -r ai-blackjack-agent/dist _site/ai-blackjack-agent
-
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: _site
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+          # Only commit if something actually changed
+          if git diff --cached --quiet; then
+            echo "No changes to commit — build output is unchanged."
+          else
+            git commit -m "chore: build ai-blackjack-agent [skip ci]"
+            git push origin main
+          fi

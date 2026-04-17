@@ -1,6 +1,7 @@
 assets/
 !weather-app/assets/
 !drug-safety-explorer/assets/
+!ai-blackjack-agent/assets/
 __pycache__/
 *.pyc
 node_modules/
